@@ -18,10 +18,10 @@ export async function GET(request: NextRequest) {
           getAll() {
             return cookieStore.getAll();
           },
-          setAll(cookiesToSet) {
+          setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
             try {
               cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
+                cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2])
               );
             } catch {}
           },
@@ -32,20 +32,16 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error && data.user) {
-      // Upsert user profile
       await supabase.from("users").upsert(
         {
           id: data.user.id,
           email: data.user.email!,
-          name:
-            data.user.user_metadata?.full_name ||
-            data.user.email!.split("@")[0],
+          name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
           avatar: data.user.user_metadata?.avatar_url,
           role: "client",
         },
         { onConflict: "id", ignoreDuplicates: true }
       );
-
       return NextResponse.redirect(`${origin}${next}`);
     }
   }
