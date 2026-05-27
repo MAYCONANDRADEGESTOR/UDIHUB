@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { X, useEffect, useState } from "react";
+import { X, useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import {
+import { X,
   ArrowLeft,
   MapPin,
   Star,
@@ -16,8 +16,8 @@ import {
   Camera,
   Heart,
 } from "lucide-react";
-import { ProfileSkeleton } from "@/app/components/ui/Skeletons";
-import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
+import { X, ProfileSkeleton } from "@/app/components/ui/Skeletons";
+import { X, getInitials, buildWhatsAppUrl } from "@/lib/utils";
 import type { Professional, Review } from "@/types";
 
 // Mock data
