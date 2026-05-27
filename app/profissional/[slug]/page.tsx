@@ -1,31 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Star, MessageCircle, Share2, Flag, CheckCircle, Heart, MapPin, X } from "lucide-react";
+import { ArrowLeft, Star, MessageCircle, Flag, CheckCircle, Heart, MapPin, X } from "lucide-react";
 import { ProfileSkeleton } from "@/app/components/ui/Skeletons";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
 import type { Professional, Review } from "@/types";
-
-const MOCK_PROF: Professional = {
-  id: "1", user_id: "u1", slug: "joao-silva-encanador",
-  bio: "Profissional com 15 anos de experiência em hidráulica residencial e comercial. Atendo emergências 24h. Serviço com garantia.",
-  whatsapp: "34999991111", category_id: "encanador", status: "active", plan: "pro",
-  featured: true, views_count: 342, avg_rating: 4.8, available_now: true,
-  created_at: "2024-01-15T00:00:00Z",
-  user: { id: "u1", name: "João Silva", email: "joao@email.com", role: "professional", banned: false, created_at: "2024-01-15T00:00:00Z", city: "Uberlândia" },
-  neighborhoods: [
-    { id: "n1", city_id: "c1", name: "Tibery", slug: "tibery" },
-    { id: "n2", city_id: "c1", name: "Santa Mônica", slug: "santa-monica" },
-  ],
-};
-
-const MOCK_REVIEWS: Review[] = [
-  { id: "r1", professional_id: "1", client_id: "c1", rating: 5, comment: "Excelente profissional! Resolveu o problema rapidamente.", reply: "Obrigado pela confiança!", created_at: "2024-12-10T00:00:00Z", client: { id: "c1", name: "Maria Oliveira", email: "", role: "client", banned: false, created_at: "" } },
-  { id: "r2", professional_id: "1", client_id: "c2", rating: 5, comment: "Chegou no horário combinado, trabalho limpo e garantido.", created_at: "2024-11-28T00:00:00Z", client: { id: "c2", name: "Pedro Costa", email: "", role: "client", banned: false, created_at: "" } },
-  { id: "r3", professional_id: "1", client_id: "c3", rating: 4, comment: "Bom profissional, resolveu o problema.", created_at: "2024-11-15T00:00:00Z", client: { id: "c3", name: "Ana Ferreira", email: "", role: "client", banned: false, created_at: "" } },
-];
 
 function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
@@ -49,8 +29,11 @@ export default function ProfissionalPage() {
   const [reportSent, setReportSent] = useState(false);
 
   useEffect(() => {
-    setTimeout(() => { setProf(MOCK_PROF); setReviews(MOCK_REVIEWS); setLoading(false); }, 600);
-  }, []);
+    // TODO: buscar profissional pelo slug no Supabase
+    setProf(null);
+    setReviews([]);
+    setLoading(false);
+  }, [params]);
 
   async function handleWhatsApp() {
     if (!prof) return;
@@ -65,7 +48,17 @@ export default function ProfissionalPage() {
   }
 
   if (loading) return <div className="min-h-screen bg-background pt-16 pb-32"><ProfileSkeleton /></div>;
-  if (!prof) return <div className="flex items-center justify-center min-h-screen bg-background"><div className="text-center px-4"><p className="font-syne font-bold text-foreground text-lg">Profissional não encontrado</p><Link href="/servicos" className="text-sm mt-2 block" style={{color:"#3B82F6"}}>Ver serviços</Link></div></div>;
+
+  if (!prof) return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4 text-center">
+      <div className="text-5xl mb-4">🔍</div>
+      <p className="font-syne font-bold text-foreground text-lg mb-2">Profissional não encontrado</p>
+      <p className="text-sm text-muted mb-6">Este perfil pode não existir ou estar inativo.</p>
+      <Link href="/servicos" className="px-6 py-3 rounded-xl font-bold text-sm text-white" style={{background:"linear-gradient(135deg,#3B82F6,#1d4ed8)"}}>
+        Ver serviços disponíveis
+      </Link>
+    </div>
+  );
 
   const ratingDist = [5,4,3,2,1].map((star) => ({ star, count: reviews.filter((r) => r.rating === star).length, pct: reviews.length ? Math.round((reviews.filter((r) => r.rating === star).length / reviews.length) * 100) : 0 }));
 
@@ -109,6 +102,12 @@ export default function ProfissionalPage() {
                 <div className="text-center"><div className="font-syne font-extrabold text-3xl text-foreground">{prof.avg_rating.toFixed(1)}</div><StarRow rating={Math.round(prof.avg_rating)} size={12} /><div className="text-xs text-muted mt-1">{reviews.length} avaliações</div></div>
                 <div className="flex-1 space-y-1">{ratingDist.map(({star,pct}) => (<div key={star} className="flex items-center gap-2"><span className="text-[10px] text-muted w-3">{star}</span><div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{background:"#1F1F23"}}><div className="h-full rounded-full" style={{width:`${pct}%`,background:star>=4?"#22c55e":star===3?"#FBBF24":"#ef4444"}} /></div><span className="text-[10px] text-muted w-6">{pct}%</span></div>))}</div>
               </div>
+            </div>
+          )}
+          {reviews.length === 0 && (
+            <div className="text-center py-8">
+              <Star size={24} className="text-muted mx-auto mb-2" />
+              <p className="text-sm text-muted">Nenhuma avaliação ainda</p>
             </div>
           )}
           <div className="space-y-3">
