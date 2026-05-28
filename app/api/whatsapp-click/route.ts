@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Register the WhatsApp click as a lead
+    // Registra o lead
     const { error } = await supabase.from("whatsapp_clicks").insert({
       professional_id,
       clicker_id: user?.id ?? null,
@@ -24,6 +24,28 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error("Lead registration error:", error);
       return NextResponse.json({ error: "Failed to register lead" }, { status: 500 });
+    }
+
+    // Busca dados do profissional para enviar email
+    const { data: prof } = await supabase
+      .from("professionals")
+      .select("users(name, email)")
+      .eq("id", professional_id)
+      .single();
+
+    if (prof?.users) {
+      const { name, email } = prof.users as { name: string; email: string };
+      // Envia email de novo lead em background
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "new_lead",
+          to: email,
+          name,
+          data: { neighborhood: neighborhood || city || "Uberlândia" },
+        }),
+      }).catch(() => {});
     }
 
     return NextResponse.json({ success: true });
