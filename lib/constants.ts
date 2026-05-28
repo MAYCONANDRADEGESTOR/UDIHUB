@@ -22,6 +22,23 @@ export const CATEGORIES = [
   { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
   { slug: "mecanico", name: "Mecânico", icon: "🚗" },
   { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐾" },
+  { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
+  { slug: "personal-trainer", name: "Personal Trainer", icon: "💪" },
+  { slug: "nutricionista", name: "Nutricionista", icon: "🥗" },
+  { slug: "psicologo", name: "Psicólogo", icon: "🧠" },
+  { slug: "advogado", name: "Advogado", icon: "⚖️" },
+  { slug: "contador", name: "Contador", icon: "🧾" },
+  { slug: "designer-grafico", name: "Designer Gráfico", icon: "🎭" },
+  { slug: "desenvolvedor", name: "Desenvolvedor / Programador", icon: "👨‍💻" },
+  { slug: "maquiadora", name: "Maquiadora", icon: "💄" },
+  { slug: "cabeleireiro", name: "Cabeleireiro / Barbeiro", icon: "✂️" },
+  { slug: "manicure", name: "Manicure / Pedicure", icon: "💅" },
+  { slug: "massagista", name: "Massagista", icon: "💆" },
+  { slug: "costureira", name: "Costureira / Alfaiate", icon: "🧵" },
+  { slug: "motorista", name: "Motorista / Mototaxista", icon: "🚙" },
+  { slug: "mudanca-transporte", name: "Mudança e Transporte", icon: "🚚" },
+  { slug: "cameras-cftv", name: "Instalador de Câmeras / CFTV", icon: "📷" },
+  { slug: "tecnico-celular", name: "Técnico de Celular", icon: "📱" },
 ];
 
 export const CITIES = [
