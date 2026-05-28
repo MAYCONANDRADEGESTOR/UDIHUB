@@ -52,6 +52,7 @@ export default function PerfilPage() {
   }
 
   const MENU_ITEMS = [
+    { icon: User, label: "Editar perfil", href: "/perfil/editar", desc: "Nome, telefone e bairro" },
     { icon: Star, label: "Minhas avaliações", href: "/avaliacoes", desc: "Avaliações enviadas" },
     { icon: Heart, label: "Favoritos", href: "/favoritos", desc: "Profissionais salvos" },
     { icon: Shield, label: "Privacidade", href: "/privacidade", desc: "Política de privacidade" },
@@ -73,14 +74,13 @@ export default function PerfilPage() {
       </div>
 
       <div className="px-4 py-6">
-        {/* Avatar */}
         {profile ? (
           <div className="flex items-center gap-4 mb-8">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-syne font-bold text-xl"
               style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
               {getInitials(profile.name)}
             </div>
-            <div>
+            <div className="flex-1">
               <h2 className="font-syne font-bold text-lg text-foreground">{profile.name}</h2>
               <p className="text-sm text-muted">{profile.email}</p>
               <div className="flex items-center gap-2 mt-0.5">
@@ -95,6 +95,11 @@ export default function PerfilPage() {
                 )}
               </div>
             </div>
+            <Link href="/perfil/editar"
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200"
+              style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#3B82F6" }}>
+              Editar
+            </Link>
           </div>
         ) : (
           <div className="flex items-center gap-4 mb-8">
@@ -106,7 +111,6 @@ export default function PerfilPage() {
           </div>
         )}
 
-        {/* Switch to professional CTA */}
         {profile?.role === "client" && (
           <Link href="/seja-profissional"
             className="flex items-center gap-3 p-4 rounded-2xl mb-6"
@@ -123,7 +127,6 @@ export default function PerfilPage() {
           </Link>
         )}
 
-        {/* Painel profissional CTA */}
         {profile?.role === "professional" && (
           <Link href="/painel"
             className="flex items-center gap-3 p-4 rounded-2xl mb-6"
@@ -140,7 +143,6 @@ export default function PerfilPage() {
           </Link>
         )}
 
-        {/* Menu */}
         <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #1F1F23" }}>
           {MENU_ITEMS.map(({ icon: Icon, label, href, desc }, i) => (
             <Link key={href} href={href}
@@ -159,7 +161,6 @@ export default function PerfilPage() {
           ))}
         </div>
 
-        {/* Social */}
         <div className="mt-6 flex items-center justify-center gap-4">
           <a href="https://www.instagram.com/udihub" target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-2 text-xs text-muted">
@@ -167,7 +168,6 @@ export default function PerfilPage() {
           </a>
         </div>
 
-        {/* Logout */}
         <button onClick={handleLogout} disabled={loggingOut}
           className="w-full mt-4 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-medium transition-all duration-200"
           style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
