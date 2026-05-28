@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -35,9 +36,7 @@ export default function LoginPage() {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/inicio`,
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=/inicio` },
     });
     if (error) {
       toast.error("Erro ao entrar com Google");
@@ -51,15 +50,18 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col px-4 py-8"
       style={{ background: "linear-gradient(135deg, #09090B 0%, #0F172A 100%)" }}>
+
       <Link href="/" className="flex items-center gap-2 text-muted mb-8 w-fit">
         <ArrowLeft size={18} />
         <span className="text-sm">Voltar</span>
       </Link>
 
+      {/* Logo + título */}
       <div className="text-center mb-8">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-4"
-          style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.4)" }}>
-          U
+        <div className="flex justify-center mb-4">
+          <Image src="/logo.png" alt="UDIHUB" width={72} height={72}
+            className="rounded-2xl object-cover"
+            style={{ boxShadow: "0 0 32px rgba(139,92,246,0.4)" }} />
         </div>
         <h1 className="font-syne font-bold text-2xl text-foreground">Bem-vindo de volta</h1>
         <p className="text-sm text-muted mt-1">Entre na sua conta UDIHUB</p>
@@ -104,7 +106,6 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
-
         <button type="submit" disabled={loading}
           className="w-full py-3.5 rounded-xl font-bold text-sm text-white mt-2 flex items-center justify-center gap-2"
           style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)", opacity: loading ? 0.7 : 1 }}>
