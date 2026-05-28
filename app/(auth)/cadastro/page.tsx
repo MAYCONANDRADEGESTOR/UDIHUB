@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, User, Briefcase, Loader2, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -10,7 +11,6 @@ import { slugify } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 type Step = "role" | "info" | "professional";
-
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
 export default function CadastroPage() {
@@ -39,21 +39,33 @@ export default function CadastroPage() {
     e.preventDefault();
     setLoading(true);
     const supabase = createClient();
+
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: { data: { full_name: form.name } },
     });
+
     if (error) { toast.error(error.message); setLoading(false); return; }
-    if (data.user) {
+    if (!data.user) { toast.error("Erro ao criar conta"); setLoading(false); return; }
+
+    // Espera sessão ativa antes de inserir
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session) {
       await supabase.from("users").upsert({
-        id: data.user.id, name: form.name, email: form.email,
-        phone: form.phone, neighborhood: form.neighborhood,
-        city: "Uberlândia", role: "client",
-      });
-      toast.success("Conta criada! Verifique seu email.");
-      router.push("/inicio");
+        id: data.user.id,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        neighborhood: form.neighborhood,
+        city: "Uberlândia",
+        role: "client",
+      }, { onConflict: "id" });
     }
+
+    toast.success("Conta criada com sucesso!");
+    router.push("/inicio");
+    router.refresh();
     setLoading(false);
   }
 
@@ -61,30 +73,54 @@ export default function CadastroPage() {
     e.preventDefault();
     setLoading(true);
     const supabase = createClient();
+
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: { data: { full_name: form.name } },
     });
+
     if (error) { toast.error(error.message); setLoading(false); return; }
-    if (data.user) {
+    if (!data.user) { toast.error("Erro ao criar conta"); setLoading(false); return; }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session) {
+      // Insert user
       await supabase.from("users").upsert({
-        id: data.user.id, name: form.name, email: form.email,
-        phone: form.phone, neighborhood: form.neighborhood,
-        city: "Uberlândia", role: "professional",
-      });
-      const slug = `${slugify(form.name)}-${Date.now()}`;
-      const { data: cat } = await supabase.from("categories").select("id").eq("slug", form.category).single();
+        id: data.user.id,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        neighborhood: form.neighborhood,
+        city: "Uberlândia",
+        role: "professional",
+      }, { onConflict: "id" });
+
+      // Get category
+      const { data: cat } = await supabase
+        .from("categories").select("id").eq("slug", form.category).single();
+
       if (cat) {
+        const slug = `${slugify(form.name)}-${Date.now()}`;
         await supabase.from("professionals").insert({
-          user_id: data.user.id, slug, bio: form.bio,
+          user_id: data.user.id,
+          slug,
+          bio: form.bio,
           whatsapp: form.whatsapp.replace(/\D/g, ""),
-          category_id: cat.id, plan: form.plan, status: "active",
+          category_id: cat.id,
+          plan: form.plan,
+          status: "active",
         });
       }
-      toast.success("Perfil criado! Faça o pagamento para aparecer nas buscas.");
+
+      toast.success("Perfil criado! Agora escolha seu plano.");
       router.push("/painel/assinatura");
+    } else {
+      // Sessão não ativa ainda — confirma email primeiro
+      toast.success("Verifique seu email para confirmar a conta!");
+      router.push("/login");
     }
+
     setLoading(false);
   }
 
@@ -96,19 +132,18 @@ export default function CadastroPage() {
         <ArrowLeft size={18} /><span className="text-sm">Voltar</span>
       </button>
 
-      <div className="flex items-center gap-2 mb-8">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
-          style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>U</div>
-        <span className="font-syne font-bold text-xl text-foreground">
+      <div className="flex items-center gap-2.5 mb-8">
+        <Image src="/logo.png" alt="UDIHUB" width={36} height={36} className="rounded-xl object-cover" />
+        <span className="font-syne font-black text-xl text-foreground">
           UDI<span style={{ color: "#3B82F6" }}>HUB</span>
         </span>
       </div>
 
-      {/* STEP 1: Escolha o papel */}
+      {/* STEP 1 */}
       {step === "role" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Criar conta</h1>
-          <p className="text-sm text-muted mb-8">Como você vai usar o UDIHUB?</p>
+          <p className="text-sm text-muted mb-6">Como você vai usar o UDIHUB?</p>
 
           <button onClick={handleGoogleSignup}
             className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-semibold text-sm mb-4"
@@ -130,7 +165,7 @@ export default function CadastroPage() {
 
           <div className="flex flex-col gap-3">
             <button onClick={() => { setRole("client"); setStep("info"); }}
-              className="flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-200"
+              className="flex items-center gap-4 p-4 rounded-2xl text-left"
               style={{ background: "#111113", border: role === "client" ? "1px solid #3B82F6" : "1px solid #1F1F23" }}>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: "rgba(59,130,246,0.1)" }}>
@@ -144,7 +179,7 @@ export default function CadastroPage() {
             </button>
 
             <button onClick={() => { setRole("professional"); setStep("info"); }}
-              className="flex items-center gap-4 p-4 rounded-2xl text-left transition-all duration-200"
+              className="flex items-center gap-4 p-4 rounded-2xl text-left"
               style={{ background: "#111113", border: role === "professional" ? "1px solid #3B82F6" : "1px solid #1F1F23" }}>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: "rgba(59,130,246,0.15)" }}>
@@ -168,7 +203,7 @@ export default function CadastroPage() {
         </div>
       )}
 
-      {/* STEP 2: Dados básicos */}
+      {/* STEP 2 */}
       {step === "info" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Seus dados</h1>
@@ -213,7 +248,7 @@ export default function CadastroPage() {
         </div>
       )}
 
-      {/* STEP 3: Dados profissional */}
+      {/* STEP 3 */}
       {step === "professional" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Perfil profissional</h1>
@@ -243,7 +278,7 @@ export default function CadastroPage() {
               <div className="grid grid-cols-2 gap-2">
                 {(["basic", "pro"] as const).map((plan) => (
                   <button key={plan} type="button" onClick={() => setForm({ ...form, plan })}
-                    className="p-3 rounded-xl text-left transition-all duration-200"
+                    className="p-3 rounded-xl text-left"
                     style={{ background: "#111113", border: form.plan === plan ? "1px solid #3B82F6" : "1px solid #1F1F23" }}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-syne font-bold text-sm text-foreground">{plan === "pro" ? "Pro" : "Básico"}</span>
