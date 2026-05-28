@@ -1,170 +1,178 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Camera,
-  Loader2,
-  CheckCircle,
-  MapPin,
-  X,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Camera, Loader2, CheckCircle, X } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { getInitials } from "@/lib/utils";
+import toast from "react-hot-toast";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
 export default function EditarPerfilPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [availableNow, setAvailableNow] = useState(false);
-  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>(["Tibery", "Santa Mônica"]);
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
+  const [allNeighborhoods, setAllNeighborhoods] = useState<{ id: string; name: string }[]>([]);
+  const [selectedNeighborhoodIds, setSelectedNeighborhoodIds] = useState<string[]>([]);
   const [form, setForm] = useState({
-    name: "João Silva",
-    bio: "Profissional com 15 anos de experiência em hidráulica residencial.",
-    whatsapp: "(34) 99999-1111",
-    category: "encanador",
+    name: "", whatsapp: "", category: "", bio: "", available_now: false,
   });
 
-  function toggleNeighborhood(n: string) {
-    setSelectedNeighborhoods((prev) =>
-      prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
+
+      const [{ data: prof }, { data: userData }, { data: neighborhoods }] = await Promise.all([
+        supabase.from("professionals")
+          .select("id, whatsapp, bio, available_now, categories(slug), professional_neighborhoods(neighborhood_id)")
+          .eq("user_id", user.id).single(),
+        supabase.from("users").select("name").eq("id", user.id).single(),
+        supabase.from("neighborhoods")
+          .select("id, name")
+          .eq("city_id", (await supabase.from("cities").select("id").eq("slug", "uberlandia").single()).data?.id || "")
+          .order("name"),
+      ]);
+
+      if (!prof) { router.push("/seja-profissional"); return; }
+
+      setProfessionalId(prof.id);
+      setAllNeighborhoods(neighborhoods || []);
+      setSelectedNeighborhoodIds(
+        (prof.professional_neighborhoods as any[])?.map((pn: any) => pn.neighborhood_id) || []
+      );
+      setForm({
+        name: userData?.name || "",
+        whatsapp: prof.whatsapp || "",
+        category: (prof.categories as any)?.slug || "",
+        bio: prof.bio || "",
+        available_now: prof.available_now || false,
+      });
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  function toggleNeighborhood(id: string) {
+    setSelectedNeighborhoodIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!professionalId) return;
     setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    }, 1200);
+    const supabase = createClient();
+
+    const { data: cat } = await supabase.from("categories").select("id").eq("slug", form.category).single();
+
+    await Promise.all([
+      supabase.from("users").update({ name: form.name }).eq(
+        "id", (await supabase.auth.getUser()).data.user?.id || ""
+      ),
+      supabase.from("professionals").update({
+        whatsapp: form.whatsapp.replace(/\D/g, ""),
+        bio: form.bio,
+        available_now: form.available_now,
+        ...(cat ? { category_id: cat.id } : {}),
+      }).eq("id", professionalId),
+    ]);
+
+    // Update neighborhoods
+    await supabase.from("professional_neighborhoods").delete().eq("professional_id", professionalId);
+    if (selectedNeighborhoodIds.length > 0) {
+      await supabase.from("professional_neighborhoods").insert(
+        selectedNeighborhoodIds.map((nid) => ({ professional_id: professionalId, neighborhood_id: nid }))
+      );
+    }
+
+    setSaving(false);
+    toast.success("Perfil atualizado!");
   }
 
   const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted transition-all duration-200";
   const inputStyle = { background: "#09090B", border: "1px solid #1F1F23", outline: "none" };
 
+  if (loading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <Loader2 size={24} style={{ color: "#3B82F6" }} className="animate-spin" />
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background pb-24">
-      <div
-        className="sticky top-0 z-40 flex items-center gap-3 px-4 h-14"
-        style={{
-          background: "rgba(9,9,11,0.95)",
-          backdropFilter: "blur(20px)",
-          borderBottom: "1px solid #1F1F23",
-        }}
-      >
-        <Link href="/painel" className="text-muted">
-          <ArrowLeft size={20} />
-        </Link>
+      <div className="sticky top-0 z-40 flex items-center gap-3 px-4 h-14"
+        style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
+        <Link href="/painel" className="text-muted"><ArrowLeft size={20} /></Link>
         <h1 className="font-syne font-bold text-lg text-foreground flex-1">Editar perfil</h1>
-        {saved && (
-          <div className="flex items-center gap-1 text-xs font-semibold" style={{ color: "#22c55e" }}>
-            <CheckCircle size={13} />
-            Salvo!
-          </div>
-        )}
       </div>
 
       <form onSubmit={handleSave} className="px-4 py-4 space-y-5">
         {/* Avatar */}
         <div className="flex items-center gap-4">
           <div className="relative">
-            <div
-              className="w-20 h-20 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl"
-              style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}
-            >
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl"
+              style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
               {getInitials(form.name)}
             </div>
-            <button
-              type="button"
-              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ background: "#3B82F6", boxShadow: "0 0 10px rgba(59,130,246,0.5)" }}
-            >
+            <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: "#3B82F6", boxShadow: "0 0 10px rgba(59,130,246,0.5)" }}>
               <Camera size={12} className="text-white" />
-            </button>
+            </div>
           </div>
           <div>
-            <p className="font-syne font-bold text-foreground">{form.name}</p>
+            <p className="font-syne font-bold text-foreground">{form.name || "Seu nome"}</p>
             <p className="text-xs text-muted">Toque na câmera para alterar a foto</p>
           </div>
         </div>
 
         {/* Available toggle */}
-        <div
-          className="flex items-center justify-between p-4 rounded-2xl"
-          style={{ background: "#111113", border: "1px solid #1F1F23" }}
-        >
+        <div className="flex items-center justify-between p-4 rounded-2xl"
+          style={{ background: "#111113", border: "1px solid #1F1F23" }}>
           <div>
             <p className="font-semibold text-sm text-foreground">Disponível agora</p>
             <p className="text-xs text-muted">Aparece badge verde no seu perfil</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setAvailableNow(!availableNow)}
+          <button type="button" onClick={() => setForm({ ...form, available_now: !form.available_now })}
             className="w-12 h-6 rounded-full transition-all duration-200 relative flex-shrink-0"
-            style={{ background: availableNow ? "#22c55e" : "#1F1F23" }}
-          >
-            <div
-              className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200"
-              style={{ left: availableNow ? "calc(100% - 20px)" : 4 }}
-            />
+            style={{ background: form.available_now ? "#22c55e" : "#1F1F23" }}>
+            <div className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200"
+              style={{ left: form.available_now ? "calc(100% - 20px)" : 4 }} />
           </button>
         </div>
 
-        {/* Form fields */}
+        {/* Fields */}
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Nome completo</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className={inputClass}
-              style={inputStyle}
-            />
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Seu nome" required className={inputClass} style={inputStyle} />
           </div>
-
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">WhatsApp</label>
-            <input
-              type="tel"
-              value={form.whatsapp}
-              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-              className={inputClass}
-              style={inputStyle}
-            />
+            <input type="tel" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+              placeholder="(34) 99999-9999" required className={inputClass} style={inputStyle} />
           </div>
-
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Especialidade</label>
-            <select
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              className={inputClass}
-              style={{ ...inputStyle, color: "#FAFAFA" }}
-            >
+            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className={inputClass} style={{ ...inputStyle, color: "#FAFAFA" }}>
               {CATEGORIES.map((cat) => (
-                <option key={cat.slug} value={cat.slug}>
-                  {cat.icon} {cat.name}
-                </option>
+                <option key={cat.slug} value={cat.slug}>{cat.icon} {cat.name}</option>
               ))}
             </select>
           </div>
-
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Bio</label>
-            <textarea
-              value={form.bio}
-              onChange={(e) => setForm({ ...form, bio: e.target.value })}
-              rows={4}
-              maxLength={300}
-              placeholder="Fale sobre sua experiência e serviços..."
-              className={inputClass}
-              style={{ ...inputStyle, resize: "none" }}
-            />
+            <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
+              rows={4} maxLength={300} placeholder="Fale sobre sua experiência..."
+              className={inputClass} style={{ ...inputStyle, resize: "none" }} />
             <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
           </div>
         </div>
@@ -172,46 +180,36 @@ export default function EditarPerfilPage() {
         {/* Neighborhoods */}
         <div>
           <label className="block text-xs font-medium text-muted mb-2">
-            Bairros atendidos ({selectedNeighborhoods.length} selecionados)
+            Bairros atendidos ({selectedNeighborhoodIds.length} selecionados)
           </label>
 
           {/* Selected chips */}
-          {selectedNeighborhoods.length > 0 && (
+          {selectedNeighborhoodIds.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-2">
-              {selectedNeighborhoods.map((n) => (
-                <div
-                  key={n}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
-                  style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", color: "#93c5fd" }}
-                >
-                  {n}
-                  <button type="button" onClick={() => toggleNeighborhood(n)}>
-                    <X size={10} />
-                  </button>
-                </div>
-              ))}
+              {allNeighborhoods
+                .filter((n) => selectedNeighborhoodIds.includes(n.id))
+                .map((n) => (
+                  <div key={n.id} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+                    style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", color: "#93c5fd" }}>
+                    {n.name}
+                    <button type="button" onClick={() => toggleNeighborhood(n.id)}>
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
             </div>
           )}
 
-          {/* Neighborhood picker */}
-          <div
-            className="max-h-40 overflow-y-auto rounded-xl p-2 space-y-0.5"
-            style={{ background: "#09090B", border: "1px solid #1F1F23" }}
-          >
-            {uberlandia.neighborhoods.map((n) => {
-              const selected = selectedNeighborhoods.includes(n);
+          {/* Picker */}
+          <div className="max-h-40 overflow-y-auto rounded-xl p-2 space-y-0.5"
+            style={{ background: "#09090B", border: "1px solid #1F1F23" }}>
+            {allNeighborhoods.map((n) => {
+              const selected = selectedNeighborhoodIds.includes(n.id);
               return (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => toggleNeighborhood(n)}
+                <button key={n.id} type="button" onClick={() => toggleNeighborhood(n.id)}
                   className="w-full text-left px-3 py-1.5 rounded-lg text-xs transition-all duration-150 flex items-center justify-between"
-                  style={{
-                    background: selected ? "rgba(59,130,246,0.1)" : "transparent",
-                    color: selected ? "#93c5fd" : "#A1A1AA",
-                  }}
-                >
-                  {n}
+                  style={{ background: selected ? "rgba(59,130,246,0.1)" : "transparent", color: selected ? "#93c5fd" : "#A1A1AA" }}>
+                  {n.name}
                   {selected && <CheckCircle size={10} style={{ color: "#3B82F6" }} />}
                 </button>
               );
@@ -219,17 +217,9 @@ export default function EditarPerfilPage() {
           </div>
         </div>
 
-        {/* Save */}
-        <button
-          type="submit"
-          disabled={saving}
+        <button type="submit" disabled={saving}
           className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2"
-          style={{
-            background: "linear-gradient(135deg, #3B82F6, #1d4ed8)",
-            boxShadow: "0 0 20px rgba(59,130,246,0.3)",
-            opacity: saving ? 0.7 : 1,
-          }}
-        >
+          style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)", opacity: saving ? 0.7 : 1 }}>
           {saving ? <Loader2 size={16} className="animate-spin" /> : null}
           {saving ? "Salvando..." : "Salvar perfil"}
         </button>
