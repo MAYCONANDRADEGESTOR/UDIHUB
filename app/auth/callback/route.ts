@@ -8,43 +8,52 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/inicio";
 
-  if (code) {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options as Parameters<typeof cookieStore.set>[2])
-              );
-            } catch {}
-          },
-        },
-      }
-    );
-
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-    if (!error && data.user) {
-      await supabase.from("users").upsert(
-        {
-          id: data.user.id,
-          email: data.user.email!,
-          name: data.user.user_metadata?.full_name || data.user.email!.split("@")[0],
-          avatar: data.user.user_metadata?.avatar_url,
-          role: "client",
-        },
-        { onConflict: "id", ignoreDuplicates: true }
-      );
-      return NextResponse.redirect(`${origin}${next}`);
-    }
+  if (!code) {
+    return NextResponse.redirect(`${origin}/login?error=no_code`);
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`);
+  const cookieStore = await cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options ?? {});
+            });
+          } catch {}
+        },
+      },
+    }
+  );
+
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error || !data.user) {
+    return NextResponse.redirect(`${origin}/login?error=auth_failed`);
+  }
+
+  try {
+    await supabase.from("users").upsert(
+      {
+        id: data.user.id,
+        email: data.user.email!,
+        name:
+          data.user.user_metadata?.full_name ||
+          data.user.user_metadata?.name ||
+          data.user.email!.split("@")[0],
+        avatar: data.user.user_metadata?.avatar_url || null,
+        role: "client",
+      },
+      { onConflict: "id", ignoreDuplicates: true }
+    );
+  } catch {}
+
+  return NextResponse.redirect(`${origin}${next}`);
 }
