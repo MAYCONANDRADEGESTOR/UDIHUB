@@ -10,16 +10,7 @@ export const metadata: Metadata = {
   },
   description:
     "Marketplace local de serviços para o Triângulo Mineiro. Encontre encanadores, eletricistas, pintores e muito mais perto de você.",
-  keywords: [
-    "serviços",
-    "profissionais",
-    "Uberlândia",
-    "Triângulo Mineiro",
-    "encanador",
-    "eletricista",
-    "diarista",
-    "marketplace local",
-  ],
+  keywords: ["serviços", "profissionais", "Uberlândia", "Triângulo Mineiro"],
   authors: [{ name: "UDIHUB" }],
   creator: "UDIHUB",
   openGraph: {
@@ -28,27 +19,19 @@ export const metadata: Metadata = {
     url: "https://udihub.com.br",
     siteName: "UDIHUB",
     title: "UDIHUB — Encontre o profissional certo, perto de você",
-    description:
-      "Marketplace local de serviços para o Triângulo Mineiro.",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "UDIHUB",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "UDIHUB — Encontre o profissional certo, perto de você",
     description: "Marketplace local de serviços para o Triângulo Mineiro.",
+    images: [{ url: "/logo.png", width: 512, height: 512, alt: "UDIHUB" }],
   },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "UDIHUB",
+  },
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+    shortcut: "/logo.png",
   },
 };
 
@@ -69,16 +52,10 @@ export default function RootLayout({
     <html lang="pt-BR" className="dark">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+        <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/logo.png" />
       </head>
       <body className="bg-background text-foreground font-inter antialiased">
         {children}
@@ -95,10 +72,7 @@ export default function RootLayout({
               fontSize: "14px",
             },
             success: {
-              iconTheme: {
-                primary: "#3B82F6",
-                secondary: "#FAFAFA",
-              },
+              iconTheme: { primary: "#3B82F6", secondary: "#FAFAFA" },
             },
           }}
         />
