@@ -13,6 +13,16 @@ import toast from "react-hot-toast";
 type Step = "role" | "info" | "professional";
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
+async function sendEmail(type: string, to: string, name: string, data?: object) {
+  try {
+    await fetch("/api/email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, to, name, data }),
+    });
+  } catch {}
+}
+
 export default function CadastroPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("role");
@@ -49,7 +59,6 @@ export default function CadastroPage() {
     if (error) { toast.error(error.message); setLoading(false); return; }
     if (!data.user) { toast.error("Erro ao criar conta"); setLoading(false); return; }
 
-    // Espera sessão ativa antes de inserir
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData.session) {
       await supabase.from("users").upsert({
@@ -61,6 +70,9 @@ export default function CadastroPage() {
         city: "Uberlândia",
         role: "client",
       }, { onConflict: "id" });
+
+      // Email de boas-vindas
+      await sendEmail("welcome", form.email, form.name);
     }
 
     toast.success("Conta criada com sucesso!");
@@ -85,7 +97,6 @@ export default function CadastroPage() {
 
     const { data: sessionData } = await supabase.auth.getSession();
     if (sessionData.session) {
-      // Insert user
       await supabase.from("users").upsert({
         id: data.user.id,
         name: form.name,
@@ -96,7 +107,6 @@ export default function CadastroPage() {
         role: "professional",
       }, { onConflict: "id" });
 
-      // Get category
       const { data: cat } = await supabase
         .from("categories").select("id").eq("slug", form.category).single();
 
@@ -113,10 +123,13 @@ export default function CadastroPage() {
         });
       }
 
+      // Email de boas-vindas + perfil ativo
+      await sendEmail("welcome", form.email, form.name);
+      await sendEmail("professional_active", form.email, form.name);
+
       toast.success("Perfil criado! Agora escolha seu plano.");
       router.push("/painel/assinatura");
     } else {
-      // Sessão não ativa ainda — confirma email primeiro
       toast.success("Verifique seu email para confirmar a conta!");
       router.push("/login");
     }
