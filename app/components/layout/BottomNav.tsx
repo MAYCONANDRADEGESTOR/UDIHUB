@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Plus, Heart, User, Sparkles } from "lucide-react";
+import { Home, Search, Plus, Heart, User } from "lucide-react";
 
 const navItems = [
   { href: "/", icon: Home, label: "Home" },
@@ -29,12 +29,10 @@ export default function BottomNav() {
         borderTop: "1px solid #1F1F23",
       }}
     >
-      {/* Neon blue top accent line */}
       <div
         className="absolute top-0 left-0 right-0 h-[2px]"
         style={{
-          background:
-            "linear-gradient(90deg, transparent 0%, #3B82F6 30%, #3B82F6 70%, transparent 100%)",
+          background: "linear-gradient(90deg, transparent 0%, #3B82F6 30%, #3B82F6 70%, transparent 100%)",
           boxShadow: "0 0 12px rgba(59,130,246,0.6)",
         }}
       />
@@ -53,22 +51,21 @@ export default function BottomNav() {
                 href={href}
                 className="flex flex-col items-center gap-0.5 -mt-5"
               >
-                {/* Pulse rings */}
                 <div className="relative flex items-center justify-center">
+                  {/* Pulse ring 1 */}
                   <span
-                    className="absolute w-14 h-14 rounded-2xl"
+                    className="absolute w-14 h-14 rounded-2xl animate-ping"
+                    style={{ background: "rgba(59,130,246,0.35)" }}
+                  />
+                  {/* Pulse ring 2 - delayed */}
+                  <span
+                    className="absolute w-14 h-14 rounded-2xl animate-ping"
                     style={{
-                      background: "rgba(59,130,246,0.3)",
-                      animation: "ctaPulse 2s ease-in-out infinite",
+                      background: "rgba(59,130,246,0.2)",
+                      animationDelay: "0.5s",
                     }}
                   />
-                  <span
-                    className="absolute w-14 h-14 rounded-2xl"
-                    style={{
-                      background: "rgba(59,130,246,0.15)",
-                      animation: "ctaPulse 2s ease-in-out infinite 0.4s",
-                    }}
-                  />
+                  {/* Button */}
                   <div
                     className="relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-95"
                     style={{
@@ -116,15 +113,6 @@ export default function BottomNav() {
           );
         })}
       </div>
-
-      {/* Pulse animation keyframes */}
-      <style jsx>{`
-        @keyframes ctaPulse {
-          0% { transform: scale(1); opacity: 0.8; }
-          50% { transform: scale(1.25); opacity: 0; }
-          100% { transform: scale(1.25); opacity: 0; }
-        }
-      `}</style>
     </nav>
   );
 }
