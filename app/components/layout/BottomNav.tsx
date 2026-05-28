@@ -1,12 +1,10 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Plus, Heart, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Home, Search, Plus, Heart, User, Sparkles } from "lucide-react";
 
 const navItems = [
-  { href: "/inicio", icon: Home, label: "Início" },
+  { href: "/", icon: Home, label: "Home" },
   { href: "/servicos", icon: Search, label: "Buscar" },
   { href: "/seja-profissional", icon: Plus, label: "Anunciar", cta: true },
   { href: "/favoritos", icon: Heart, label: "Favoritos" },
@@ -16,7 +14,6 @@ const navItems = [
 export default function BottomNav() {
   const pathname = usePathname();
 
-  // Hide on admin and auth pages
   const hidden = ["/login", "/cadastro", "/admin"].some((p) =>
     pathname.startsWith(p)
   );
@@ -42,9 +39,12 @@ export default function BottomNav() {
         }}
       />
 
-      <div className="flex items-center justify-around px-2 pb-safe pt-2 pb-3">
+      <div className="flex items-center justify-around px-2 pt-2 pb-3">
         {navItems.map(({ href, icon: Icon, label, cta }) => {
-          const isActive = pathname === href || pathname.startsWith(href + "/");
+          const isActive =
+            href === "/"
+              ? pathname === "/"
+              : pathname === href || pathname.startsWith(href + "/");
 
           if (cta) {
             return (
@@ -53,14 +53,31 @@ export default function BottomNav() {
                 href={href}
                 className="flex flex-col items-center gap-0.5 -mt-5"
               >
-                <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-accent transition-all duration-200 active:scale-95"
-                  style={{
-                    background: "linear-gradient(135deg, #3B82F6, #1d4ed8)",
-                    boxShadow: "0 0 24px rgba(59,130,246,0.5)",
-                  }}
-                >
-                  <Icon size={24} className="text-white" strokeWidth={2.5} />
+                {/* Pulse rings */}
+                <div className="relative flex items-center justify-center">
+                  <span
+                    className="absolute w-14 h-14 rounded-2xl"
+                    style={{
+                      background: "rgba(59,130,246,0.3)",
+                      animation: "ctaPulse 2s ease-in-out infinite",
+                    }}
+                  />
+                  <span
+                    className="absolute w-14 h-14 rounded-2xl"
+                    style={{
+                      background: "rgba(59,130,246,0.15)",
+                      animation: "ctaPulse 2s ease-in-out infinite 0.4s",
+                    }}
+                  />
+                  <div
+                    className="relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200 active:scale-95"
+                    style={{
+                      background: "linear-gradient(135deg, #3B82F6, #1d4ed8)",
+                      boxShadow: "0 0 24px rgba(59,130,246,0.6)",
+                    }}
+                  >
+                    <Icon size={24} className="text-white" strokeWidth={2.5} />
+                  </div>
                 </div>
                 <span
                   className="text-[10px] font-semibold mt-1"
@@ -99,6 +116,15 @@ export default function BottomNav() {
           );
         })}
       </div>
+
+      {/* Pulse animation keyframes */}
+      <style jsx>{`
+        @keyframes ctaPulse {
+          0% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.25); opacity: 0; }
+          100% { transform: scale(1.25); opacity: 0; }
+        }
+      `}</style>
     </nav>
   );
 }
