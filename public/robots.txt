@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://udihub.com.br/sitemap.xml
