@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const price = plan === "pro" ? 99 : 69;
     const planName = plan === "pro" ? "UDIHUB Pro" : "UDIHUB Básico";
 
-    // Cria ou recupera cliente no Asaas
+    // Cria cliente no Asaas
     const customerRes = await fetch(`${process.env.ASAAS_API_URL}/customers`, {
       method: "POST",
       headers: {
@@ -35,11 +35,12 @@ export async function POST(request: NextRequest) {
     });
     const customer = await customerRes.json();
 
-    // Cria ASSINATURA RECORRENTE mensal
-    const nextMonth = new Date();
-    nextMonth.setDate(nextMonth.getDate() + 1);
-    const dueDate = nextMonth.toISOString().split("T")[0];
+    // Data de vencimento amanhã
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dueDate = tomorrow.toISOString().split("T")[0];
 
+    // Cria ASSINATURA RECORRENTE mensal
     const subRes = await fetch(`${process.env.ASAAS_API_URL}/subscriptions`, {
       method: "POST",
       headers: {
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         customer: customer.id,
-        billingType: "UNDEFINED", // PIX ou cartão — cliente escolhe
+        billingType: "UNDEFINED",
         cycle: "MONTHLY",
         value: price,
         nextDueDate: dueDate,
