@@ -95,8 +95,10 @@ export default function HomePage() {
             </span>
           </h1>
 
+          {/* ✅ MUDANÇA 1 — subtítulo fala com os dois públicos */}
           <p className="text-sm leading-relaxed mb-7 max-w-xs mx-auto" style={{ color: "#94a3b8" }}>
-            Encontre encanadores, eletricistas, diaristas e muito mais no seu bairro. Rápido, grátis e confiável.
+            Encontre profissionais no seu bairro. Grátis para clientes.{" "}
+            <span style={{ color: "#93c5fd" }}>Profissional? Receba clientes pelo WhatsApp.</span>
           </p>
 
           <div className="flex flex-col sm:flex-row gap-2.5 justify-center mb-8">
@@ -106,10 +108,11 @@ export default function HomePage() {
               <Search size={16} />
               Buscar profissional
             </Link>
+            {/* ✅ MUDANÇA 2 — CTA do profissional com destaque e texto que converte */}
             <Link href="/seja-profissional"
-              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium text-xs transition-all duration-200"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8" }}>
-              Sou profissional →
+              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-xs transition-all duration-200 active:scale-95"
+              style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)", color: "#93c5fd" }}>
+              💼 Quero receber clientes →
             </Link>
           </div>
 
