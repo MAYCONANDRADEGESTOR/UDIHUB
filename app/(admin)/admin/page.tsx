@@ -14,6 +14,7 @@ interface Metrics {
   totalProfessionals: number;
   activeProfessionals: number;
   proProfessionals: number;
+  basicProfessionals: number;
   totalClients: number;
   totalUsers: number;
   monthlyRevenue: number;
@@ -56,7 +57,7 @@ export default function AdminPage() {
       const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
       const [
-        totalProf, activeProf, proProf,
+        totalProf, activeProf, proProf, basicProf,
         totalClients, totalUsers,
         totalLeads, leadsToday, leadsWeek,
         subscriptions, pendingReports,
@@ -65,6 +66,7 @@ export default function AdminPage() {
         supabase.from("professionals").select("id", { count: "exact", head: true }),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("status", "active"),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("plan", "pro"),
+        supabase.from("professionals").select("id", { count: "exact", head: true }).eq("plan", "basic"),
         supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "client"),
         supabase.from("users").select("id", { count: "exact", head: true }),
         supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }),
@@ -82,6 +84,7 @@ export default function AdminPage() {
         totalProfessionals: totalProf.count || 0,
         activeProfessionals: activeProf.count || 0,
         proProfessionals: proProf.count || 0,
+        basicProfessionals: basicProf.count || 0,
         totalClients: totalClients.count || 0,
         totalUsers: totalUsers.count || 0,
         monthlyRevenue: revenue,
@@ -127,7 +130,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header com botão voltar */}
+      {/* Header */}
       <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <div className="flex items-center gap-3">
@@ -144,6 +147,7 @@ export default function AdminPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
+
         {/* Receita + Leads */}
         <div className="grid grid-cols-2 gap-3">
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -171,9 +175,9 @@ export default function AdminPage() {
           {[
             { label: "Profissionais", value: metrics?.totalProfessionals || 0, color: "#3B82F6" },
             { label: "Clientes", value: metrics?.totalClients || 0, color: "#a855f7" },
+            { label: "Ativos", value: metrics?.activeProfessionals || 0, color: "#22c55e" },
+            { label: "Plano Básico", value: metrics?.basicProfessionals || 0, color: "#3B82F6" },
             { label: "Plano Pro", value: metrics?.proProfessionals || 0, color: "#f59e0b" },
-            { label: "Total usuários", value: metrics?.totalUsers || 0, color: "#22c55e" },
-            { label: "Leads total", value: metrics?.totalLeads || 0, color: "#3B82F6" },
             { label: "Cidades ativas", value: metrics?.citiesActive || 0, color: "#22c55e" },
           ].map(({ label, value, color }) => (
             <div key={label} className="p-3 rounded-2xl text-center"
