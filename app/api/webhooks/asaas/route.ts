@@ -7,38 +7,60 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const event = await request.json();
-    const { event: eventType, subscription } = event;
+    const body = await request.json();
+    const { event, payment } = body;
 
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
+    if (!payment?.externalReference) {
+      return NextResponse.json({ ok: true });
+    }
 
-    if (eventType === "PAYMENT_CONFIRMED" || eventType === "PAYMENT_RECEIVED") {
-      if (subscription?.id) {
-        const { data: sub } = await supabase.from("subscriptions").select("professional_id").eq("asaas_subscription_id", subscription.id).single();
-        if (sub?.professional_id) {
-          await supabase.from("professionals").update({ status: "active" }).eq("id", sub.professional_id);
-          await supabase.from("subscriptions").update({ status: "active" }).eq("asaas_subscription_id", subscription.id);
-        }
+    const [professionalId, plan] = payment.externalReference.split("|");
+    if (!professionalId) return NextResponse.json({ ok: true });
+
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+
+    if (event === "PAYMENT_CONFIRMED" || event === "PAYMENT_RECEIVED") {
+      // Ativa o profissional
+      await supabase.from("professionals")
+        .update({ status: "active", plan: plan || "basic" })
+        .eq("id", professionalId);
+
+      // Atualiza assinatura
+      await supabase.from("subscriptions")
+        .update({ status: "active", asaas_payment_id: payment.id })
+        .eq("professional_id", professionalId);
+
+      // Busca email do profissional e envia email
+      const { data: prof } = await supabase
+        .from("professionals")
+        .select("users(name, email)")
+        .eq("id", professionalId)
+        .single();
+
+      if (prof?.users) {
+        const { name, email } = prof.users as { name: string; email: string };
+        fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "professional_active", to: email, name }),
+        }).catch(() => {});
       }
     }
 
-    if (eventType === "PAYMENT_OVERDUE" || eventType === "SUBSCRIPTION_DELETED") {
-      if (subscription?.id) {
-        const { data: sub } = await supabase.from("subscriptions").select("professional_id").eq("asaas_subscription_id", subscription.id).single();
-        if (sub?.professional_id) {
-          await supabase.from("professionals").update({ status: "inactive" }).eq("id", sub.professional_id);
-          await supabase.from("subscriptions").update({ status: "inactive" }).eq("asaas_subscription_id", subscription.id);
-        }
-      }
+    if (event === "PAYMENT_OVERDUE" || event === "PAYMENT_DELETED") {
+      await supabase.from("professionals")
+        .update({ status: "inactive" })
+        .eq("id", professionalId);
+
+      await supabase.from("subscriptions")
+        .update({ status: "inactive" })
+        .eq("professional_id", professionalId);
     }
 
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("[Asaas Webhook Error]", err);
+    console.error("Webhook error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
