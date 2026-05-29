@@ -19,9 +19,7 @@ export async function GET(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
+        getAll() { return cookieStore.getAll(); },
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
@@ -39,6 +37,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=auth_failed`);
   }
 
+  // Upsert user — funciona para Google OAuth e email/senha
   try {
     await supabase.from("users").upsert(
       {
@@ -50,6 +49,7 @@ export async function GET(request: NextRequest) {
           data.user.email!.split("@")[0],
         avatar: data.user.user_metadata?.avatar_url || null,
         role: "client",
+        banned: false,
       },
       { onConflict: "id", ignoreDuplicates: true }
     );
