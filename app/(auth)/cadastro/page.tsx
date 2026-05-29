@@ -45,6 +45,21 @@ export default function CadastroPage() {
     });
   }
 
+  async function createUserProfile(userId: string, userRole: "client" | "professional") {
+    const supabase = createClient();
+    const { error } = await supabase.from("users").upsert({
+      id: userId,
+      name: form.name,
+      email: form.email,
+      phone: form.phone || null,
+      neighborhood: form.neighborhood || null,
+      city: "Uberlândia",
+      role: userRole,
+      banned: false,
+    }, { onConflict: "id" });
+    return !error;
+  }
+
   async function handleSubmitClient(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -56,24 +71,23 @@ export default function CadastroPage() {
       options: { data: { full_name: form.name } },
     });
 
-    if (error) { toast.error(error.message); setLoading(false); return; }
-    if (!data.user) { toast.error("Erro ao criar conta"); setLoading(false); return; }
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session) {
-      await supabase.from("users").upsert({
-        id: data.user.id,
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        neighborhood: form.neighborhood,
-        city: "Uberlândia",
-        role: "client",
-      }, { onConflict: "id" });
-
-      // Email de boas-vindas
-      await sendEmail("welcome", form.email, form.name);
+    if (error) {
+      toast.error(error.message === "User already registered" ? "Este email já está cadastrado" : error.message);
+      setLoading(false);
+      return;
     }
+
+    if (!data.user) {
+      toast.error("Erro ao criar conta");
+      setLoading(false);
+      return;
+    }
+
+    // Tenta criar perfil imediatamente
+    await createUserProfile(data.user.id, "client");
+
+    // Envia email de boas-vindas
+    await sendEmail("welcome", form.email, form.name);
 
     toast.success("Conta criada com sucesso!");
     router.push("/inicio");
@@ -92,48 +106,44 @@ export default function CadastroPage() {
       options: { data: { full_name: form.name } },
     });
 
-    if (error) { toast.error(error.message); setLoading(false); return; }
-    if (!data.user) { toast.error("Erro ao criar conta"); setLoading(false); return; }
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (sessionData.session) {
-      await supabase.from("users").upsert({
-        id: data.user.id,
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        neighborhood: form.neighborhood,
-        city: "Uberlândia",
-        role: "professional",
-      }, { onConflict: "id" });
-
-      const { data: cat } = await supabase
-        .from("categories").select("id").eq("slug", form.category).single();
-
-      if (cat) {
-        const slug = `${slugify(form.name)}-${Date.now()}`;
-        await supabase.from("professionals").insert({
-          user_id: data.user.id,
-          slug,
-          bio: form.bio,
-          whatsapp: form.whatsapp.replace(/\D/g, ""),
-          category_id: cat.id,
-          plan: form.plan,
-          status: "active",
-        });
-      }
-
-      // Email de boas-vindas + perfil ativo
-      await sendEmail("welcome", form.email, form.name);
-      await sendEmail("professional_active", form.email, form.name);
-
-      toast.success("Perfil criado! Agora escolha seu plano.");
-      router.push("/painel/assinatura");
-    } else {
-      toast.success("Verifique seu email para confirmar a conta!");
-      router.push("/login");
+    if (error) {
+      toast.error(error.message === "User already registered" ? "Este email já está cadastrado" : error.message);
+      setLoading(false);
+      return;
     }
 
+    if (!data.user) {
+      toast.error("Erro ao criar conta");
+      setLoading(false);
+      return;
+    }
+
+    // Cria perfil do usuário
+    await createUserProfile(data.user.id, "professional");
+
+    // Cria perfil profissional
+    const { data: cat } = await supabase
+      .from("categories").select("id").eq("slug", form.category).single();
+
+    if (cat) {
+      const slug = `${slugify(form.name)}-${Date.now()}`;
+      await supabase.from("professionals").upsert({
+        user_id: data.user.id,
+        slug,
+        bio: form.bio || null,
+        whatsapp: form.whatsapp.replace(/\D/g, ""),
+        category_id: cat.id,
+        plan: form.plan,
+        status: "active",
+      }, { onConflict: "user_id" });
+    }
+
+    // Emails
+    await sendEmail("welcome", form.email, form.name);
+    await sendEmail("professional_active", form.email, form.name);
+
+    toast.success("Perfil criado! Agora ative sua assinatura.");
+    router.push("/painel/assinatura");
     setLoading(false);
   }
 
@@ -152,7 +162,7 @@ export default function CadastroPage() {
         </span>
       </div>
 
-      {/* STEP 1 */}
+      {/* STEP 1 — Escolha role */}
       {step === "role" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Criar conta</h1>
@@ -216,7 +226,7 @@ export default function CadastroPage() {
         </div>
       )}
 
-      {/* STEP 2 */}
+      {/* STEP 2 — Dados pessoais */}
       {step === "info" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Seus dados</h1>
@@ -226,7 +236,7 @@ export default function CadastroPage() {
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">Nome completo</label>
               <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Seu nome" required className={inputClass} style={inputStyle} />
+                placeholder="Seu nome completo" required className={inputClass} style={inputStyle} />
             </div>
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">E-mail</label>
@@ -253,19 +263,19 @@ export default function CadastroPage() {
             </div>
             <button type="submit" disabled={loading}
               className="w-full py-3.5 rounded-xl font-bold text-sm text-white mt-4 flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)" }}>
+              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)", opacity: loading ? 0.7 : 1 }}>
               {loading && <Loader2 size={16} className="animate-spin" />}
-              {role === "professional" ? "Continuar" : "Criar conta"}
+              {role === "professional" ? "Continuar →" : "Criar conta"}
             </button>
           </form>
         </div>
       )}
 
-      {/* STEP 3 */}
+      {/* STEP 3 — Perfil profissional */}
       {step === "professional" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Perfil profissional</h1>
-          <p className="text-sm text-muted mb-6">Configure como você aparecerá nas buscas</p>
+          <p className="text-sm text-muted mb-6">Como você aparecerá nas buscas</p>
           <form onSubmit={handleSubmitProfessional} className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">WhatsApp</label>
@@ -283,7 +293,7 @@ export default function CadastroPage() {
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">Bio (opcional)</label>
               <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                placeholder="Fale sobre seus serviços..." rows={3}
+                placeholder="Fale sobre sua experiência e serviços..." rows={3}
                 className={inputClass} style={{ ...inputStyle, resize: "none" }} />
             </div>
             <div>
@@ -306,11 +316,11 @@ export default function CadastroPage() {
             </div>
             <button type="submit" disabled={loading}
               className="w-full py-3.5 rounded-xl font-bold text-sm text-white mt-4 flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)" }}>
+              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)", opacity: loading ? 0.7 : 1 }}>
               {loading && <Loader2 size={16} className="animate-spin" />}
               Criar perfil
             </button>
-            <p className="text-center text-xs text-muted">Você será direcionado para o pagamento após criar o perfil.</p>
+            <p className="text-center text-xs text-muted">Você será direcionado para ativar sua assinatura.</p>
           </form>
         </div>
       )}
