@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Users, MapPin, CreditCard, Flag, BarChart3,
   ArrowUpRight, MessageCircle, Loader2, TrendingUp,
-  Trash2, X, ArrowLeft,
+  Trash2, X, ArrowLeft, AlertCircle, UserX, UserCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
@@ -13,6 +13,7 @@ import toast from "react-hot-toast";
 interface Metrics {
   totalProfessionals: number;
   activeProfessionals: number;
+  inactiveProfessionals: number;
   proProfessionals: number;
   basicProfessionals: number;
   totalClients: number;
@@ -23,6 +24,8 @@ interface Metrics {
   leadsWeek: number;
   pendingReports: number;
   citiesActive: number;
+  newUsersToday: number;
+  newUsersWeek: number;
 }
 
 interface RecentUser {
@@ -34,12 +37,20 @@ interface RecentUser {
   created_at: string;
 }
 
+interface Report {
+  id: string;
+  reason: string;
+  status: string;
+  created_at: string;
+}
+
 const ADMIN_EMAIL = "udihub@outlook.com";
 
 export default function AdminPage() {
   const router = useRouter();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
+  const [recentReports, setRecentReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState<RecentUser | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -52,19 +63,23 @@ export default function AdminPage() {
         router.push("/");
         return;
       }
+
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
       const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
       const [
-        totalProf, activeProf, proProf, basicProf,
+        totalProf, activeProf, inactiveProf, proProf, basicProf,
         totalClients, totalUsers,
         totalLeads, leadsToday, leadsWeek,
         subscriptions, pendingReports,
         citiesActive, recentUsersData,
+        newUsersToday, newUsersWeek,
+        recentReportsData,
       ] = await Promise.all([
         supabase.from("professionals").select("id", { count: "exact", head: true }),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("status", "active"),
+        supabase.from("professionals").select("id", { count: "exact", head: true }).eq("status", "inactive"),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("plan", "pro"),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("plan", "basic"),
         supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "client"),
@@ -76,6 +91,9 @@ export default function AdminPage() {
         supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("cities").select("id", { count: "exact", head: true }).eq("enabled", true),
         supabase.from("users").select("id, name, email, role, banned, created_at").order("created_at", { ascending: false }).limit(5),
+        supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
+        supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
+        supabase.from("reports").select("id, reason, status, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(3),
       ]);
 
       const revenue = (subscriptions.data || []).reduce((acc, s) => acc + (s.plan === "pro" ? 99 : 69), 0);
@@ -83,6 +101,7 @@ export default function AdminPage() {
       setMetrics({
         totalProfessionals: totalProf.count || 0,
         activeProfessionals: activeProf.count || 0,
+        inactiveProfessionals: inactiveProf.count || 0,
         proProfessionals: proProf.count || 0,
         basicProfessionals: basicProf.count || 0,
         totalClients: totalClients.count || 0,
@@ -93,9 +112,12 @@ export default function AdminPage() {
         leadsWeek: leadsWeek.count || 0,
         pendingReports: pendingReports.count || 0,
         citiesActive: citiesActive.count || 0,
+        newUsersToday: newUsersToday.count || 0,
+        newUsersWeek: newUsersWeek.count || 0,
       });
 
       setRecentUsers((recentUsersData.data as RecentUser[]) || []);
+      setRecentReports((recentReportsData.data as Report[]) || []);
       setLoading(false);
     }
     load();
@@ -120,6 +142,9 @@ export default function AdminPage() {
   );
 
   const meta275 = Math.round(((metrics?.activeProfessionals || 0) / 275) * 100);
+  const conversionRate = metrics?.totalUsers
+    ? Math.round(((metrics.totalProfessionals) / metrics.totalUsers) * 100)
+    : 0;
 
   const ADMIN_SECTIONS = [
     { href: "/admin/usuarios", icon: Users, label: "Usuários", desc: "Gerenciar e banir", badge: null },
@@ -134,9 +159,7 @@ export default function AdminPage() {
       <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <div className="flex items-center gap-3">
-          <Link href="/inicio" className="text-muted">
-            <ArrowLeft size={20} />
-          </Link>
+          <Link href="/inicio" className="text-muted"><ArrowLeft size={20} /></Link>
           <div className="flex-1">
             <h1 className="font-syne font-bold text-xl text-foreground">Admin</h1>
             <p className="text-xs text-muted">UDIHUB Dashboard</p>
@@ -147,6 +170,29 @@ export default function AdminPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
+
+        {/* Alertas */}
+        {(metrics?.inactiveProfessionals || 0) > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-xl"
+            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+            <AlertCircle size={14} style={{ color: "#f87171" }} className="flex-shrink-0" />
+            <p className="text-xs" style={{ color: "#f87171" }}>
+              <strong>{metrics?.inactiveProfessionals}</strong> profissional(is) com perfil inativo — assinatura pendente
+            </p>
+            <Link href="/admin/usuarios" className="ml-auto text-[10px] font-bold" style={{ color: "#f87171" }}>Ver →</Link>
+          </div>
+        )}
+
+        {(metrics?.pendingReports || 0) > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-xl"
+            style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
+            <Flag size={14} style={{ color: "#FBBF24" }} className="flex-shrink-0" />
+            <p className="text-xs" style={{ color: "#FBBF24" }}>
+              <strong>{metrics?.pendingReports}</strong> denúncia(s) pendente(s) para resolver
+            </p>
+            <Link href="/admin/denuncias" className="ml-auto text-[10px] font-bold" style={{ color: "#FBBF24" }}>Ver →</Link>
+          </div>
+        )}
 
         {/* Receita + Leads */}
         <div className="grid grid-cols-2 gap-3">
@@ -170,15 +216,39 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Novos usuários + conversão */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <UserCheck size={14} style={{ color: "#a855f7" }} />
+              <span className="text-xs text-muted">Novos hoje</span>
+            </div>
+            <div className="font-syne font-extrabold text-2xl" style={{ color: "#a855f7" }}>
+              {metrics?.newUsersToday}
+            </div>
+            <div className="text-[10px] text-muted mt-1">{metrics?.newUsersWeek} esta semana</div>
+          </div>
+          <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp size={14} style={{ color: "#f59e0b" }} />
+              <span className="text-xs text-muted">Conversão</span>
+            </div>
+            <div className="font-syne font-extrabold text-2xl" style={{ color: "#f59e0b" }}>
+              {conversionRate}%
+            </div>
+            <div className="text-[10px] text-muted mt-1">usuários → profissionais</div>
+          </div>
+        </div>
+
         {/* Grid métricas */}
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "Profissionais", value: metrics?.totalProfessionals || 0, color: "#3B82F6" },
             { label: "Clientes", value: metrics?.totalClients || 0, color: "#a855f7" },
             { label: "Ativos", value: metrics?.activeProfessionals || 0, color: "#22c55e" },
+            { label: "Inativos", value: metrics?.inactiveProfessionals || 0, color: "#f87171" },
             { label: "Plano Básico", value: metrics?.basicProfessionals || 0, color: "#3B82F6" },
             { label: "Plano Pro", value: metrics?.proProfessionals || 0, color: "#f59e0b" },
-            { label: "Cidades ativas", value: metrics?.citiesActive || 0, color: "#22c55e" },
           ].map(({ label, value, color }) => (
             <div key={label} className="p-3 rounded-2xl text-center"
               style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -203,7 +273,7 @@ export default function AdminPage() {
           </div>
           <div className="flex justify-between mt-1.5">
             <span className="text-[10px] text-muted">{metrics?.activeProfessionals} ativos</span>
-            <span className="text-[10px] text-muted">275 meta</span>
+            <span className="text-[10px] text-muted">275 meta · R$18.975/mês</span>
           </div>
         </div>
 
@@ -233,6 +303,30 @@ export default function AdminPage() {
             ))}
           </div>
         </div>
+
+        {/* Denúncias recentes */}
+        {recentReports.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-bold tracking-widest" style={{ color: "#FBBF24" }}>DENÚNCIAS PENDENTES</p>
+              <Link href="/admin/denuncias" className="text-xs font-semibold" style={{ color: "#FBBF24" }}>Ver todas</Link>
+            </div>
+            <div className="space-y-2">
+              {recentReports.map((report) => (
+                <div key={report.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                  style={{ background: "#111113", border: "1px solid rgba(251,191,36,0.2)" }}>
+                  <Flag size={13} style={{ color: "#FBBF24" }} className="flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{report.reason || "Sem motivo"}</p>
+                    <p className="text-[10px] text-muted">{new Date(report.created_at).toLocaleDateString("pt-BR")}</p>
+                  </div>
+                  <span className="text-[9px] px-2 py-0.5 rounded font-bold"
+                    style={{ background: "rgba(251,191,36,0.1)", color: "#FBBF24" }}>PENDENTE</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Usuários recentes */}
         <div>
