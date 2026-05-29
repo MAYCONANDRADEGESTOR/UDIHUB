@@ -1,12 +1,11 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Users, MapPin, CreditCard, Star, Flag, BarChart3,
+  Users, MapPin, CreditCard, Flag, BarChart3,
   ArrowUpRight, MessageCircle, Loader2, TrendingUp,
-  Trash2, CheckCircle, X,
+  Trash2, X, ArrowLeft,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
@@ -48,16 +47,13 @@ export default function AdminPage() {
     async function load() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-
       if (!user || user.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
         router.push("/");
         return;
       }
-
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
       const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
       const [
         totalProf, activeProf, proProf,
@@ -106,12 +102,8 @@ export default function AdminPage() {
     if (!deleteModal) return;
     setDeleting(true);
     const supabase = createClient();
-
-    // Deleta profissional se existir
     await supabase.from("professionals").delete().eq("user_id", deleteModal.id);
-    // Deleta usuário
     await supabase.from("users").delete().eq("id", deleteModal.id);
-
     setRecentUsers((prev) => prev.filter((u) => u.id !== deleteModal.id));
     setDeleteModal(null);
     setDeleting(false);
@@ -135,13 +127,16 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
+      {/* Header com botão voltar */}
       <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center gap-3">
+          <Link href="/inicio" className="text-muted">
+            <ArrowLeft size={20} />
+          </Link>
+          <div className="flex-1">
             <h1 className="font-syne font-bold text-xl text-foreground">Admin</h1>
-            <p className="text-xs text-muted mt-0.5">UDIHUB Dashboard</p>
+            <p className="text-xs text-muted">UDIHUB Dashboard</p>
           </div>
           <Link href="/" className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-white text-sm"
             style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>U</Link>
@@ -149,7 +144,6 @@ export default function AdminPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
-
         {/* Receita + Leads */}
         <div className="grid grid-cols-2 gap-3">
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
