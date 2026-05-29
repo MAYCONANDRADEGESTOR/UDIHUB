@@ -19,8 +19,9 @@ const config: Config = {
         muted: "#A1A1AA",
       },
       fontFamily: {
-        syne: ["Syne", "sans-serif"],
+        sans: ["Inter", "sans-serif"],
         inter: ["Inter", "sans-serif"],
+        syne: ["Syne", "sans-serif"],
       },
       boxShadow: {
         accent: "0 0 20px rgba(59,130,246,0.3)",
@@ -53,14 +54,11 @@ const config: Config = {
       },
       backgroundImage: {
         "hero-gradient": "linear-gradient(135deg, #09090B 0%, #0F172A 100%)",
-        "card-gradient":
-          "linear-gradient(135deg, #111113 0%, #0F1729 100%)",
-        shimmer:
-          "linear-gradient(90deg, #111113 0%, #1a1a20 50%, #111113 100%)",
+        "card-gradient": "linear-gradient(135deg, #111113 0%, #0F1729 100%)",
+        shimmer: "linear-gradient(90deg, #111113 0%, #1a1a20 50%, #111113 100%)",
       },
     },
   },
   plugins: [],
 };
-
 export default config;
