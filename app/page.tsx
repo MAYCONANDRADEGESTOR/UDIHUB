@@ -193,53 +193,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── CTA PROFESSIONALS ── */}
-      <section className="px-4 py-12" style={{ background: "#080809" }}>
-        <div className="max-w-2xl mx-auto">
-          <div className="relative overflow-hidden rounded-3xl p-7"
-            style={{ background: "linear-gradient(135deg, #0a1628 0%, #0f2040 50%, #0a1628 100%)", border: "1px solid rgba(59,130,246,0.2)" }}>
-            <div className="absolute -top-20 -right-20 w-56 h-56 rounded-full pointer-events-none"
-              style={{ background: "radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)", filter: "blur(40px)" }} />
-            <div className="absolute -bottom-20 -left-20 w-56 h-56 rounded-full pointer-events-none"
-              style={{ background: "radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%)", filter: "blur(40px)" }} />
-            <div className="relative z-10 text-center">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold mb-4"
-                style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", color: "#93c5fd" }}>
-                PARA PROFISSIONAIS
-              </div>
-              <h2 className="font-syne font-bold text-xl text-white mb-2.5 leading-tight">
-                Receba clientes direto<br />no seu WhatsApp
-              </h2>
-              <p className="text-xs mb-2 leading-relaxed max-w-xs mx-auto" style={{ color: "#93c5fd" }}>
-                Crie seu perfil e apareça para centenas de clientes buscando seu serviço em Uberlândia.
-              </p>
-              <p className="text-[11px] font-bold mb-5" style={{ color: "#3B82F6" }}>
-                A partir de R$69/mês · Cancele quando quiser
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
-                <Link href="/seja-profissional"
-                  className="px-7 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 active:scale-95"
-                  style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.45)" }}>
-                  Começar agora — grátis
-                </Link>
-                <Link href="/como-funciona"
-                  className="px-7 py-3 rounded-xl font-medium text-xs transition-all duration-200"
-                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#93c5fd" }}>
-                  Como funciona
-                </Link>
-              </div>
-              <div className="flex items-center justify-center gap-4 mt-5 flex-wrap">
-                {["✓ Perfil ativo em minutos", "✓ Sem fidelidade", "✓ Suporte via WhatsApp"].map((item) => (
-                  <span key={item} className="text-[10px] font-medium" style={{ color: "#475569" }}>{item}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── FAQ ── */}
-      <section className="px-4 py-12">
+      <section className="px-4 py-12" style={{ background: "#080809" }}>
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
             <p className="text-[10px] font-black tracking-[0.15em] mb-1.5" style={{ color: "#3B82F6" }}>DÚVIDAS</p>
