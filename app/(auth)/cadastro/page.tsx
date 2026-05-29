@@ -63,7 +63,7 @@ export default function CadastroPage() {
   });
 
   const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted transition-all duration-200";
-  const inputStyle = { background: "#09090B", border: "1px solid #1F1F23", outline: "none" };
+  const inputStyle = { background: "#09090B", border: "1px solid #1F1F23", outline: "none", width: "100%" };
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -121,11 +121,9 @@ export default function CadastroPage() {
     }
     if (!data.user) { toast.error("Erro ao criar conta"); setLoading(false); return; }
 
-    // Upload da foto
     let avatarUrl: string | null = null;
     if (avatarFile) avatarUrl = await uploadAvatar(data.user.id, avatarFile);
 
-    // Cria perfil
     await supabase.from("users").upsert({
       id: data.user.id,
       name: form.name,
@@ -140,7 +138,6 @@ export default function CadastroPage() {
       banned: false,
     }, { onConflict: "id" });
 
-    // Se profissional, cria perfil profissional
     if (userRole === "professional") {
       const { data: cat } = await supabase
         .from("categories").select("id").eq("slug", form.category).single();
@@ -187,7 +184,6 @@ export default function CadastroPage() {
         </span>
       </div>
 
-      {/* Indicador de progresso */}
       {step !== "role" && (
         <div className="flex items-center gap-2 mb-6">
           {(role === "professional" ? ["info", "verify", "professional"] : ["info", "verify"]).map((s, i) => (
@@ -203,7 +199,7 @@ export default function CadastroPage() {
         </div>
       )}
 
-      {/* STEP 1 — Role */}
+      {/* STEP 1 */}
       {step === "role" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Criar conta</h1>
@@ -262,7 +258,7 @@ export default function CadastroPage() {
         </div>
       )}
 
-      {/* STEP 2 — Dados básicos */}
+      {/* STEP 2 */}
       {step === "info" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Seus dados</h1>
@@ -305,14 +301,12 @@ export default function CadastroPage() {
         </div>
       )}
 
-      {/* STEP 3 — Verificação identidade */}
+      {/* STEP 3 */}
       {step === "verify" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Verificação</h1>
           <p className="text-sm text-muted mb-6">Para segurança de todos os usuários</p>
           <form onSubmit={handleSubmitVerify} className="space-y-4">
-
-            {/* Foto */}
             <div>
               <label className="block text-xs font-medium text-muted mb-2">Foto sua (selfie) *</label>
               <div className="flex items-center gap-4">
@@ -346,7 +340,6 @@ export default function CadastroPage() {
               </div>
             </div>
 
-            {/* CPF */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">CPF *</label>
               <input type="text" value={form.cpf}
@@ -356,15 +349,16 @@ export default function CadastroPage() {
               <p className="text-[10px] text-muted mt-1">Usado apenas para verificação de identidade</p>
             </div>
 
-            {/* Data de nascimento */}
+            {/* ✅ DATA CORRIGIDA — mesmo tamanho do CPF */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">Data de nascimento *</label>
               <input type="date" value={form.birthDate}
                 onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
-                required className={inputClass} style={{ ...inputStyle, color: "#FAFAFA" }} />
+                required
+                className={inputClass}
+                style={{ ...inputStyle, color: "#FAFAFA", WebkitAppearance: "none", appearance: "none" }} />
             </div>
 
-            {/* Aviso LGPD */}
             <div className="p-3 rounded-xl" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
               <p className="text-[10px] leading-relaxed" style={{ color: "#64748b" }}>
                 🔒 Seus dados pessoais são protegidos pela LGPD e usados apenas para verificação de identidade. Nunca compartilhamos com terceiros.
@@ -381,7 +375,7 @@ export default function CadastroPage() {
         </div>
       )}
 
-      {/* STEP 4 — Profissional */}
+      {/* STEP 4 */}
       {step === "professional" && (
         <div className="animate-slide-up">
           <h1 className="font-syne font-bold text-2xl text-foreground mb-2">Perfil profissional</h1>
