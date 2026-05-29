@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data: userData } = await supabase
-      .from("users").select("name, email").eq("id", user.id).single();
+      .from("users").select("name, email, phone").eq("id", user.id).single();
 
     const { data: prof } = await supabase
       .from("professionals").select("id").eq("user_id", user.id).single();
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const price = plan === "pro" ? 99 : 69;
     const planName = plan === "pro" ? "UDIHUB Pro" : "UDIHUB Básico";
 
-    // Cria cliente no Asaas
+    // Cria ou recupera cliente no Asaas
     const customerRes = await fetch(`${process.env.ASAAS_API_URL}/customers`, {
       method: "POST",
       headers: {
@@ -29,13 +29,18 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         name: userData?.name || "Profissional",
         email: userData?.email,
+        mobilePhone: userData?.phone?.replace(/\D/g, "") || undefined,
         externalReference: user.id,
       }),
     });
     const customer = await customerRes.json();
 
-    // Cria cobrança
-    const chargeRes = await fetch(`${process.env.ASAAS_API_URL}/payments`, {
+    // Cria ASSINATURA RECORRENTE mensal
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 1);
+    const dueDate = nextMonth.toISOString().split("T")[0];
+
+    const subRes = await fetch(`${process.env.ASAAS_API_URL}/subscriptions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -43,27 +48,27 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         customer: customer.id,
-        billingType: "UNDEFINED",
+        billingType: "UNDEFINED", // PIX ou cartão — cliente escolhe
+        cycle: "MONTHLY",
         value: price,
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        description: `${planName} - Assinatura mensal`,
+        nextDueDate: dueDate,
+        description: `${planName} — Assinatura mensal UDIHUB`,
         externalReference: `${prof.id}|${plan}`,
-        postalService: false,
       }),
     });
-    const charge = await chargeRes.json();
+    const subscription = await subRes.json();
 
-    // Salva assinatura pendente no banco
+    // Salva assinatura pendente
     await supabase.from("subscriptions").upsert({
       professional_id: prof.id,
       plan,
       status: "pending",
-      asaas_payment_id: charge.id,
+      asaas_payment_id: subscription.id,
     }, { onConflict: "professional_id" });
 
     return NextResponse.json({
-      paymentUrl: charge.invoiceUrl || charge.bankSlipUrl,
-      paymentId: charge.id,
+      paymentUrl: subscription.url || subscription.invoiceUrl,
+      subscriptionId: subscription.id,
     });
   } catch (err) {
     console.error("Assinatura error:", err);
