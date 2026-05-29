@@ -19,6 +19,7 @@ interface Profile {
   neighborhood?: string;
   city?: string;
   phone?: string;
+  avatar?: string;
 }
 
 export default function PerfilPage() {
@@ -36,7 +37,7 @@ export default function PerfilPage() {
 
       const { data: userData } = await supabase
         .from("users")
-        .select("name, email, role, neighborhood, city, phone")
+        .select("name, email, role, neighborhood, city, phone, avatar")
         .eq("id", user.id)
         .single();
 
@@ -53,18 +54,19 @@ export default function PerfilPage() {
           );
         }
       } else {
-        // Cria perfil automaticamente para login Google
         const name = user.user_metadata?.full_name ||
           user.user_metadata?.name ||
           user.email?.split("@")[0] || "Usuário";
+        const avatar = user.user_metadata?.avatar_url || null;
         await supabase.from("users").upsert({
           id: user.id,
           email: user.email!,
           name,
+          avatar,
           role: "client",
           banned: false,
         }, { onConflict: "id" });
-        setProfile({ name, email: user.email || "", role: "client" });
+        setProfile({ name, email: user.email || "", role: "client", avatar });
       }
       setLoading(false);
     }
@@ -103,10 +105,19 @@ export default function PerfilPage() {
       </div>
 
       <div className="px-4 py-6">
+        {/* Avatar + info */}
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-syne font-bold text-xl flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
-            {getInitials(profile?.name || "?")}
+          <div className="relative flex-shrink-0">
+            {profile?.avatar ? (
+              <img src={profile.avatar} alt={profile.name}
+                className="w-16 h-16 rounded-2xl object-cover"
+                style={{ border: "2px solid #1F1F23" }} />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-syne font-bold text-xl"
+                style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
+                {getInitials(profile?.name || "?")}
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="font-syne font-bold text-lg text-foreground truncate">{profile?.name}</h2>
@@ -144,7 +155,7 @@ export default function PerfilPage() {
             <div className="flex-1">
               <p className="text-sm font-semibold" style={{ color: "#FBBF24" }}>Adicione uma foto ao perfil</p>
               <p className="text-xs text-muted mt-0.5 leading-relaxed">
-                Profissionais com foto recebem até 3x mais contatos. Transmita mais confiança aos clientes.
+                Profissionais com foto recebem até 3x mais contatos.
               </p>
               <Link href="/painel/fotos"
                 className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold"
