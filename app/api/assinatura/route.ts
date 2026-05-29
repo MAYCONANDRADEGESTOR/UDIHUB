@@ -12,9 +12,22 @@ export async function POST(request: NextRequest) {
       .from("users").select("name, email, phone").eq("id", user.id).single();
 
     const { data: prof } = await supabase
-      .from("professionals").select("id").eq("user_id", user.id).single();
+      .from("professionals")
+      .select("id, coupon_code, trial_ends_at, status")
+      .eq("user_id", user.id).single();
 
     if (!prof) return NextResponse.json({ error: "Professional not found" }, { status: 404 });
+
+    // Se tem cupom ativo não precisa pagar
+    if (prof.coupon_code) {
+      return NextResponse.json({ alreadyActive: true, message: "Cupom aplicado — sem mensalidade" });
+    }
+
+    // Se está em trial ativo
+    if (prof.trial_ends_at && new Date(prof.trial_ends_at) > new Date()) {
+      const daysLeft = Math.ceil((new Date(prof.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+      return NextResponse.json({ trialActive: true, daysLeft });
+    }
 
     const price = plan === "pro" ? 99 : 69;
     const planName = plan === "pro" ? "UDIHUB Pro" : "UDIHUB Básico";
@@ -35,12 +48,11 @@ export async function POST(request: NextRequest) {
     });
     const customer = await customerRes.json();
 
-    // Data de vencimento amanhã
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dueDate = tomorrow.toISOString().split("T")[0];
 
-    // Cria ASSINATURA RECORRENTE mensal
+    // Cria assinatura recorrente mensal
     const subRes = await fetch(`${process.env.ASAAS_API_URL}/subscriptions`, {
       method: "POST",
       headers: {
@@ -59,7 +71,6 @@ export async function POST(request: NextRequest) {
     });
     const subscription = await subRes.json();
 
-    // Salva assinatura pendente
     await supabase.from("subscriptions").upsert({
       professional_id: prof.id,
       plan,
@@ -85,7 +96,7 @@ export async function GET() {
 
     const { data: prof } = await supabase
       .from("professionals")
-      .select("id, plan, status")
+      .select("id, plan, status, coupon_code, trial_ends_at")
       .eq("user_id", user.id).single();
 
     if (!prof) return NextResponse.json({ subscription: null });
