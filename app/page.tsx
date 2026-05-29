@@ -63,19 +63,16 @@ export default function HomePage() {
         style={{ background: "linear-gradient(160deg, #09090B 0%, #0c1220 50%, #09090B 100%)" }}>
         <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[400px] h-[200px] pointer-events-none rounded-full"
           style={{ background: "radial-gradient(ellipse, rgba(59,130,246,0.1) 0%, transparent 70%)", filter: "blur(60px)" }} />
-
         <div className="max-w-lg mx-auto text-center relative z-10">
           <div className="flex justify-center mb-5">
             <Image src="/logo.png" alt="UDIHUB" width={64} height={64} className="rounded-2xl object-cover"
               style={{ boxShadow: "0 0 30px rgba(139,92,246,0.35)" }} />
           </div>
-
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold mb-5 tracking-wide"
             style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#93c5fd" }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#3B82F6" }} />
             NOVO · Uberlândia · MG
           </div>
-
           <h1 className="font-syne font-bold leading-[1.15] mb-4"
             style={{ fontSize: "clamp(1.5rem, 5.5vw, 2.2rem)", color: "#FAFAFA" }}>
             O profissional certo,{" "}
@@ -88,12 +85,10 @@ export default function HomePage() {
               perto de você.
             </span>
           </h1>
-
           <p className="text-sm leading-relaxed mb-7 max-w-xs mx-auto" style={{ color: "#94a3b8" }}>
             Encontre profissionais no seu bairro. Grátis para clientes.{" "}
             <span style={{ color: "#93c5fd" }}>Profissional? Receba clientes pelo WhatsApp.</span>
           </p>
-
           <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
             <Link href="/servicos"
               className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 active:scale-95"
@@ -104,7 +99,7 @@ export default function HomePage() {
             <Link href="/seja-profissional"
               className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-xs transition-all duration-200 active:scale-95"
               style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)", color: "#93c5fd" }}>
-              💼 Quero receber clientes →
+              Quero receber clientes →
             </Link>
           </div>
         </div>
@@ -198,32 +193,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── NUMBERS ── */}
-      <section className="px-4 py-12" style={{ background: "#080809" }}>
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-6">
-            <p className="text-[10px] font-black tracking-[0.15em] mb-1.5" style={{ color: "#3B82F6" }}>PLATAFORMA</p>
-            <h2 className="font-syne font-bold text-lg text-foreground">Números que importam</h2>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { value: "40+", label: "Categorias de serviço", icon: "🗂️" },
-              { value: "R$0", label: "Custo para clientes", icon: "💚" },
-              { value: "1 min", label: "Para encontrar alguém", icon: "⚡" },
-            ].map(({ value, label, icon }) => (
-              <div key={label} className="p-4 rounded-2xl text-center"
-                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <div className="text-xl mb-1.5">{icon}</div>
-                <div className="font-syne font-bold text-lg text-white mb-0.5">{value}</div>
-                <div className="text-[10px] leading-tight" style={{ color: "#64748b" }}>{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── CTA PROFESSIONALS ── */}
-      <section className="px-4 py-12">
+      <section className="px-4 py-12" style={{ background: "#080809" }}>
         <div className="max-w-2xl mx-auto">
           <div className="relative overflow-hidden rounded-3xl p-7"
             style={{ background: "linear-gradient(135deg, #0a1628 0%, #0f2040 50%, #0a1628 100%)", border: "1px solid rgba(59,130,246,0.2)" }}>
@@ -234,7 +205,7 @@ export default function HomePage() {
             <div className="relative z-10 text-center">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold mb-4"
                 style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", color: "#93c5fd" }}>
-                💼 PARA PROFISSIONAIS
+                PARA PROFISSIONAIS
               </div>
               <h2 className="font-syne font-bold text-xl text-white mb-2.5 leading-tight">
                 Receba clientes direto<br />no seu WhatsApp
@@ -268,7 +239,7 @@ export default function HomePage() {
       </section>
 
       {/* ── FAQ ── */}
-      <section className="px-4 py-12" style={{ background: "#080809" }}>
+      <section className="px-4 py-12">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
             <p className="text-[10px] font-black tracking-[0.15em] mb-1.5" style={{ color: "#3B82F6" }}>DÚVIDAS</p>
