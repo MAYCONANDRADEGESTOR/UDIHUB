@@ -149,13 +149,12 @@ export default function CadastroPage() {
           whatsapp: form.whatsapp.replace(/\D/g, ""),
           category_id: cat.id,
           plan: form.plan,
-          status: "active",
+          status: "inactive",
           avatar: avatarUrl,
         }, { onConflict: "user_id" });
       }
       await sendEmail("welcome", form.email, form.name);
-      await sendEmail("professional_active", form.email, form.name);
-      toast.success("Perfil criado! Ative sua assinatura.");
+      toast.success("Perfil criado! Ative sua assinatura para aparecer nas buscas.");
       router.push("/painel/assinatura");
     } else {
       await sendEmail("welcome", form.email, form.name);
@@ -339,7 +338,6 @@ export default function CadastroPage() {
                 </div>
               </div>
             </div>
-
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">CPF *</label>
               <input type="text" value={form.cpf}
@@ -348,23 +346,18 @@ export default function CadastroPage() {
                 className={inputClass} style={inputStyle} />
               <p className="text-[10px] text-muted mt-1">Usado apenas para verificação de identidade</p>
             </div>
-
-            {/* ✅ DATA CORRIGIDA — mesmo tamanho do CPF */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">Data de nascimento *</label>
               <input type="date" value={form.birthDate}
                 onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
-                required
-                className={inputClass}
+                required className={inputClass}
                 style={{ ...inputStyle, color: "#FAFAFA", WebkitAppearance: "none", appearance: "none" }} />
             </div>
-
             <div className="p-3 rounded-xl" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
               <p className="text-[10px] leading-relaxed" style={{ color: "#64748b" }}>
                 🔒 Seus dados pessoais são protegidos pela LGPD e usados apenas para verificação de identidade. Nunca compartilhamos com terceiros.
               </p>
             </div>
-
             <button type="submit" disabled={loading}
               className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2"
               style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)", opacity: loading ? 0.7 : 1 }}>
@@ -400,6 +393,8 @@ export default function CadastroPage() {
                 placeholder="Fale sobre sua experiência e serviços..." rows={3}
                 className={inputClass} style={{ ...inputStyle, resize: "none" }} />
             </div>
+
+            {/* ✅ PLANOS — Básico primeiro, com descrição e recorrência */}
             <div>
               <label className="block text-xs font-medium text-muted mb-2">Plano</label>
               <div className="grid grid-cols-2 gap-2">
@@ -408,23 +403,28 @@ export default function CadastroPage() {
                     className="p-3 rounded-xl text-left"
                     style={{ background: "#111113", border: form.plan === plan ? "1px solid #3B82F6" : "1px solid #1F1F23" }}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-syne font-bold text-sm text-foreground">{plan === "pro" ? "Pro" : "Básico"}</span>
+                      <span className="font-syne font-bold text-sm text-foreground">{plan === "basic" ? "Básico" : "Pro"}</span>
                       {form.plan === plan && <Check size={12} style={{ color: "#3B82F6" }} />}
                     </div>
                     <span className="font-bold text-base" style={{ color: "#3B82F6" }}>
-                      R${plan === "pro" ? "99" : "69"}<span className="text-xs font-normal text-muted">/mês</span>
+                      R${plan === "basic" ? "69" : "99"}<span className="text-xs font-normal text-muted">/mês</span>
                     </span>
+                    <p className="text-[10px] text-muted mt-1">
+                      {plan === "basic" ? "Aparece nas buscas" : "Aparece primeiro · Badge PRO"}
+                    </p>
                   </button>
                 ))}
               </div>
+              <p className="text-[10px] text-muted mt-2 text-center">Cobrança mensal recorrente · Cancele quando quiser</p>
             </div>
+
             <button type="submit" disabled={loading}
-              className="w-full py-3.5 rounded-xl font-bold text-sm text-white mt-4 flex items-center justify-center gap-2"
+              className="w-full py-3.5 rounded-xl font-bold text-sm text-white mt-2 flex items-center justify-center gap-2"
               style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)", opacity: loading ? 0.7 : 1 }}>
               {loading && <Loader2 size={16} className="animate-spin" />}
-              {loading ? "Criando perfil..." : "Criar perfil"}
+              {loading ? "Criando perfil..." : "Criar perfil e ir para pagamento →"}
             </button>
-            <p className="text-center text-xs text-muted">Você será direcionado para ativar sua assinatura.</p>
+            <p className="text-center text-xs text-muted">Seu perfil fica ativo após o pagamento</p>
           </form>
         </div>
       )}
