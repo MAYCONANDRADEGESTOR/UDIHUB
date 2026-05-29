@@ -74,7 +74,32 @@ export default function SejaProfissionalPage() {
           <h2 className="font-syne font-bold text-xl text-foreground text-center mb-6">Escolha o seu plano</h2>
 
           <div className="grid grid-cols-1 gap-4">
-            {/* Pro */}
+
+            {/* ✅ BÁSICO PRIMEIRO */}
+            <div className="p-5 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+              <div className="mb-4">
+                <div className="font-syne font-bold text-lg text-foreground">Plano Básico</div>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="font-syne font-extrabold text-3xl text-foreground">R$69</span>
+                  <span className="text-sm text-muted">/mês</span>
+                </div>
+              </div>
+              <div className="space-y-2 mb-5">
+                {FEATURES_BASIC.map((feat) => (
+                  <div key={feat} className="flex items-center gap-2">
+                    <CheckCircle size={14} style={{ color: "#3B82F6" }} className="flex-shrink-0" />
+                    <span className="text-xs text-muted">{feat}</span>
+                  </div>
+                ))}
+              </div>
+              <Link href="/cadastro"
+                className="block text-center py-3 rounded-xl font-bold text-sm text-white"
+                style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
+                Começar com Básico
+              </Link>
+            </div>
+
+            {/* PRO DEPOIS */}
             <div className="relative p-5 rounded-2xl overflow-hidden"
               style={{ background: "linear-gradient(135deg, #0F1729 0%, #1e3a5f 100%)", border: "2px solid #3B82F6", boxShadow: "0 0 30px rgba(59,130,246,0.2)" }}>
               <div className="absolute top-4 right-4">
@@ -103,34 +128,10 @@ export default function SejaProfissionalPage() {
                 Começar com Pro
               </Link>
             </div>
-
-            {/* Básico */}
-            <div className="p-5 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-              <div className="mb-4">
-                <div className="font-syne font-bold text-lg text-foreground">Plano Básico</div>
-                <div className="flex items-baseline gap-1 mt-1">
-                  <span className="font-syne font-extrabold text-3xl text-foreground">R$69</span>
-                  <span className="text-sm text-muted">/mês</span>
-                </div>
-              </div>
-              <div className="space-y-2 mb-5">
-                {FEATURES_BASIC.map((feat) => (
-                  <div key={feat} className="flex items-center gap-2">
-                    <CheckCircle size={14} style={{ color: "#A1A1AA" }} className="flex-shrink-0" />
-                    <span className="text-xs text-muted">{feat}</span>
-                  </div>
-                ))}
-              </div>
-              <Link href="/cadastro"
-                className="block text-center py-3 rounded-xl font-bold text-sm"
-                style={{ background: "transparent", border: "1px solid #1F1F23", color: "#A1A1AA" }}>
-                Começar com Básico
-              </Link>
-            </div>
           </div>
 
           <p className="text-center text-xs text-muted mt-4">
-            Cancele a qualquer momento · Sem fidelidade
+            Cancele a qualquer momento · Sem fidelidade · Cobrança mensal recorrente
           </p>
         </div>
       </section>
