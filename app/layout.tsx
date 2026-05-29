@@ -8,8 +8,7 @@ export const metadata: Metadata = {
     default: "UDIHUB — Encontre o profissional certo, perto de você",
     template: "%s | UDIHUB",
   },
-  description:
-    "Marketplace local de serviços para o Triângulo Mineiro. Encontre encanadores, eletricistas, pintores e muito mais perto de você.",
+  description: "Marketplace local de serviços para o Triângulo Mineiro. Encontre encanadores, eletricistas, pintores e muito mais perto de você.",
   keywords: ["serviços", "profissionais", "Uberlândia", "Triângulo Mineiro"],
   authors: [{ name: "UDIHUB" }],
   creator: "UDIHUB",
@@ -43,11 +42,7 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className="dark">
       <head>
@@ -57,7 +52,7 @@ export default function RootLayout({
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
       </head>
-      <body className="bg-background text-foreground font-inter antialiased">
+      <body className="font-sans bg-background text-foreground antialiased">
         {children}
         <BottomNav />
         <Toaster
