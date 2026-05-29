@@ -9,12 +9,6 @@ import { CATEGORIES } from "@/lib/constants";
 
 const HERO_CATEGORIES = CATEGORIES.slice(0, 8);
 
-const STATS = [
-  { value: "40+", label: "Categorias", icon: "🗂️" },
-  { value: "100%", label: "Gratuito", icon: "✅" },
-  { value: "Uberlândia", label: "Disponível", icon: "📍" },
-];
-
 const HOW_IT_WORKS = [
   { step: "01", icon: Search, title: "Busque o serviço", desc: "Escolha entre 40 categorias e encontre profissionais no seu bairro.", color: "#3B82F6" },
   { step: "02", icon: Star, title: "Compare e escolha", desc: "Veja avaliações reais, fotos do trabalho e disponibilidade em tempo real.", color: "#FBBF24" },
@@ -95,35 +89,23 @@ export default function HomePage() {
             </span>
           </h1>
 
-          {/* ✅ MUDANÇA 1 — subtítulo fala com os dois públicos */}
           <p className="text-sm leading-relaxed mb-7 max-w-xs mx-auto" style={{ color: "#94a3b8" }}>
             Encontre profissionais no seu bairro. Grátis para clientes.{" "}
             <span style={{ color: "#93c5fd" }}>Profissional? Receba clientes pelo WhatsApp.</span>
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-2.5 justify-center mb-8">
+          <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
             <Link href="/servicos"
               className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 active:scale-95"
               style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.4)" }}>
               <Search size={16} />
               Buscar profissional
             </Link>
-            {/* ✅ MUDANÇA 2 — CTA do profissional com destaque e texto que converte */}
             <Link href="/seja-profissional"
               className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-xs transition-all duration-200 active:scale-95"
               style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)", color: "#93c5fd" }}>
               💼 Quero receber clientes →
             </Link>
-          </div>
-
-          <div className="flex items-center justify-center gap-6">
-            {STATS.map(({ value, label, icon }) => (
-              <div key={label} className="text-center">
-                <div className="text-base mb-0.5">{icon}</div>
-                <div className="font-syne font-bold text-base text-white">{value}</div>
-                <div className="text-[10px]" style={{ color: "#64748b" }}>{label}</div>
-              </div>
-            ))}
           </div>
         </div>
       </section>
