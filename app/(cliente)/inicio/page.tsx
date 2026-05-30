@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { MapPin, ChevronDown, Search, Zap, MessageCircle, Star, Heart, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
@@ -18,7 +19,7 @@ interface Professional {
   avg_rating: number;
   available_now: boolean;
   plan: string;
-  users: { name: string };
+  users: { name: string; avatar: string | null };
   categories: { name: string; icon: string; slug: string };
   professional_neighborhoods: { neighborhoods: { name: string } }[];
 }
@@ -54,10 +55,12 @@ export default function InicioPage() {
       setFavorites(favs?.map((f) => f.professional_id) || []);
     }
 
+    // ✅ Adicionado avatar na query
     const { data } = await supabase
       .from("professionals")
       .select(`id, slug, whatsapp, avg_rating, available_now, plan,
-        users(name), categories(name, icon, slug),
+        users(name, avatar),
+        categories(name, icon, slug),
         professional_neighborhoods(neighborhoods(name))`)
       .eq("status", "active")
       .order("plan", { ascending: false })
@@ -181,18 +184,28 @@ export default function InicioPage() {
           ) : (
             <div className="grid grid-cols-1 gap-3">
               {professionals.map((prof) => {
-                const neighborhood = (prof.professional_neighborhoods as any)?.[0]?.neighborhoods?.name;
+                const profNeighborhood = (prof.professional_neighborhoods as any)?.[0]?.neighborhoods?.name;
                 const isFav = favorites.includes(prof.id);
                 return (
                   <div key={prof.id} className="rounded-2xl overflow-hidden"
                     style={{ background: "#111113", border: "1px solid #1F1F23" }}>
                     <Link href={`/profissional/${prof.slug}`} className="block p-4">
                       <div className="flex items-start gap-3">
+                        {/* ✅ Avatar com foto real */}
                         <div className="relative flex-shrink-0">
-                          <div className="w-14 h-14 rounded-xl flex items-center justify-center font-syne font-bold text-lg"
-                            style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
-                            {getInitials(prof.users?.name || "?")}
-                          </div>
+                          {(prof.users as any)?.avatar ? (
+                            <Image
+                              src={(prof.users as any).avatar}
+                              alt={(prof.users as any).name || "Profissional"}
+                              width={56} height={56}
+                              className="w-14 h-14 rounded-xl object-cover"
+                            />
+                          ) : (
+                            <div className="w-14 h-14 rounded-xl flex items-center justify-center font-syne font-bold text-lg"
+                              style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
+                              {getInitials((prof.users as any)?.name || "?")}
+                            </div>
+                          )}
                           {prof.available_now && (
                             <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
                               style={{ background: "#22c55e", borderColor: "#111113" }} />
@@ -202,7 +215,7 @@ export default function InicioPage() {
                           <div className="flex items-start justify-between">
                             <div>
                               <div className="flex items-center gap-1.5">
-                                <h3 className="font-syne font-bold text-sm text-foreground">{prof.users?.name}</h3>
+                                <h3 className="font-syne font-bold text-sm text-foreground">{(prof.users as any)?.name}</h3>
                                 {prof.plan === "pro" && <span className="badge-pro">PRO</span>}
                               </div>
                               <p className="text-xs text-muted">{(prof.categories as any)?.icon} {(prof.categories as any)?.name}</p>
@@ -215,10 +228,10 @@ export default function InicioPage() {
                             </button>
                           </div>
                           <div className="flex items-center gap-3 mt-1.5">
-                            {neighborhood && (
+                            {profNeighborhood && (
                               <div className="flex items-center gap-1">
                                 <MapPin size={10} className="text-muted" />
-                                <span className="text-xs text-muted">{neighborhood}</span>
+                                <span className="text-xs text-muted">{profNeighborhood}</span>
                               </div>
                             )}
                             <div className="flex items-center gap-1">
