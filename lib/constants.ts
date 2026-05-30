@@ -1,44 +1,73 @@
 export const CATEGORIES = [
+  // Construção e Reformas
   { slug: "encanador", name: "Encanador / Hidráulica", icon: "🔧" },
   { slug: "eletricista", name: "Eletricista", icon: "⚡" },
   { slug: "pintor", name: "Pintor", icon: "🎨" },
   { slug: "pedreiro", name: "Pedreiro / Reformas", icon: "🧱" },
-  { slug: "ar-condicionado", name: "Técnico de Ar Condicionado", icon: "❄️" },
-  { slug: "marido-aluguel", name: "Marido de Aluguel / Faz Tudo", icon: "🔨" },
-  { slug: "diarista", name: "Diarista / Faxineira", icon: "🧹" },
-  { slug: "jardineiro", name: "Jardineiro", icon: "🌿" },
-  { slug: "montador-moveis", name: "Montador de Móveis", icon: "🪑" },
-  { slug: "tecnico-informatica", name: "Técnico de Informática", icon: "💻" },
   { slug: "gesseiro", name: "Gesseiro / Drywall", icon: "🏗️" },
   { slug: "marceneiro", name: "Marceneiro", icon: "🪵" },
   { slug: "serralheiro", name: "Serralheiro", icon: "🔩" },
+  { slug: "vidraceiro", name: "Vidraceiro", icon: "🪟" },
+  { slug: "azulejista", name: "Azulejista / Revestimento", icon: "🪟" },
+  { slug: "impermeabilizacao", name: "Impermeabilização", icon: "💧" },
+  { slug: "soldador", name: "Soldador", icon: "⚙️" },
+  { slug: "arquiteto", name: "Arquiteto / Decorador de Interiores", icon: "🏠" },
+  { slug: "portao-automatico", name: "Portão Automático", icon: "🚪" },
+  { slug: "estofador", name: "Estofador", icon: "🛋️" },
+
+  // Serviços Domésticos
+  { slug: "diarista", name: "Diarista / Faxineira", icon: "🧹" },
+  { slug: "marido-aluguel", name: "Marido de Aluguel / Faz Tudo", icon: "🔨" },
+  { slug: "ar-condicionado", name: "Técnico de Ar Condicionado", icon: "❄️" },
+  { slug: "refrigeracao", name: "Técnico de Refrigeração", icon: "🌡️" },
+  { slug: "eletrodomesticos", name: "Eletrodomésticos (Conserto)", icon: "🔌" },
+  { slug: "montador-moveis", name: "Montador de Móveis", icon: "🪑" },
   { slug: "desentupidora", name: "Desentupidora", icon: "🚿" },
   { slug: "dedetizacao", name: "Dedetização", icon: "🐛" },
   { slug: "chaveiro", name: "Chaveiro", icon: "🔑" },
-  { slug: "vidraceiro", name: "Vidraceiro", icon: "🪟" },
-  { slug: "refrigeracao", name: "Técnico de Refrigeração", icon: "🌡️" },
+  { slug: "jardineiro", name: "Jardineiro", icon: "🌿" },
+  { slug: "piscineiro", name: "Piscineiro / Manutenção de Piscina", icon: "🏊" },
+  { slug: "limpeza-sofa", name: "Limpeza de Sofá / Tapete", icon: "🧹" },
+  { slug: "cameras-cftv", name: "Instalador de Câmeras / CFTV", icon: "📷" },
+
+  // Tecnologia
+  { slug: "tecnico-informatica", name: "Técnico de Informática", icon: "💻" },
+  { slug: "tecnico-celular", name: "Técnico de Celular", icon: "📱" },
+  { slug: "desenvolvedor", name: "Desenvolvedor / Programador", icon: "👨‍💻" },
+  { slug: "designer-grafico", name: "Designer Gráfico", icon: "🎭" },
+
+  // Veículos
+  { slug: "mecanico", name: "Mecânico", icon: "🚗" },
+  { slug: "lavador-veiculos", name: "Lavador de Veículos", icon: "🚿" },
+  { slug: "pintura-automotiva", name: "Pintura Automotiva", icon: "🎨" },
+  { slug: "envelopamento", name: "Envelopamento de Veículos", icon: "🚗" },
+  { slug: "borracheiro", name: "Borracheiro", icon: "🔧" },
+  { slug: "motorista", name: "Motorista / Mototaxista", icon: "🚙" },
+  { slug: "mudanca-transporte", name: "Mudança e Transporte", icon: "🚚" },
+
+  // Saúde e Bem-Estar
   { slug: "cuidador-idosos", name: "Cuidador de Idosos", icon: "👴" },
   { slug: "baba", name: "Babá / Cuidador Infantil", icon: "👶" },
-  { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
-  { slug: "mecanico", name: "Mecânico", icon: "🚗" },
-  { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐾" },
-  { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
   { slug: "personal-trainer", name: "Personal Trainer", icon: "💪" },
   { slug: "nutricionista", name: "Nutricionista", icon: "🥗" },
   { slug: "psicologo", name: "Psicólogo", icon: "🧠" },
-  { slug: "advogado", name: "Advogado", icon: "⚖️" },
-  { slug: "contador", name: "Contador", icon: "🧾" },
-  { slug: "designer-grafico", name: "Designer Gráfico", icon: "🎭" },
-  { slug: "desenvolvedor", name: "Desenvolvedor / Programador", icon: "👨‍💻" },
-  { slug: "maquiadora", name: "Maquiadora", icon: "💄" },
+  { slug: "massagista", name: "Massagista", icon: "💆" },
+
+  // Beleza
   { slug: "cabeleireiro", name: "Cabeleireiro / Barbeiro", icon: "✂️" },
   { slug: "manicure", name: "Manicure / Pedicure", icon: "💅" },
-  { slug: "massagista", name: "Massagista", icon: "💆" },
+  { slug: "maquiadora", name: "Maquiadora", icon: "💄" },
+
+  // Profissionais Liberais
+  { slug: "advogado", name: "Advogado", icon: "⚖️" },
+  { slug: "contador", name: "Contador", icon: "🧾" },
+  { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
+  { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
+
+  // Outros
+  { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐾" },
   { slug: "costureira", name: "Costureira / Alfaiate", icon: "🧵" },
-  { slug: "motorista", name: "Motorista / Mototaxista", icon: "🚙" },
-  { slug: "mudanca-transporte", name: "Mudança e Transporte", icon: "🚚" },
-  { slug: "cameras-cftv", name: "Instalador de Câmeras / CFTV", icon: "📷" },
-  { slug: "tecnico-celular", name: "Técnico de Celular", icon: "📱" },
+  { slug: "carregador", name: "Carregador / Ajudante", icon: "💪" },
 ];
 
 export const CITIES = [
