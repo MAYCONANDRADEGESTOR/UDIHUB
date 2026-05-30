@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   MessageCircle, Star, Camera, CreditCard, TrendingUp,
-  Users, Zap, Target, Award, ChevronRight, Loader2,
+  Users, Zap, Award, Loader2,
   BookOpen, Lightbulb, Share2, Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -44,8 +44,8 @@ const TIPS = [
     color: "#22c55e",
     title: "Compartilhe seu perfil",
     desc: "Envie o link do seu perfil UDIHUB no seu WhatsApp, Instagram e cartão de visita.",
-    action: "Ver meu perfil",
-    href: "/painel/perfil",
+    action: "Compartilhar e pedir avaliações",
+    href: "/painel/avaliacoes",
   },
   {
     icon: Clock,
@@ -58,36 +58,12 @@ const TIPS = [
 ];
 
 const MARKETING_TIPS = [
-  {
-    icon: "📱",
-    title: "Bio poderosa",
-    desc: "Escreva uma bio clara: experiência, especialidade e diferencial. Seja direto e confiante.",
-  },
-  {
-    icon: "📸",
-    title: "Fotos que vendem",
-    desc: "Use fotos do antes/depois do serviço. Mostre qualidade e organização no trabalho.",
-  },
-  {
-    icon: "⭐",
-    title: "Primeira resposta rápida",
-    desc: "Responda no WhatsApp em até 5 minutos. Clientes escolhem quem responde mais rápido.",
-  },
-  {
-    icon: "💬",
-    title: "Orçamento profissional",
-    desc: "Responda com nome, preço e prazo. Quem é claro no orçamento fecha mais contratos.",
-  },
-  {
-    icon: "🔁",
-    title: "Peça indicação",
-    desc: "Após um serviço bem feito, peça indicação. 80% dos negócios vêm de boca a boca.",
-  },
-  {
-    icon: "📍",
-    title: "Bairros estratégicos",
-    desc: "Cadastre os bairros onde você atende. Apareça para clientes perto de você.",
-  },
+  { icon: "📱", title: "Bio poderosa", desc: "Escreva uma bio clara: experiência, especialidade e diferencial. Seja direto e confiante." },
+  { icon: "📸", title: "Fotos que vendem", desc: "Use fotos do antes/depois do serviço. Mostre qualidade e organização no trabalho." },
+  { icon: "⭐", title: "Primeira resposta rápida", desc: "Responda no WhatsApp em até 5 minutos. Clientes escolhem quem responde mais rápido." },
+  { icon: "💬", title: "Orçamento profissional", desc: "Responda com nome, preço e prazo. Quem é claro no orçamento fecha mais contratos." },
+  { icon: "🔁", title: "Peça indicação", desc: "Após um serviço bem feito, peça indicação. 80% dos negócios vêm de boca a boca." },
+  { icon: "📍", title: "Bairros estratégicos", desc: "Cadastre os bairros onde você atende. Apareça para clientes perto de você." },
 ];
 
 export default function PainelPage() {
@@ -192,7 +168,7 @@ export default function PainelPage() {
 
       <div className="px-4 py-4 space-y-5">
 
-        {/* Alerta se inativo */}
+        {/* Alerta inativo */}
         {!isActive && !isCoupon && !isTrial && (
           <div className="p-4 rounded-2xl"
             style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
@@ -268,7 +244,7 @@ export default function PainelPage() {
           </div>
         </div>
 
-        {/* Dicas rápidas */}
+        {/* Próximos passos */}
         <div>
           <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#22c55e" }}>PRÓXIMOS PASSOS</p>
           <div className="space-y-2">
@@ -283,9 +259,7 @@ export default function PainelPage() {
                 <div className="flex-1">
                   <p className="font-syne font-bold text-xs text-foreground mb-0.5">{title}</p>
                   <p className="text-[11px] leading-relaxed" style={{ color: "#64748b" }}>{desc}</p>
-                  <p className="text-[10px] font-bold mt-1.5" style={{ color }}>
-                    {action} →
-                  </p>
+                  <p className="text-[10px] font-bold mt-1.5" style={{ color }}>{action} →</p>
                 </div>
               </Link>
             ))}
@@ -298,7 +272,7 @@ export default function PainelPage() {
             <BookOpen size={14} style={{ color: "#a855f7" }} />
             <p className="text-[10px] font-bold tracking-widest" style={{ color: "#a855f7" }}>GUIA DE SUCESSO</p>
           </div>
-          <div className="p-4 rounded-2xl mb-3"
+          <div className="p-4 rounded-2xl"
             style={{ background: "linear-gradient(135deg, #1a0a2e, #2d1b4e)", border: "1px solid rgba(168,85,247,0.3)" }}>
             <div className="flex items-center gap-2 mb-3">
               <Lightbulb size={16} style={{ color: "#a855f7" }} />
