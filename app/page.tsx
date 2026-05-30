@@ -1,16 +1,22 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   Search, MapPin, Star, ArrowRight, CheckCircle,
-  Shield, ChevronDown, Instagram,
-  Mail, MessageCircle, Clock,
+  Shield, ChevronDown, Instagram, Mail, MessageCircle,
+  Clock, User, Briefcase, LogOut, ChevronRight,
 } from "lucide-react";
 import { CATEGORIES } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/client";
+import { getInitials } from "@/lib/utils";
 
 const HERO_CATEGORIES = CATEGORIES.slice(0, 8);
 
 const HOW_IT_WORKS = [
-  { step: "01", icon: Search, title: "Busque o serviço", desc: "Escolha entre 40 categorias e encontre profissionais no seu bairro.", color: "#3B82F6" },
+  { step: "01", icon: Search, title: "Busque o serviço", desc: "Escolha entre 54 categorias e encontre profissionais no seu bairro.", color: "#3B82F6" },
   { step: "02", icon: Star, title: "Compare e escolha", desc: "Veja avaliações reais, fotos do trabalho e disponibilidade em tempo real.", color: "#FBBF24" },
   { step: "03", icon: MessageCircle, title: "Chame no WhatsApp", desc: "Um clique e você está falando direto com o profissional. Sem intermediários.", color: "#22c55e" },
 ];
@@ -31,6 +37,39 @@ const FAQ = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    async function loadUser() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        const { data } = await supabase
+          .from("users")
+          .select("name, role, avatar")
+          .eq("id", user.id)
+          .single();
+        setProfile(data);
+      }
+      setLoadingUser(false);
+    }
+    loadUser();
+  }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    setShowUserMenu(false);
+    router.refresh();
+  }
+
   return (
     <div className="min-h-screen bg-background mb-bottom-nav overflow-x-hidden">
 
@@ -44,16 +83,145 @@ export default function HomePage() {
               UDI<span style={{ color: "#3B82F6" }}>HUB</span>
             </span>
           </Link>
+
           <div className="flex items-center gap-3">
             <Link href="/seja-profissional"
               className="hidden sm:block text-xs font-medium text-muted hover:text-foreground transition-colors">
               Para profissionais
             </Link>
-            <Link href="/login"
-              className="text-xs font-bold px-4 py-2 rounded-xl text-white transition-all duration-200 active:scale-95"
-              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 12px rgba(59,130,246,0.3)" }}>
-              Entrar
-            </Link>
+
+            {loadingUser ? (
+              <div className="w-8 h-8 rounded-xl skeleton" />
+            ) : user && profile ? (
+              /* ── USUÁRIO LOGADO ── */
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all duration-200"
+                  style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                  {/* Avatar */}
+                  {profile.avatar ? (
+                    <img src={profile.avatar} alt={profile.name}
+                      className="w-6 h-6 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold"
+                      style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
+                      {getInitials(profile.name || "?")}
+                    </div>
+                  )}
+                  {/* Status */}
+                  <div className="hidden sm:block text-left">
+                    <div className="text-[9px] font-medium leading-none mb-0.5" style={{ color: "#64748b" }}>
+                      {profile.role === "professional" ? "Profissional" : profile.role === "admin" ? "Admin" : "Cliente"}
+                    </div>
+                    <div className="text-[11px] font-semibold text-foreground leading-none truncate max-w-[80px]">
+                      {profile.name?.split(" ")[0]}
+                    </div>
+                  </div>
+                  {/* Indicador verde */}
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ background: "#22c55e", boxShadow: "0 0 4px rgba(34,197,94,0.7)" }} />
+                  <ChevronDown size={12} className="text-muted flex-shrink-0" />
+                </button>
+
+                {/* Dropdown menu */}
+                {showUserMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl overflow-hidden shadow-xl z-50 animate-slide-up"
+                    style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+
+                    {/* Info do usuário */}
+                    <div className="px-4 py-3" style={{ borderBottom: "1px solid #1F1F23" }}>
+                      <p className="text-xs font-bold text-foreground">{profile.name}</p>
+                      <p className="text-[10px] text-muted">{user.email}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#22c55e" }} />
+                        <span className="text-[10px] font-semibold" style={{ color: "#22c55e" }}>
+                          Conectado como {profile.role === "professional" ? "Profissional" : profile.role === "admin" ? "Admin" : "Cliente"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="py-1.5">
+                      {profile.role === "professional" && (
+                        <Link href="/painel" onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03] transition-colors">
+                          <Briefcase size={14} style={{ color: "#3B82F6" }} />
+                          <span className="text-xs font-medium text-foreground">Meu painel</span>
+                          <ChevronRight size={12} className="text-muted ml-auto" />
+                        </Link>
+                      )}
+                      {profile.role === "client" && (
+                        <Link href="/inicio" onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03] transition-colors">
+                          <Search size={14} style={{ color: "#3B82F6" }} />
+                          <span className="text-xs font-medium text-foreground">Buscar profissionais</span>
+                          <ChevronRight size={12} className="text-muted ml-auto" />
+                        </Link>
+                      )}
+                      {profile.role === "admin" && (
+                        <Link href="/admin" onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03] transition-colors">
+                          <Shield size={14} style={{ color: "#3B82F6" }} />
+                          <span className="text-xs font-medium text-foreground">Painel Admin</span>
+                          <ChevronRight size={12} className="text-muted ml-auto" />
+                        </Link>
+                      )}
+                      <Link href="/perfil" onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03] transition-colors">
+                        <User size={14} className="text-muted" />
+                        <span className="text-xs font-medium text-foreground">Meu perfil</span>
+                        <ChevronRight size={12} className="text-muted ml-auto" />
+                      </Link>
+
+                      {/* Alternar papel */}
+                      {profile.role === "client" && (
+                        <Link href="/seja-profissional" onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03] transition-colors"
+                          style={{ borderTop: "1px solid #1F1F23" }}>
+                          <Briefcase size={14} style={{ color: "#a855f7" }} />
+                          <span className="text-xs font-medium" style={{ color: "#a855f7" }}>
+                            Virar profissional
+                          </span>
+                          <ChevronRight size={12} className="text-muted ml-auto" />
+                        </Link>
+                      )}
+                      {profile.role === "professional" && (
+                        <Link href="/inicio" onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03] transition-colors"
+                          style={{ borderTop: "1px solid #1F1F23" }}>
+                          <User size={14} style={{ color: "#a855f7" }} />
+                          <span className="text-xs font-medium" style={{ color: "#a855f7" }}>
+                            Ver como cliente
+                          </span>
+                          <ChevronRight size={12} className="text-muted ml-auto" />
+                        </Link>
+                      )}
+
+                      {/* Sair */}
+                      <button onClick={handleLogout}
+                        className="flex items-center gap-3 px-4 py-2.5 w-full hover:bg-white/[0.03] transition-colors"
+                        style={{ borderTop: "1px solid #1F1F23" }}>
+                        <LogOut size={14} style={{ color: "#f87171" }} />
+                        <span className="text-xs font-medium" style={{ color: "#f87171" }}>Sair</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Overlay para fechar */}
+                {showUserMenu && (
+                  <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
+                )}
+              </div>
+            ) : (
+              /* ── NÃO LOGADO ── */
+              <Link href="/login"
+                className="text-xs font-bold px-4 py-2 rounded-xl text-white transition-all duration-200 active:scale-95"
+                style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 12px rgba(59,130,246,0.3)" }}>
+                Entrar
+              </Link>
+            )}
           </div>
         </div>
       </header>
