@@ -4,35 +4,97 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  MessageCircle, Eye, Star, User,
-  Image, CreditCard, ArrowUpRight, Loader2, TrendingUp
+  MessageCircle, Star, Camera, CreditCard, TrendingUp,
+  Users, Zap, Target, Award, ChevronRight, Loader2,
+  BookOpen, Lightbulb, Share2, Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface Stats {
-  leadsToday: number;
+  leadsTotal: number;
   leadsWeek: number;
-  leadsMonth: number;
-  viewsMonth: number;
+  viewsTotal: number;
   avgRating: number;
-  totalReviews: number;
+  reviewsTotal: number;
   plan: string;
-  availableNow: boolean;
-  professionalId: string;
+  status: string;
+  coupon_code: string | null;
+  trial_ends_at: string | null;
 }
 
-interface RecentLead {
-  city: string;
-  neighborhood: string;
-  created_at: string;
-}
+const TIPS = [
+  {
+    icon: Camera,
+    color: "#3B82F6",
+    title: "Adicione fotos do seu trabalho",
+    desc: "Profissionais com fotos recebem até 3x mais contatos. Mostre seus melhores trabalhos!",
+    action: "Adicionar fotos",
+    href: "/painel/fotos",
+  },
+  {
+    icon: Star,
+    color: "#FBBF24",
+    title: "Peça avaliações aos clientes",
+    desc: "Após cada serviço, peça para o cliente avaliar seu perfil. Avaliações geram mais confiança.",
+    action: "Ver avaliações",
+    href: "/painel/avaliacoes",
+  },
+  {
+    icon: Share2,
+    color: "#22c55e",
+    title: "Compartilhe seu perfil",
+    desc: "Envie o link do seu perfil UDIHUB no seu WhatsApp, Instagram e cartão de visita.",
+    action: "Ver meu perfil",
+    href: "/painel/perfil",
+  },
+  {
+    icon: Clock,
+    color: "#a855f7",
+    title: "Ative disponibilidade agora",
+    desc: "Perfis marcados como 'disponível agora' aparecem com destaque nas buscas.",
+    action: "Editar perfil",
+    href: "/painel/perfil",
+  },
+];
+
+const MARKETING_TIPS = [
+  {
+    icon: "📱",
+    title: "Bio poderosa",
+    desc: "Escreva uma bio clara: experiência, especialidade e diferencial. Seja direto e confiante.",
+  },
+  {
+    icon: "📸",
+    title: "Fotos que vendem",
+    desc: "Use fotos do antes/depois do serviço. Mostre qualidade e organização no trabalho.",
+  },
+  {
+    icon: "⭐",
+    title: "Primeira resposta rápida",
+    desc: "Responda no WhatsApp em até 5 minutos. Clientes escolhem quem responde mais rápido.",
+  },
+  {
+    icon: "💬",
+    title: "Orçamento profissional",
+    desc: "Responda com nome, preço e prazo. Quem é claro no orçamento fecha mais contratos.",
+  },
+  {
+    icon: "🔁",
+    title: "Peça indicação",
+    desc: "Após um serviço bem feito, peça indicação. 80% dos negócios vêm de boca a boca.",
+  },
+  {
+    icon: "📍",
+    title: "Bairros estratégicos",
+    desc: "Cadastre os bairros onde você atende. Apareça para clientes perto de você.",
+  },
+];
 
 export default function PainelPage() {
   const router = useRouter();
   const [stats, setStats] = useState<Stats | null>(null);
-  const [recentLeads, setRecentLeads] = useState<RecentLead[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toggling, setToggling] = useState(false);
+  const [userName, setUserName] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -40,64 +102,46 @@ export default function PainelPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
+      const { data: userData } = await supabase
+        .from("users").select("name, role").eq("id", user.id).single();
+
+      if (!userData || userData.role !== "professional") {
+        router.push("/inicio");
+        return;
+      }
+
+      setUserName(userData.name?.split(" ")[0] || "Profissional");
+
       const { data: prof } = await supabase
         .from("professionals")
-        .select("id, avg_rating, views_count, plan, available_now")
+        .select("id, plan, status, avg_rating, views_count, coupon_code, trial_ends_at")
         .eq("user_id", user.id)
         .single();
 
-      if (!prof) { router.push("/seja-profissional"); return; }
+      if (!prof) { router.push("/inicio"); return; }
 
-      const now = new Date();
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-
-      const [leadsToday, leadsWeek, leadsMonth, reviews, leads] = await Promise.all([
-        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).eq("professional_id", prof.id).gte("created_at", todayStart),
-        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).eq("professional_id", prof.id).gte("created_at", weekStart),
-        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).eq("professional_id", prof.id).gte("created_at", monthStart),
+      const [leadsTotal, leadsWeek, reviews] = await Promise.all([
+        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).eq("professional_id", prof.id),
+        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).eq("professional_id", prof.id).gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
         supabase.from("reviews").select("id", { count: "exact", head: true }).eq("professional_id", prof.id),
-        supabase.from("whatsapp_clicks").select("city, neighborhood, created_at").eq("professional_id", prof.id).order("created_at", { ascending: false }).limit(5),
       ]);
 
       setStats({
-        leadsToday: leadsToday.count || 0,
+        leadsTotal: leadsTotal.count || 0,
         leadsWeek: leadsWeek.count || 0,
-        leadsMonth: leadsMonth.count || 0,
-        viewsMonth: prof.views_count || 0,
+        viewsTotal: prof.views_count || 0,
         avgRating: prof.avg_rating || 0,
-        totalReviews: reviews.count || 0,
+        reviewsTotal: reviews.count || 0,
         plan: prof.plan,
-        availableNow: prof.available_now,
-        professionalId: prof.id,
+        status: prof.status,
+        coupon_code: prof.coupon_code,
+        trial_ends_at: prof.trial_ends_at,
       });
-      setRecentLeads(leads.data || []);
+
       setLoading(false);
     }
     load();
   }, []);
-
-  async function toggleAvailable() {
-    if (!stats) return;
-    setToggling(true);
-    const supabase = createClient();
-    await supabase.from("professionals")
-      .update({ available_now: !stats.availableNow })
-      .eq("id", stats.professionalId);
-    setStats({ ...stats, availableNow: !stats.availableNow });
-    setToggling(false);
-  }
-
-  function timeAgo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const h = Math.floor(diff / 3600000);
-    const d = Math.floor(h / 24);
-    if (h < 1) return "Agora há pouco";
-    if (h < 24) return `há ${h}h`;
-    if (d === 1) return "Ontem";
-    return `há ${d} dias`;
-  }
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -105,143 +149,206 @@ export default function PainelPage() {
     </div>
   );
 
+  const isActive = stats?.status === "active";
+  const isCoupon = !!stats?.coupon_code;
+  const isTrial = !!stats?.trial_ends_at && new Date(stats.trial_ends_at) > new Date();
+  const trialDaysLeft = stats?.trial_ends_at
+    ? Math.ceil((new Date(stats.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : 0;
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
-      <div className="sticky top-0 z-40 px-4 pt-4 pb-3"
+      <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="font-syne font-bold text-xl text-foreground">Painel</h1>
-            <p className="text-xs text-muted mt-0.5">Bem-vindo de volta 👋</p>
+            <h1 className="font-syne font-bold text-xl text-foreground">Olá, {userName}! 👋</h1>
+            <p className="text-xs text-muted mt-0.5">Painel do profissional</p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Toggle disponível */}
-            <button onClick={toggleAvailable} disabled={toggling}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200"
-              style={{
-                background: stats?.availableNow ? "rgba(34,197,94,0.15)" : "rgba(161,161,170,0.1)",
-                border: stats?.availableNow ? "1px solid rgba(34,197,94,0.3)" : "1px solid #1F1F23",
-                color: stats?.availableNow ? "#22c55e" : "#A1A1AA",
-              }}>
-              <span className={`w-1.5 h-1.5 rounded-full ${stats?.availableNow ? "bg-green-500 animate-pulse" : "bg-gray-500"}`} />
-              {stats?.availableNow ? "Disponível" : "Indisponível"}
-            </button>
-            {stats?.plan === "pro" && (
-              <div className="px-2 py-1 rounded-lg" style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
-                <span className="badge-pro">PRO</span>
-              </div>
+            {isCoupon && (
+              <span className="text-[9px] px-2 py-1 rounded-full font-bold"
+                style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)" }}>
+                CUPOM ATIVO
+              </span>
+            )}
+            {isTrial && (
+              <span className="text-[9px] px-2 py-1 rounded-full font-bold"
+                style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
+                TRIAL {trialDaysLeft}d
+              </span>
+            )}
+            {!isActive && !isCoupon && !isTrial && (
+              <Link href="/painel/assinatura"
+                className="text-[9px] px-2 py-1 rounded-full font-bold"
+                style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}>
+                INATIVO
+              </Link>
             )}
           </div>
         </div>
       </div>
 
-      <div className="px-4 py-4 space-y-4">
-        {/* Lead cards */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "Leads hoje", value: stats?.leadsToday || 0, color: "#22c55e" },
-            { label: "Semana", value: stats?.leadsWeek || 0, color: "#3B82F6" },
-            { label: "Mês", value: stats?.leadsMonth || 0, color: "#a855f7" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="p-3 rounded-2xl text-center"
-              style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-              <div className="font-syne font-extrabold text-2xl" style={{ color }}>{value}</div>
-              <div className="text-[10px] text-muted mt-0.5">{label}</div>
-            </div>
-          ))}
-        </div>
+      <div className="px-4 py-4 space-y-5">
 
-        {/* Views & rating */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 rounded-2xl flex items-center gap-3"
-            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: "rgba(59,130,246,0.1)" }}>
-              <Eye size={16} style={{ color: "#3B82F6" }} />
-            </div>
-            <div>
-              <div className="font-syne font-bold text-lg text-foreground">{stats?.viewsMonth || 0}</div>
-              <div className="text-[10px] text-muted">Visualizações</div>
-            </div>
+        {/* Alerta se inativo */}
+        {!isActive && !isCoupon && !isTrial && (
+          <div className="p-4 rounded-2xl"
+            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
+            <p className="font-syne font-bold text-sm mb-1" style={{ color: "#f87171" }}>Perfil inativo</p>
+            <p className="text-xs text-muted mb-3">Ative sua assinatura para aparecer nas buscas e receber clientes.</p>
+            <Link href="/painel/assinatura"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white"
+              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
+              <CreditCard size={14} /> Ativar assinatura
+            </Link>
           </div>
-          <div className="p-4 rounded-2xl flex items-center gap-3"
-            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: "rgba(251,191,36,0.1)" }}>
-              <Star size={16} style={{ color: "#FBBF24" }} />
-            </div>
-            <div>
-              <div className="font-syne font-bold text-lg text-foreground">
-                {stats?.avgRating ? stats.avgRating.toFixed(1) : "—"}
-              </div>
-              <div className="text-[10px] text-muted">{stats?.totalReviews || 0} avaliações</div>
-            </div>
-          </div>
-        </div>
+        )}
 
-        {/* Quick actions */}
+        {/* Trial aviso */}
+        {isTrial && (
+          <div className="p-4 rounded-2xl"
+            style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
+            <p className="font-syne font-bold text-sm mb-1" style={{ color: "#FBBF24" }}>
+              🎉 {trialDaysLeft} dias grátis restantes
+            </p>
+            <p className="text-xs text-muted">Aproveite o período de experiência! Após o trial, assine para continuar recebendo clientes.</p>
+          </div>
+        )}
+
+        {/* Métricas */}
         <div>
-          <h2 className="font-syne font-bold text-sm text-foreground mb-3">Gerenciar</h2>
+          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#3B82F6" }}>SUAS MÉTRICAS</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <MessageCircle size={14} style={{ color: "#22c55e" }} />
+                <span className="text-xs text-muted">Leads esta semana</span>
+              </div>
+              <div className="font-syne font-extrabold text-2xl text-foreground">{stats?.leadsWeek}</div>
+              <div className="text-[10px] text-muted mt-1">{stats?.leadsTotal} no total</div>
+            </div>
+            <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp size={14} style={{ color: "#3B82F6" }} />
+                <span className="text-xs text-muted">Visualizações</span>
+              </div>
+              <div className="font-syne font-extrabold text-2xl text-foreground">{stats?.viewsTotal}</div>
+              <div className="text-[10px] text-muted mt-1">
+                {stats?.avgRating ? `⭐ ${Number(stats.avgRating).toFixed(1)} (${stats?.reviewsTotal} avaliações)` : "Sem avaliações ainda"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Menu rápido */}
+        <div>
+          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#3B82F6" }}>GERENCIAR</p>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { href: "/painel/perfil", icon: User, label: "Editar perfil", desc: "Atualizar dados" },
-              { href: "/painel/fotos", icon: Image, label: "Fotos", desc: "Gerenciar galeria" },
-              { href: "/painel/avaliacoes", icon: Star, label: "Avaliações", desc: "Ver e responder" },
+              { href: "/painel/perfil", icon: Users, label: "Meu perfil", desc: "Editar dados e bairros" },
+              { href: "/painel/fotos", icon: Camera, label: "Fotos", desc: "Adicionar fotos do trabalho" },
+              { href: "/painel/leads", icon: MessageCircle, label: "Leads", desc: "Ver contatos recebidos" },
               { href: "/painel/assinatura", icon: CreditCard, label: "Assinatura", desc: "Gerenciar plano" },
             ].map(({ href, icon: Icon, label, desc }) => (
-              <Link key={href} href={href} className="card-hover p-4 rounded-2xl" style={{ background: "#111113" }}>
-                <div className="flex items-start justify-between">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{ background: "rgba(59,130,246,0.1)" }}>
-                    <Icon size={16} style={{ color: "#3B82F6" }} />
-                  </div>
-                  <ArrowUpRight size={12} className="text-muted" />
+              <Link key={href} href={href}
+                className="p-4 rounded-2xl flex flex-col gap-2"
+                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+                  style={{ background: "rgba(59,130,246,0.1)" }}>
+                  <Icon size={15} style={{ color: "#3B82F6" }} />
                 </div>
-                <div className="mt-3">
-                  <div className="font-semibold text-sm text-foreground">{label}</div>
-                  <div className="text-[10px] text-muted mt-0.5">{desc}</div>
+                <div>
+                  <p className="font-semibold text-xs text-foreground">{label}</p>
+                  <p className="text-[10px] text-muted">{desc}</p>
                 </div>
               </Link>
             ))}
           </div>
         </div>
 
-        {/* Recent leads */}
+        {/* Dicas rápidas */}
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-syne font-bold text-sm text-foreground">Leads recentes</h2>
-            <Link href="/painel/leads" className="text-xs font-medium flex items-center gap-1"
-              style={{ color: "#3B82F6" }}>
-              Ver todos <ArrowUpRight size={10} />
-            </Link>
+          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#22c55e" }}>PRÓXIMOS PASSOS</p>
+          <div className="space-y-2">
+            {TIPS.map(({ icon: Icon, color, title, desc, action, href }) => (
+              <Link key={title} href={href}
+                className="flex items-start gap-3 p-4 rounded-2xl"
+                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${color}15` }}>
+                  <Icon size={16} style={{ color }} />
+                </div>
+                <div className="flex-1">
+                  <p className="font-syne font-bold text-xs text-foreground mb-0.5">{title}</p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: "#64748b" }}>{desc}</p>
+                  <p className="text-[10px] font-bold mt-1.5" style={{ color }}>
+                    {action} →
+                  </p>
+                </div>
+              </Link>
+            ))}
           </div>
+        </div>
 
-          {recentLeads.length === 0 ? (
-            <div className="text-center py-8 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-              <TrendingUp size={24} className="text-muted mx-auto mb-2" />
-              <p className="text-sm text-muted">Nenhum lead ainda</p>
-              <p className="text-xs text-muted mt-1">Complete seu perfil para aparecer nas buscas</p>
+        {/* Guia de marketing */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <BookOpen size={14} style={{ color: "#a855f7" }} />
+            <p className="text-[10px] font-bold tracking-widest" style={{ color: "#a855f7" }}>GUIA DE SUCESSO</p>
+          </div>
+          <div className="p-4 rounded-2xl mb-3"
+            style={{ background: "linear-gradient(135deg, #1a0a2e, #2d1b4e)", border: "1px solid rgba(168,85,247,0.3)" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Lightbulb size={16} style={{ color: "#a855f7" }} />
+              <p className="font-syne font-bold text-sm text-white">Como conseguir mais clientes</p>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {recentLeads.map((lead, i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                  style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(34,197,94,0.1)" }}>
-                    <MessageCircle size={14} style={{ color: "#22c55e" }} />
+            <div className="space-y-3">
+              {MARKETING_TIPS.map(({ icon, title, desc }) => (
+                <div key={title} className="flex items-start gap-3">
+                  <span className="text-base flex-shrink-0">{icon}</span>
+                  <div>
+                    <p className="font-semibold text-xs text-white mb-0.5">{title}</p>
+                    <p className="text-[11px] leading-relaxed" style={{ color: "#c4b5fd" }}>{desc}</p>
                   </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium text-foreground">{lead.neighborhood || "—"}</div>
-                    <div className="text-xs text-muted">{lead.city || "Uberlândia"}</div>
-                  </div>
-                  <span className="text-xs text-muted">{timeAgo(lead.created_at)}</span>
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
+
+        {/* Upgrade pro */}
+        {stats?.plan === "basic" && isActive && (
+          <div className="p-4 rounded-2xl"
+            style={{ background: "linear-gradient(135deg, #0F1729, #1e3a5f)", border: "1px solid rgba(59,130,246,0.3)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Award size={14} style={{ color: "#3B82F6" }} />
+              <span className="font-syne font-bold text-sm text-white">Quer mais clientes?</span>
+            </div>
+            <p className="text-xs mb-3" style={{ color: "#93c5fd" }}>
+              O Plano Pro aparece primeiro nas buscas e tem badge de destaque. Por apenas +R$30/mês.
+            </p>
+            <Link href="/painel/assinatura"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white"
+              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
+              <Zap size={14} /> Upgrade para Pro — R$99/mês
+            </Link>
+          </div>
+        )}
+
+        {/* Suporte */}
+        <div className="p-4 rounded-2xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+          <p className="text-sm font-semibold text-foreground mb-1">Precisa de ajuda?</p>
+          <p className="text-xs text-muted mb-3">Nossa equipe responde em minutos</p>
+          <a href="https://wa.me/5534999999999?text=Olá! Preciso de ajuda com meu perfil no UDIHUB"
+            target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white"
+            style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
+            <MessageCircle size={14} /> Falar com suporte
+          </a>
+        </div>
+
       </div>
     </div>
   );
