@@ -26,12 +26,12 @@ export async function POST(request: NextRequest) {
         .update({ status: "active", plan: plan || "basic" })
         .eq("id", professionalId);
 
-      // Atualiza assinatura
+      // ✅ CORRIGIDO: asaas_subscription_id
       await supabase.from("subscriptions")
-        .update({ status: "active", asaas_payment_id: payment.id })
+        .update({ status: "active", asaas_subscription_id: payment.subscription || payment.id })
         .eq("professional_id", professionalId);
 
-      // Busca email do profissional e envia email
+      // Envia email de confirmação
       const { data: prof } = await supabase
         .from("professionals")
         .select("users(name, email)")
@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (event === "PAYMENT_OVERDUE" || event === "PAYMENT_DELETED") {
+    if (event === "PAYMENT_OVERDUE" || event === "PAYMENT_DELETED" || event === "SUBSCRIPTION_DELETED") {
+      // Desativa o profissional quando não pagar
       await supabase.from("professionals")
         .update({ status: "inactive" })
         .eq("id", professionalId);
@@ -56,6 +57,17 @@ export async function POST(request: NextRequest) {
       await supabase.from("subscriptions")
         .update({ status: "inactive" })
         .eq("professional_id", professionalId);
+    }
+
+    if (event === "SUBSCRIPTION_RENEWED") {
+      // Renova mensalmente
+      await supabase.from("subscriptions")
+        .update({ status: "active" })
+        .eq("professional_id", professionalId);
+
+      await supabase.from("professionals")
+        .update({ status: "active" })
+        .eq("id", professionalId);
     }
 
     return NextResponse.json({ ok: true });
