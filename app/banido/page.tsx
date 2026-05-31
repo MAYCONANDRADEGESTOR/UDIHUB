@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export default function BanidoPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 text-center">
@@ -18,9 +16,9 @@ export default function BanidoPage() {
       >
         Contatar suporte
       </a>
-      <Link href="/" className="text-xs text-muted mt-2">
+      <a href="/" className="text-xs text-muted mt-2">
         Voltar para o início
-      </Link>
+      </a>
     </div>
   );
 }
