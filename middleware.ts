@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    // Usuário banido → desloga e redireciona para /banido
+    // Usuario banido
     if (userData?.banned) {
       const response = NextResponse.redirect(new URL("/banido", request.url));
       response.cookies.delete("sb-access-token");
@@ -32,22 +32,27 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    // Profissional em /inicio → manda para /painel
-    if (pathname === "/inicio" && userData?.role === "professional") {
+    // Profissional na landing OU em /inicio -> vai para /painel
+    if ((pathname === "/" || pathname === "/inicio") && userData?.role === "professional") {
       return NextResponse.redirect(new URL("/painel", request.url));
     }
 
-    // Admin em /inicio → manda para /admin
-    if (pathname === "/inicio" && userData?.role === "admin") {
+    // Admin na landing OU em /inicio -> vai para /admin
+    if ((pathname === "/" || pathname === "/inicio") && userData?.role === "admin") {
       return NextResponse.redirect(new URL("/admin", request.url));
     }
 
-    // Cliente tentando acessar /painel → manda para /inicio
+    // Cliente na landing -> vai para /inicio
+    if (pathname === "/" && userData?.role === "client") {
+      return NextResponse.redirect(new URL("/inicio", request.url));
+    }
+
+    // Cliente tentando acessar /painel -> manda para /inicio
     if (pathname.startsWith("/painel") && userData?.role === "client") {
       return NextResponse.redirect(new URL("/inicio", request.url));
     }
 
-    // Não-admin tentando acessar /admin → manda para /inicio
+    // Nao-admin tentando acessar /admin -> manda para /inicio
     if (pathname.startsWith("/admin") && userData?.role !== "admin") {
       return NextResponse.redirect(new URL("/inicio", request.url));
     }
