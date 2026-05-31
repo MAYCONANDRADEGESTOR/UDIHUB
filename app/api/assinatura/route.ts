@@ -18,12 +18,10 @@ export async function POST(request: NextRequest) {
 
     if (!prof) return NextResponse.json({ error: "Professional not found" }, { status: 404 });
 
-    // Se tem cupom ativo não precisa pagar
     if (prof.coupon_code) {
       return NextResponse.json({ alreadyActive: true, message: "Cupom aplicado — sem mensalidade" });
     }
 
-    // Se está em trial ativo
     if (prof.trial_ends_at && new Date(prof.trial_ends_at) > new Date()) {
       const daysLeft = Math.ceil((new Date(prof.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       return NextResponse.json({ trialActive: true, daysLeft });
@@ -32,7 +30,6 @@ export async function POST(request: NextRequest) {
     const price = plan === "pro" ? 99 : 69;
     const planName = plan === "pro" ? "UDIHUB Pro" : "UDIHUB Básico";
 
-    // Cria cliente no Asaas
     const customerRes = await fetch(`${process.env.ASAAS_API_URL}/customers`, {
       method: "POST",
       headers: {
@@ -56,7 +53,6 @@ export async function POST(request: NextRequest) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dueDate = tomorrow.toISOString().split("T")[0];
 
-    // Cria assinatura recorrente mensal
     const subRes = await fetch(`${process.env.ASAAS_API_URL}/subscriptions`, {
       method: "POST",
       headers: {
@@ -79,7 +75,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Erro ao criar assinatura no Asaas" }, { status: 500 });
     }
 
-    // ✅ CORRIGIDO: usa asaas_subscription_id (não asaas_payment_id)
+    // ✅ CORRIGIDO: asaas_subscription_id
     await supabase.from("subscriptions").upsert({
       professional_id: prof.id,
       plan,
@@ -110,7 +106,7 @@ export async function GET() {
 
     if (!prof) return NextResponse.json({ subscription: null });
 
-    // ✅ CORRIGIDO: usa asaas_subscription_id
+    // ✅ CORRIGIDO: asaas_subscription_id
     const { data: sub } = await supabase
       .from("subscriptions")
       .select("plan, status, created_at, asaas_subscription_id")
