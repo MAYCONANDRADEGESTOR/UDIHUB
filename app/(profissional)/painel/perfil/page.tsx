@@ -200,37 +200,27 @@ export default function EditarPerfilPage() {
 
         {/* Campos */}
         <div className="space-y-3">
-
-          {/* Nome */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Nome completo</label>
             <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="Seu nome" required className={inputClass} style={inputStyle} />
           </div>
-
-          {/* Email — somente leitura */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">E-mail</label>
             <input type="email" value={form.email} readOnly
               className={inputClass} style={inputReadOnly} />
             <p className="text-[10px] text-muted mt-1">Para alterar o e-mail entre em contato com o suporte</p>
           </div>
-
-          {/* Telefone */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Telefone</label>
             <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
               placeholder="(34) 99999-9999" className={inputClass} style={inputStyle} />
           </div>
-
-          {/* WhatsApp */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">WhatsApp (recebe leads)</label>
             <input type="tel" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
               placeholder="(34) 99999-9999" required className={inputClass} style={inputStyle} />
           </div>
-
-          {/* Especialidade */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Especialidade</label>
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -240,8 +230,6 @@ export default function EditarPerfilPage() {
               ))}
             </select>
           </div>
-
-          {/* Bio */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Bio</label>
             <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
@@ -251,7 +239,7 @@ export default function EditarPerfilPage() {
           </div>
         </div>
 
-        {/* Bairros atendidos */}
+        {/* Bairros */}
         <div>
           <label className="block text-xs font-medium text-muted mb-2">
             Bairros atendidos ({selectedNeighborhoodIds.length} selecionados)
@@ -264,9 +252,7 @@ export default function EditarPerfilPage() {
                   <div key={n.id} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
                     style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", color: "#93c5fd" }}>
                     {n.name}
-                    <button type="button" onClick={() => toggleNeighborhood(n.id)}>
-                      <X size={10} />
-                    </button>
+                    <button type="button" onClick={() => toggleNeighborhood(n.id)}><X size={10} /></button>
                   </div>
                 ))}
             </div>
