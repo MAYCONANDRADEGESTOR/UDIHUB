@@ -14,7 +14,8 @@ export default function BanidoPage() {
       
         href="mailto:udihub@outlook.com"
         className="px-6 py-3 rounded-xl font-bold text-sm text-white mb-4 inline-block"
-        style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
+        style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}
+      >
         Contatar suporte
       </a>
       <Link href="/" className="text-xs text-muted mt-2">
