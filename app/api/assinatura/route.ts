@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
       }),
     });
     const customer = await customerRes.json();
+    if (!customer.id) {
+      console.error("Asaas customer error:", customer);
+      return NextResponse.json({ error: "Erro ao criar cliente no Asaas" }, { status: 500 });
+    }
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -70,12 +74,17 @@ export async function POST(request: NextRequest) {
       }),
     });
     const subscription = await subRes.json();
+    if (!subscription.id) {
+      console.error("Asaas subscription error:", subscription);
+      return NextResponse.json({ error: "Erro ao criar assinatura no Asaas" }, { status: 500 });
+    }
 
+    // ✅ CORRIGIDO: usa asaas_subscription_id (não asaas_payment_id)
     await supabase.from("subscriptions").upsert({
       professional_id: prof.id,
       plan,
       status: "pending",
-      asaas_payment_id: subscription.id,
+      asaas_subscription_id: subscription.id,
     }, { onConflict: "professional_id" });
 
     return NextResponse.json({
@@ -101,9 +110,10 @@ export async function GET() {
 
     if (!prof) return NextResponse.json({ subscription: null });
 
+    // ✅ CORRIGIDO: usa asaas_subscription_id
     const { data: sub } = await supabase
       .from("subscriptions")
-      .select("plan, status, created_at, asaas_payment_id")
+      .select("plan, status, created_at, asaas_subscription_id")
       .eq("professional_id", prof.id).single();
 
     return NextResponse.json({ subscription: sub, professional: prof });
