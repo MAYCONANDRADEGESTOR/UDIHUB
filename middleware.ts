@@ -4,7 +4,6 @@ import { createServerClient } from "@supabase/ssr";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Cria cliente Supabase no middleware
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -18,54 +17,38 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Se profissional tenta acessar /inicio → manda para /painel
-  if (pathname === "/inicio" && user) {
+  if (user) {
     const { data: userData } = await supabase
       .from("users")
-      .select("role")
+      .select("role, banned")
       .eq("id", user.id)
       .single();
 
-    if (userData?.role === "professional") {
+    // Usuário banido → desloga e redireciona para /banido
+    if (userData?.banned) {
+      const response = NextResponse.redirect(new URL("/banido", request.url));
+      response.cookies.delete("sb-access-token");
+      response.cookies.delete("sb-refresh-token");
+      return response;
+    }
+
+    // Profissional em /inicio → manda para /painel
+    if (pathname === "/inicio" && userData?.role === "professional") {
       return NextResponse.redirect(new URL("/painel", request.url));
     }
-  }
 
-  // Se admin tenta acessar /inicio → manda para /admin
-  if (pathname === "/inicio" && user) {
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (userData?.role === "admin") {
+    // Admin em /inicio → manda para /admin
+    if (pathname === "/inicio" && userData?.role === "admin") {
       return NextResponse.redirect(new URL("/admin", request.url));
     }
-  }
 
-  // Protege rotas do painel — só profissional acessa
-  if (pathname.startsWith("/painel") && user) {
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (userData?.role === "client") {
+    // Cliente tentando acessar /painel → manda para /inicio
+    if (pathname.startsWith("/painel") && userData?.role === "client") {
       return NextResponse.redirect(new URL("/inicio", request.url));
     }
-  }
 
-  // Protege rotas admin — só admin acessa
-  if (pathname.startsWith("/admin") && user) {
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (userData?.role !== "admin") {
+    // Não-admin tentando acessar /admin → manda para /inicio
+    if (pathname.startsWith("/admin") && userData?.role !== "admin") {
       return NextResponse.redirect(new URL("/inicio", request.url));
     }
   }
@@ -75,6 +58,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icons|manifest.json|banido|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
