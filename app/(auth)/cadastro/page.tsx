@@ -167,7 +167,6 @@ export default function CadastroPage() {
         .from("categories").select("id").eq("slug", form.category).single();
 
       if (cat) {
-        // Define status e trial baseado no cupom
         let profStatus = "inactive";
         let trialEndsAt = null;
 
@@ -191,7 +190,6 @@ export default function CadastroPage() {
           trial_ends_at: trialEndsAt,
         }, { onConflict: "user_id" });
 
-        // Incrementa uso do cupom
         if (form.coupon && couponValid) {
           await supabase.rpc("increment_coupon_uses", { coupon_code: form.coupon.toUpperCase() }).catch(() => {});
         }
@@ -381,11 +379,11 @@ export default function CadastroPage() {
                       <span className="text-[9px] text-muted">Adicionar</span>
                     </button>
                   )}
-                  <input ref={fileInputRef} type="file" accept="image/*" capture="user"
+                  <input ref={fileInputRef} type="file" accept="image/*"
                     onChange={handleAvatarChange} className="hidden" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-foreground font-medium mb-1">Tire uma selfie clara</p>
+                  <p className="text-xs text-foreground font-medium mb-1">Tire uma selfie ou escolha da galeria</p>
                   <p className="text-[11px] text-muted leading-relaxed">
                     Sua foto garante mais segurança para todos. Profissionais com foto recebem 3x mais contatos.
                   </p>
@@ -448,7 +446,6 @@ export default function CadastroPage() {
                 className={inputClass} style={{ ...inputStyle, resize: "none" }} />
             </div>
 
-            {/* Planos — só aparece se não tem cupom válido */}
             {!couponValid && (
               <div>
                 <label className="block text-xs font-medium text-muted mb-2">Plano</label>
@@ -474,7 +471,6 @@ export default function CadastroPage() {
               </div>
             )}
 
-            {/* Cupom válido aplicado */}
             {couponValid && (
               <div className="p-4 rounded-2xl flex items-center gap-3"
                 style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)" }}>
@@ -494,7 +490,6 @@ export default function CadastroPage() {
               </div>
             )}
 
-            {/* Campo de cupom */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">
                 <Tag size={11} className="inline mr-1" />
