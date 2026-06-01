@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    // PROFISSIONAL: verifica se está ativo
+    // PROFISSIONAL: verifica se esta ativo
     if (userData?.role === "professional") {
       const { data: prof } = await supabase
         .from("professionals")
@@ -45,38 +45,39 @@ export async function middleware(request: NextRequest) {
       const inTrial = prof?.trial_ends_at && new Date(prof.trial_ends_at) > new Date();
       const liberado = isActive || hasCoupon || inTrial;
 
-      // Páginas liberadas mesmo sem pagar (para conseguir assinar)
+      // Paginas liberadas mesmo sem pagar
       const allowedPaths = [
         "/painel/assinatura",
         "/painel/perfil",
+        "/painel/retorno",
         "/api",
         "/sair",
         "/logout",
       ];
       const isAllowed = allowedPaths.some((p) => pathname.startsWith(p));
 
-      // Se NÃO está liberado e tenta acessar área restrita → manda assinar
+      // Se NAO esta liberado e tenta acessar area restrita
       if (!liberado && pathname.startsWith("/painel") && !isAllowed) {
         return NextResponse.redirect(new URL("/painel/assinatura", request.url));
       }
 
-      // Profissional liberado em /inicio → vai pro painel
+      // Profissional liberado em /inicio vai pro painel
       if (pathname === "/inicio" && liberado) {
         return NextResponse.redirect(new URL("/painel", request.url));
       }
     }
 
-    // Admin em /inicio -> manda para /admin
+    // Admin em /inicio vai para /admin
     if (pathname === "/inicio" && userData?.role === "admin") {
       return NextResponse.redirect(new URL("/admin", request.url));
     }
 
-    // Cliente tentando acessar /painel -> manda para /inicio
+    // Cliente tentando acessar /painel vai para /inicio
     if (pathname.startsWith("/painel") && userData?.role === "client") {
       return NextResponse.redirect(new URL("/inicio", request.url));
     }
 
-    // Nao-admin tentando acessar /admin -> manda para /inicio
+    // Nao-admin tentando acessar /admin vai para /inicio
     if (pathname.startsWith("/admin") && userData?.role !== "admin") {
       return NextResponse.redirect(new URL("/inicio", request.url));
     }
