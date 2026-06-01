@@ -9,14 +9,11 @@ import {
   Shield, ChevronDown, Instagram, Mail, MessageCircle,
   Clock, User, Briefcase, LogOut, ChevronRight,
 } from "lucide-react";
-import { CATEGORIES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/utils";
 
-const HERO_CATEGORIES = CATEGORIES.slice(0, 8);
-
 const HOW_IT_WORKS = [
-  { step: "01", icon: Search, title: "Busque o serviço", desc: "Escolha entre 54 categorias e encontre profissionais no seu bairro.", color: "#3B82F6" },
+  { step: "01", icon: Search, title: "Busque o serviço", desc: "Escolha entre 56 categorias e encontre profissionais no seu bairro.", color: "#3B82F6" },
   { step: "02", icon: Star, title: "Compare e escolha", desc: "Veja avaliações reais, fotos do trabalho e disponibilidade em tempo real.", color: "#FBBF24" },
   { step: "03", icon: MessageCircle, title: "Chame no WhatsApp", desc: "Um clique e você está falando direto com o profissional. Sem intermediários.", color: "#22c55e" },
 ];
@@ -93,13 +90,11 @@ export default function HomePage() {
             {loadingUser ? (
               <div className="w-8 h-8 rounded-xl skeleton" />
             ) : user && profile ? (
-              /* ── USUÁRIO LOGADO ── */
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all duration-200"
                   style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                  {/* Avatar */}
                   {profile.avatar ? (
                     <img src={profile.avatar} alt={profile.name}
                       className="w-6 h-6 rounded-lg object-cover" />
@@ -109,7 +104,6 @@ export default function HomePage() {
                       {getInitials(profile.name || "?")}
                     </div>
                   )}
-                  {/* Status */}
                   <div className="hidden sm:block text-left">
                     <div className="text-[9px] font-medium leading-none mb-0.5" style={{ color: "#64748b" }}>
                       {profile.role === "professional" ? "Profissional" : profile.role === "admin" ? "Admin" : "Cliente"}
@@ -118,18 +112,14 @@ export default function HomePage() {
                       {profile.name?.split(" ")[0]}
                     </div>
                   </div>
-                  {/* Indicador verde */}
                   <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                     style={{ background: "#22c55e", boxShadow: "0 0 4px rgba(34,197,94,0.7)" }} />
                   <ChevronDown size={12} className="text-muted flex-shrink-0" />
                 </button>
 
-                {/* Dropdown menu */}
                 {showUserMenu && (
                   <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl overflow-hidden shadow-xl z-50 animate-slide-up"
                     style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-
-                    {/* Info do usuário */}
                     <div className="px-4 py-3" style={{ borderBottom: "1px solid #1F1F23" }}>
                       <p className="text-xs font-bold text-foreground">{profile.name}</p>
                       <p className="text-[10px] text-muted">{user.email}</p>
@@ -140,8 +130,6 @@ export default function HomePage() {
                         </span>
                       </div>
                     </div>
-
-                    {/* Ações */}
                     <div className="py-1.5">
                       {profile.role === "professional" && (
                         <Link href="/painel" onClick={() => setShowUserMenu(false)}
@@ -173,16 +161,12 @@ export default function HomePage() {
                         <span className="text-xs font-medium text-foreground">Meu perfil</span>
                         <ChevronRight size={12} className="text-muted ml-auto" />
                       </Link>
-
-                      {/* Alternar papel */}
                       {profile.role === "client" && (
                         <Link href="/seja-profissional" onClick={() => setShowUserMenu(false)}
                           className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03] transition-colors"
                           style={{ borderTop: "1px solid #1F1F23" }}>
                           <Briefcase size={14} style={{ color: "#a855f7" }} />
-                          <span className="text-xs font-medium" style={{ color: "#a855f7" }}>
-                            Virar profissional
-                          </span>
+                          <span className="text-xs font-medium" style={{ color: "#a855f7" }}>Virar profissional</span>
                           <ChevronRight size={12} className="text-muted ml-auto" />
                         </Link>
                       )}
@@ -191,14 +175,10 @@ export default function HomePage() {
                           className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.03] transition-colors"
                           style={{ borderTop: "1px solid #1F1F23" }}>
                           <User size={14} style={{ color: "#a855f7" }} />
-                          <span className="text-xs font-medium" style={{ color: "#a855f7" }}>
-                            Ver como cliente
-                          </span>
+                          <span className="text-xs font-medium" style={{ color: "#a855f7" }}>Ver como cliente</span>
                           <ChevronRight size={12} className="text-muted ml-auto" />
                         </Link>
                       )}
-
-                      {/* Sair */}
                       <button onClick={handleLogout}
                         className="flex items-center gap-3 px-4 py-2.5 w-full hover:bg-white/[0.03] transition-colors"
                         style={{ borderTop: "1px solid #1F1F23" }}>
@@ -208,14 +188,11 @@ export default function HomePage() {
                     </div>
                   </div>
                 )}
-
-                {/* Overlay para fechar */}
                 {showUserMenu && (
                   <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
                 )}
               </div>
             ) : (
-              /* ── NÃO LOGADO ── */
               <Link href="/login"
                 className="text-xs font-bold px-4 py-2 rounded-xl text-white transition-all duration-200 active:scale-95"
                 style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 12px rgba(59,130,246,0.3)" }}>
@@ -258,53 +235,23 @@ export default function HomePage() {
             <span style={{ color: "#93c5fd" }}>Profissional? Receba clientes pelo WhatsApp.</span>
           </p>
           <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
+            {/* Botão principal com pulse */}
             <Link href="/servicos"
-              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 active:scale-95"
+              className="relative flex items-center justify-center px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 active:scale-95"
               style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.4)" }}>
-              <Search size={16} />
-              Buscar profissional
+              <span className="absolute inset-0 rounded-xl animate-pulse"
+                style={{ background: "rgba(59,130,246,0.3)", animationDuration: "2s" }} />
+              <span className="relative">Buscar profissional</span>
             </Link>
+            {/* Botão secundário com pulse */}
             <Link href="/seja-profissional"
-              className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-xs transition-all duration-200 active:scale-95"
+              className="relative flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-xs transition-all duration-200 active:scale-95"
               style={{ background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.35)", color: "#93c5fd" }}>
-              Quero receber clientes →
+              <span className="absolute inset-0 rounded-xl animate-pulse"
+                style={{ background: "rgba(59,130,246,0.08)", animationDuration: "2.5s" }} />
+              <span className="relative">Quero receber clientes</span>
             </Link>
           </div>
-        </div>
-      </section>
-
-      {/* ── CATEGORIES ── */}
-      <section className="px-4 py-12">
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-end justify-between mb-5">
-            <div>
-              <p className="text-[10px] font-black tracking-[0.15em] mb-1" style={{ color: "#3B82F6" }}>SERVIÇOS</p>
-              <h2 className="font-syne font-bold text-lg text-foreground">O que você precisa?</h2>
-            </div>
-            <Link href="/servicos" className="flex items-center gap-1 text-xs font-semibold" style={{ color: "#3B82F6" }}>
-              Ver todos <ArrowRight size={12} />
-            </Link>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {HERO_CATEGORIES.map((cat) => (
-              <Link key={cat.slug} href={`/servicos/${cat.slug}`}
-                className="group flex flex-col items-center gap-1.5 p-3 rounded-2xl text-center transition-all duration-200 active:scale-95"
-                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg group-hover:scale-110 transition-transform duration-200"
-                  style={{ background: "rgba(59,130,246,0.08)" }}>
-                  {cat.icon}
-                </div>
-                <span className="text-[9px] leading-tight font-semibold" style={{ color: "#64748b" }}>
-                  {cat.name.split("/")[0].trim()}
-                </span>
-              </Link>
-            ))}
-          </div>
-          <Link href="/servicos"
-            className="mt-2.5 w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-medium"
-            style={{ background: "#111113", border: "1px solid #1F1F23", color: "#64748b" }}>
-            Ver todas as {CATEGORIES.length} categorias <ChevronDown size={12} />
-          </Link>
         </div>
       </section>
 
