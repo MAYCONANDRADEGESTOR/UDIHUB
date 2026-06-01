@@ -177,9 +177,9 @@ export default function EditarPerfilPage() {
           </div>
           <div>
             <p className="font-syne font-bold text-foreground">{form.name || "Seu nome"}</p>
-            <p className="text-xs text-muted">Toque na câmera para alterar a foto</p>
+            <p className="text-xs text-muted">Toque para tirar foto ou escolher da galeria</p>
           </div>
-          <input ref={fileInputRef} type="file" accept="image/*" capture="user"
+          <input ref={fileInputRef} type="file" accept="image/*"
             onChange={handleAvatarChange} className="hidden" />
         </div>
 
