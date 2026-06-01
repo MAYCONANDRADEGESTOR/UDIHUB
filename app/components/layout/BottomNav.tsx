@@ -1,22 +1,36 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Search, Plus, Heart, User } from "lucide-react";
-
-const navItems = [
-  { href: "/", icon: Home, label: "Home" },
-  { href: "/servicos", icon: Search, label: "Buscar" },
-  { href: "/seja-profissional", icon: Plus, label: "Anunciar", cta: true },
-  { href: "/favoritos", icon: Heart, label: "Favoritos" },
-  { href: "/perfil", icon: User, label: "Perfil" },
-];
+import { useEffect, useState } from "react";
+import { Home, Search, Plus, Heart, LayoutDashboard } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const [painelHref, setPainelHref] = useState("/painel");
 
-  const hidden = ["/login", "/cadastro", "/admin"].some((p) =>
-    pathname.startsWith(p)
-  );
+  useEffect(() => {
+    async function loadRole() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setPainelHref("/login"); return; }
+      const { data } = await supabase.from("users").select("role").eq("id", user.id).single();
+      if (data?.role === "admin") setPainelHref("/admin");
+      else if (data?.role === "professional") setPainelHref("/painel");
+      else setPainelHref("/inicio");
+    }
+    loadRole();
+  }, []);
+
+  const navItems = [
+    { href: "/", icon: Home, label: "Home" },
+    { href: "/servicos", icon: Search, label: "Buscar" },
+    { href: "/seja-profissional", icon: Plus, label: "Anunciar", cta: true },
+    { href: "/favoritos", icon: Heart, label: "Favoritos" },
+    { href: painelHref, icon: LayoutDashboard, label: "Painel" },
+  ];
+
+  const hidden = ["/login", "/cadastro"].some((p) => pathname.startsWith(p));
   if (hidden) return null;
 
   return (
@@ -28,7 +42,6 @@ export default function BottomNav() {
         willChange: "transform",
       }}
     >
-      {/* Neon line */}
       <div
         className="absolute top-0 left-0 right-0 h-[2px]"
         style={{
@@ -36,23 +49,20 @@ export default function BottomNav() {
           boxShadow: "0 0 10px rgba(59,130,246,0.5)",
         }}
       />
-
       <div className="flex items-center justify-around px-2 pt-2 pb-3">
         {navItems.map(({ href, icon: Icon, label, cta }) => {
           const isActive =
             href === "/"
               ? pathname === "/"
               : pathname === href || pathname.startsWith(href + "/");
-
           if (cta) {
             return (
               <Link
-                key={href}
+                key={label}
                 href={href}
                 className="flex flex-col items-center gap-1 min-w-[56px] py-1"
               >
                 <div className="relative flex items-center justify-center">
-                  {/* Pulso sutil — só 1 anel, menos pesado */}
                   <span
                     className="absolute w-10 h-10 rounded-xl animate-ping"
                     style={{
@@ -76,10 +86,9 @@ export default function BottomNav() {
               </Link>
             );
           }
-
           return (
             <Link
-              key={href}
+              key={label}
               href={href}
               className="flex flex-col items-center gap-1 min-w-[56px] py-1 rounded-xl active:scale-95 transition-transform duration-150"
             >
