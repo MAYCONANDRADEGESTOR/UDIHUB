@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  User, LogOut, Star, Heart, Settings,
-  ChevronRight, Shield, HelpCircle, Instagram,
+  LogOut, Heart, Settings,
+  ChevronRight, Shield, HelpCircle,
   Loader2, Camera, AlertCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -82,9 +82,8 @@ export default function PerfilPage() {
     router.refresh();
   }
 
+  // Apenas itens gerais — editar perfil e avaliações ficam dentro do painel
   const MENU_ITEMS = [
-    { icon: User, label: "Editar perfil", href: "/perfil/editar", desc: "Nome, telefone e bairro" },
-    { icon: Star, label: "Minhas avaliações", href: "/avaliacoes", desc: "Avaliações enviadas" },
     { icon: Heart, label: "Favoritos", href: "/favoritos", desc: "Profissionais salvos" },
     { icon: Shield, label: "Privacidade", href: "/privacidade", desc: "Política de privacidade" },
     { icon: HelpCircle, label: "Como funciona", href: "/como-funciona", desc: "Ajuda e tutorial" },
@@ -105,7 +104,7 @@ export default function PerfilPage() {
       </div>
 
       <div className="px-4 py-6">
-        {/* Avatar + info */}
+        {/* Avatar + info — sem botão Editar solto */}
         <div className="flex items-center gap-4 mb-6">
           <div className="relative flex-shrink-0">
             {profile?.avatar ? (
@@ -140,11 +139,6 @@ export default function PerfilPage() {
               )}
             </div>
           </div>
-          <Link href="/perfil/editar"
-            className="px-3 py-1.5 rounded-xl text-xs font-semibold flex-shrink-0"
-            style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#3B82F6" }}>
-            Editar
-          </Link>
         </div>
 
         {/* Aviso foto profissional */}
@@ -200,7 +194,7 @@ export default function PerfilPage() {
           </Link>
         )}
 
-        {/* Profissional CTA */}
+        {/* Profissional CTA — único acesso ao painel */}
         {profile?.role === "professional" && (
           <Link href="/painel"
             className="flex items-center gap-3 p-4 rounded-2xl mb-4"
@@ -211,7 +205,7 @@ export default function PerfilPage() {
             </div>
             <div className="flex-1">
               <p className="font-syne font-bold text-sm text-white">Meu painel</p>
-              <p className="text-xs mt-0.5" style={{ color: "#93c5fd" }}>Ver leads e métricas</p>
+              <p className="text-xs mt-0.5" style={{ color: "#93c5fd" }}>Editar perfil, leads, métricas e mais</p>
             </div>
             <ChevronRight size={16} style={{ color: "#3B82F6" }} />
           </Link>
@@ -239,7 +233,11 @@ export default function PerfilPage() {
         <div className="mt-6 flex items-center justify-center gap-4">
           <a href="https://www.instagram.com/udihub" target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-2 text-xs text-muted">
-            <Instagram size={14} /> @udihub
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="3"/>
+              <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/>
+            </svg>
+            @udihub
           </a>
         </div>
 
