@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data: userData } = await supabase
-      .from("users").select("name, email, phone").eq("id", user.id).single();
+      .from("users").select("name, email, phone, cpf").eq("id", user.id).single();
 
     const { data: prof } = await supabase
       .from("professionals")
@@ -29,36 +29,35 @@ export async function POST(request: NextRequest) {
 
     const price = plan === "pro" ? 99 : 69;
     const planName = plan === "pro" ? "UDIHUB Pro" : "UDIHUB Básico";
+    const apiUrl = process.env.ASAAS_API_URL;
+    const apiKey = process.env.ASAAS_API_KEY!;
 
-    const customerRes = await fetch(`${process.env.ASAAS_API_URL}/customers`, {
+    // 1. Cria ou busca cliente no Asaas
+    const customerRes = await fetch(`${apiUrl}/customers`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "access_token": process.env.ASAAS_API_KEY!,
-      },
+      headers: { "Content-Type": "application/json", "access_token": apiKey },
       body: JSON.stringify({
         name: userData?.name || "Profissional",
         email: userData?.email,
+        cpfCnpj: userData?.cpf?.replace(/\D/g, "") || undefined,
         mobilePhone: userData?.phone?.replace(/\D/g, "") || undefined,
         externalReference: user.id,
       }),
     });
     const customer = await customerRes.json();
     if (!customer.id) {
-      console.error("Asaas customer error:", customer);
-      return NextResponse.json({ error: "Erro ao criar cliente no Asaas" }, { status: 500 });
+      console.error("Asaas customer error:", JSON.stringify(customer));
+      return NextResponse.json({ error: "Erro ao criar cliente", details: customer.errors?.[0]?.description || JSON.stringify(customer) }, { status: 500 });
     }
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dueDate = tomorrow.toISOString().split("T")[0];
 
-    const subRes = await fetch(`${process.env.ASAAS_API_URL}/subscriptions`, {
+    // 2. Cria assinatura mensal
+    const subRes = await fetch(`${apiUrl}/subscriptions`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "access_token": process.env.ASAAS_API_KEY!,
-      },
+      headers: { "Content-Type": "application/json", "access_token": apiKey },
       body: JSON.stringify({
         customer: customer.id,
         billingType: "UNDEFINED",
@@ -71,11 +70,20 @@ export async function POST(request: NextRequest) {
     });
     const subscription = await subRes.json();
     if (!subscription.id) {
-      console.error("Asaas subscription error:", subscription);
-      return NextResponse.json({ error: "Erro ao criar assinatura no Asaas" }, { status: 500 });
+      console.error("Asaas subscription error:", JSON.stringify(subscription));
+      return NextResponse.json({ error: "Erro ao criar assinatura", details: subscription.errors?.[0]?.description || JSON.stringify(subscription) }, { status: 500 });
     }
 
-    // ✅ CORRIGIDO: asaas_subscription_id
+    // 3. Busca a primeira cobrança gerada pela assinatura (tem a URL de pagamento)
+    await new Promise(r => setTimeout(r, 1500)); // aguarda Asaas gerar a cobrança
+    const paymentsRes = await fetch(`${apiUrl}/payments?subscription=${subscription.id}&limit=1`, {
+      headers: { "access_token": apiKey },
+    });
+    const paymentsData = await paymentsRes.json();
+    const firstPayment = paymentsData?.data?.[0];
+    const paymentUrl = firstPayment?.invoiceUrl || firstPayment?.bankSlipUrl || subscription.url || null;
+
+    // 4. Salva no banco
     await supabase.from("subscriptions").upsert({
       professional_id: prof.id,
       plan,
@@ -84,12 +92,13 @@ export async function POST(request: NextRequest) {
     }, { onConflict: "professional_id" });
 
     return NextResponse.json({
-      paymentUrl: subscription.url || subscription.invoiceUrl,
+      paymentUrl,
       subscriptionId: subscription.id,
+      paymentId: firstPayment?.id,
     });
   } catch (err) {
     console.error("Assinatura error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error", details: String(err) }, { status: 500 });
   }
 }
 
@@ -106,7 +115,6 @@ export async function GET() {
 
     if (!prof) return NextResponse.json({ subscription: null });
 
-    // ✅ CORRIGIDO: asaas_subscription_id
     const { data: sub } = await supabase
       .from("subscriptions")
       .select("plan, status, created_at, asaas_subscription_id")
