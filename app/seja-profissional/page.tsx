@@ -9,6 +9,7 @@ import {
   Zap,
 } from "lucide-react";
 import { PLANS } from "@/lib/constants";
+import BottomNav from "@/components/BottomNav";
 
 const FEATURES_PRO = [
   "Aparece primeiro nas buscas",
@@ -75,7 +76,7 @@ export default function SejaProfissionalPage() {
 
           <div className="grid grid-cols-1 gap-4">
 
-            {/* ✅ BÁSICO PRIMEIRO */}
+            {/* BÁSICO */}
             <div className="p-5 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
               <div className="mb-4">
                 <div className="font-syne font-bold text-lg text-foreground">Plano Básico</div>
@@ -99,7 +100,7 @@ export default function SejaProfissionalPage() {
               </Link>
             </div>
 
-            {/* PRO DEPOIS */}
+            {/* PRO */}
             <div className="relative p-5 rounded-2xl overflow-hidden"
               style={{ background: "linear-gradient(135deg, #0F1729 0%, #1e3a5f 100%)", border: "2px solid #3B82F6", boxShadow: "0 0 30px rgba(59,130,246,0.2)" }}>
               <div className="absolute top-4 right-4">
@@ -178,6 +179,7 @@ export default function SejaProfissionalPage() {
         </div>
       </section>
 
+      <BottomNav />
     </div>
   );
 }
