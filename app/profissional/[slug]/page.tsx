@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Star, MessageCircle, Flag, CheckCircle, Heart, MapPin, X, Loader2, Clock, Eye } from "lucide-react";
+import { ArrowLeft, Star, MessageCircle, Flag, CheckCircle, Heart, MapPin, X, Loader2, Clock, Coffee, Moon } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ProfileSkeleton } from "@/app/components/ui/Skeletons";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
@@ -48,7 +48,6 @@ export default function ProfissionalPage() {
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
   const [submittingReport, setSubmittingReport] = useState(false);
-  // Avaliação
   const [showReview, setShowReview] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
@@ -101,12 +100,10 @@ export default function ProfissionalPage() {
           .select("id").eq("user_id", user.id).eq("professional_id", profData.id).single();
         if (fav) { setFavorited(true); setFavoriteId(fav.id); }
 
-        // Verificar se já avaliou
         const { data: existingReview } = await supabase.from("reviews")
           .select("id").eq("professional_id", profData.id).eq("client_id", user.id).single();
         if (existingReview) setAlreadyReviewed(true);
 
-        // Verificar se já clicou no WhatsApp (pode avaliar)
         const { data: click } = await supabase.from("whatsapp_clicks")
           .select("id").eq("professional_id", profData.id).eq("clicker_id", user.id).limit(1).single();
         if (click) setHasWhatsappClick(true);
@@ -158,14 +155,8 @@ export default function ProfissionalPage() {
       rating: reviewRating,
       comment: reviewComment.trim(),
     });
-    if (error) {
-      toast.error("Erro ao enviar avaliação");
-      setSubmittingReview(false);
-      return;
-    }
-    // Atualizar avg_rating
-    const { data: allReviews } = await supabase.from("reviews")
-      .select("rating").eq("professional_id", prof.id);
+    if (error) { toast.error("Erro ao enviar avaliação"); setSubmittingReview(false); return; }
+    const { data: allReviews } = await supabase.from("reviews").select("rating").eq("professional_id", prof.id);
     if (allReviews && allReviews.length > 0) {
       const avg = allReviews.reduce((s: number, r: any) => s + r.rating, 0) / allReviews.length;
       await supabase.from("professionals").update({ avg_rating: avg }).eq("id", prof.id);
@@ -175,7 +166,6 @@ export default function ProfissionalPage() {
     setShowReview(false);
     setReviewComment("");
     setReviewRating(5);
-    // Recarregar avaliações
     const { data: newReviews } = await supabase.from("reviews")
       .select("id, rating, comment, reply, created_at, users(name)")
       .eq("professional_id", prof.id).order("created_at", { ascending: false });
@@ -215,7 +205,7 @@ export default function ProfissionalPage() {
     pct: reviews.length ? Math.round((reviews.filter((r) => r.rating === star).length / reviews.length) * 100) : 0,
   }));
   const avatarUrl = prof.avatar || prof.users?.avatar || null;
-  const workHours = prof.work_hours as Record<string, { open: string; close: string; closed: boolean }> | null;
+  const workHours = prof.work_hours as Record<string, any> | null;
   const todayIndex = new Date().getDay();
   const todayKey = DAYS[todayIndex].toLowerCase();
   const todayHours = workHours?.[todayKey];
@@ -298,8 +288,12 @@ export default function ProfissionalPage() {
               style={{ background: todayHours.closed ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)", border: `1px solid ${todayHours.closed ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)"}` }}>
               <Clock size={13} style={{ color: todayHours.closed ? "#f87171" : "#22c55e" }} />
               <span className="text-xs font-medium" style={{ color: todayHours.closed ? "#f87171" : "#22c55e" }}>
-                {todayHours.closed ? "Fechado hoje" : `Hoje: ${todayHours.open} – ${todayHours.close}`}
+                {todayHours.closed
+                  ? "Fechado hoje"
+                  : `Hoje: ${todayHours.open} – ${todayHours.close}${todayHours.lunch ? ` · Almoço: ${todayHours.lunchStart}–${todayHours.lunchEnd}` : ""}`
+                }
               </span>
+              {todayHours.nocturnal && <Moon size={11} style={{ color: "#a855f7" }} />}
             </div>
           )}
         </div>
@@ -326,15 +320,27 @@ export default function ProfissionalPage() {
                 const isToday = DAYS[todayIndex] === day;
                 if (!h) return null;
                 return (
-                  <div key={day} className="flex items-center justify-between py-1.5 px-3 rounded-lg"
+                  <div key={day} className="py-1.5 px-3 rounded-lg"
                     style={{ background: isToday ? "rgba(59,130,246,0.08)" : "transparent", border: isToday ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent" }}>
-                    <span className="text-xs font-medium" style={{ color: isToday ? "#93c5fd" : "#64748b", minWidth: "36px" }}>
-                      {day}{isToday && <span className="ml-1 text-[9px]">(hoje)</span>}
-                    </span>
-                    {h.closed ? (
-                      <span className="text-xs" style={{ color: "#ef4444" }}>Fechado</span>
-                    ) : (
-                      <span className="text-xs font-medium text-foreground">{h.open} – {h.close}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium flex items-center gap-1.5"
+                        style={{ color: isToday ? "#93c5fd" : "#64748b", minWidth: "36px" }}>
+                        {h.nocturnal && <Moon size={9} style={{ color: "#a855f7" }} />}
+                        {day}{isToday && <span className="ml-1 text-[9px]">(hoje)</span>}
+                      </span>
+                      {h.closed ? (
+                        <span className="text-xs" style={{ color: "#ef4444" }}>Fechado</span>
+                      ) : (
+                        <span className="text-xs font-medium text-foreground">{h.open} – {h.close}</span>
+                      )}
+                    </div>
+                    {!h.closed && h.lunch && h.lunchStart && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Coffee size={9} style={{ color: "#FBBF24" }} />
+                        <span className="text-[10px]" style={{ color: "#64748b" }}>
+                          Intervalo: {h.lunchStart} – {h.lunchEnd}
+                        </span>
+                      </div>
                     )}
                   </div>
                 );
@@ -364,22 +370,17 @@ export default function ProfissionalPage() {
             <h2 className="font-syne font-bold text-sm text-foreground">Avaliações ({reviews.length})</h2>
             {userId && !alreadyReviewed && (
               <button onClick={() => {
-                if (!hasWhatsappClick) {
-                  toast.error("Contate o profissional pelo WhatsApp antes de avaliar");
-                  return;
-                }
+                if (!hasWhatsappClick) { toast.error("Contate o profissional pelo WhatsApp antes de avaliar"); return; }
                 setShowReview(true);
               }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
                 style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBBF24" }}>
-                <Star size={11} />
-                Avaliar
+                <Star size={11} />Avaliar
               </button>
             )}
             {alreadyReviewed && (
               <span className="text-xs text-muted flex items-center gap-1">
-                <CheckCircle size={11} style={{ color: "#22c55e" }} />
-                Você já avaliou
+                <CheckCircle size={11} style={{ color: "#22c55e" }} />Você já avaliou
               </span>
             )}
           </div>
