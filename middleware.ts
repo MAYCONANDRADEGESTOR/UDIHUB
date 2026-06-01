@@ -32,9 +32,38 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    // Profissional em /inicio -> manda para /painel
-    if (pathname === "/inicio" && userData?.role === "professional") {
-      return NextResponse.redirect(new URL("/painel", request.url));
+    // PROFISSIONAL: verifica se está ativo
+    if (userData?.role === "professional") {
+      const { data: prof } = await supabase
+        .from("professionals")
+        .select("status, coupon_code, trial_ends_at")
+        .eq("user_id", user.id)
+        .single();
+
+      const isActive = prof?.status === "active";
+      const hasCoupon = !!prof?.coupon_code;
+      const inTrial = prof?.trial_ends_at && new Date(prof.trial_ends_at) > new Date();
+      const liberado = isActive || hasCoupon || inTrial;
+
+      // Páginas liberadas mesmo sem pagar (para conseguir assinar)
+      const allowedPaths = [
+        "/painel/assinatura",
+        "/painel/perfil",
+        "/api",
+        "/sair",
+        "/logout",
+      ];
+      const isAllowed = allowedPaths.some((p) => pathname.startsWith(p));
+
+      // Se NÃO está liberado e tenta acessar área restrita → manda assinar
+      if (!liberado && pathname.startsWith("/painel") && !isAllowed) {
+        return NextResponse.redirect(new URL("/painel/assinatura", request.url));
+      }
+
+      // Profissional liberado em /inicio → vai pro painel
+      if (pathname === "/inicio" && liberado) {
+        return NextResponse.redirect(new URL("/painel", request.url));
+      }
     }
 
     // Admin em /inicio -> manda para /admin
