@@ -2,11 +2,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Star, MessageCircle, Flag, CheckCircle, Heart, MapPin, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Star, MessageCircle, Flag, CheckCircle, Heart, MapPin, X, Loader2, Clock, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ProfileSkeleton } from "@/app/components/ui/Skeletons";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
 import toast from "react-hot-toast";
+
+const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
   return (
@@ -14,6 +16,19 @@ function StarRow({ rating, size = 14 }: { rating: number; size?: number }) {
       {[1,2,3,4,5].map((s) => (
         <Star key={s} size={size} fill={s <= rating ? "#FBBF24" : "transparent"}
           className={s <= rating ? "star-filled" : "star-empty"} />
+      ))}
+    </div>
+  );
+}
+
+function StarSelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex gap-2">
+      {[1,2,3,4,5].map((s) => (
+        <button key={s} type="button" onClick={() => onChange(s)}>
+          <Star size={28} fill={s <= value ? "#FBBF24" : "transparent"}
+            className={s <= value ? "text-yellow-400" : "text-muted"} />
+        </button>
       ))}
     </div>
   );
@@ -33,6 +48,13 @@ export default function ProfissionalPage() {
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
   const [submittingReport, setSubmittingReport] = useState(false);
+  // Avaliação
+  const [showReview, setShowReview] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+  const [hasWhatsappClick, setHasWhatsappClick] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -42,7 +64,7 @@ export default function ProfissionalPage() {
 
       const { data: profData } = await supabase
         .from("professionals")
-        .select(`id, slug, bio, whatsapp, avg_rating, available_now, plan, views_count, created_at, avatar,
+        .select(`id, slug, bio, whatsapp, avg_rating, available_now, plan, views_count, created_at, avatar, work_hours,
           users(name, city, avatar),
           categories(name, icon, slug),
           professional_neighborhoods(neighborhoods(name)),
@@ -53,22 +75,17 @@ export default function ProfissionalPage() {
 
       if (!profData) { setLoading(false); return; }
 
-      // Registrar view única por usuário ou por sessão anônima
+      // View única por usuário/sessão
       const storageKey = `viewed_${profData.id}`;
       const alreadyViewed = sessionStorage.getItem(storageKey);
-
       if (!alreadyViewed) {
         if (user) {
-          // Usuário logado: upsert garante 1 view por user por perfil
           await supabase.from("profile_views").upsert(
             { professional_id: profData.id, viewer_id: user.id, viewer_ip: "" },
             { onConflict: "professional_id,viewer_id", ignoreDuplicates: true }
           );
         } else {
-          // Anônimo: guarda na sessão para não contar de novo na mesma visita
-          await supabase.from("profile_views").insert(
-            { professional_id: profData.id, viewer_ip: "" }
-          );
+          await supabase.from("profile_views").insert({ professional_id: profData.id, viewer_ip: "" });
         }
         sessionStorage.setItem(storageKey, "1");
       }
@@ -83,6 +100,16 @@ export default function ProfissionalPage() {
         const { data: fav } = await supabase.from("favorites")
           .select("id").eq("user_id", user.id).eq("professional_id", profData.id).single();
         if (fav) { setFavorited(true); setFavoriteId(fav.id); }
+
+        // Verificar se já avaliou
+        const { data: existingReview } = await supabase.from("reviews")
+          .select("id").eq("professional_id", profData.id).eq("client_id", user.id).single();
+        if (existingReview) setAlreadyReviewed(true);
+
+        // Verificar se já clicou no WhatsApp (pode avaliar)
+        const { data: click } = await supabase.from("whatsapp_clicks")
+          .select("id").eq("professional_id", profData.id).eq("clicker_id", user.id).limit(1).single();
+        if (click) setHasWhatsappClick(true);
       }
 
       setProf(profData);
@@ -99,6 +126,7 @@ export default function ProfissionalPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ professional_id: prof.id, city: prof.users?.city || "Uberlândia" }),
       });
+      setHasWhatsappClick(true);
     } catch {}
     window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
@@ -116,6 +144,43 @@ export default function ProfissionalPage() {
       setFavorited(true); setFavoriteId(data?.id || null);
       toast.success("Adicionado aos favoritos ❤️");
     }
+  }
+
+  async function handleSubmitReview(e: React.FormEvent) {
+    e.preventDefault();
+    if (!userId) { toast.error("Faça login para avaliar"); return; }
+    if (reviewComment.trim().length < 10) { toast.error("Escreva pelo menos 10 caracteres"); return; }
+    setSubmittingReview(true);
+    const supabase = createClient();
+    const { error } = await supabase.from("reviews").insert({
+      professional_id: prof.id,
+      client_id: userId,
+      rating: reviewRating,
+      comment: reviewComment.trim(),
+    });
+    if (error) {
+      toast.error("Erro ao enviar avaliação");
+      setSubmittingReview(false);
+      return;
+    }
+    // Atualizar avg_rating
+    const { data: allReviews } = await supabase.from("reviews")
+      .select("rating").eq("professional_id", prof.id);
+    if (allReviews && allReviews.length > 0) {
+      const avg = allReviews.reduce((s: number, r: any) => s + r.rating, 0) / allReviews.length;
+      await supabase.from("professionals").update({ avg_rating: avg }).eq("id", prof.id);
+    }
+    toast.success("Avaliação enviada! Obrigado 🙏");
+    setAlreadyReviewed(true);
+    setShowReview(false);
+    setReviewComment("");
+    setReviewRating(5);
+    // Recarregar avaliações
+    const { data: newReviews } = await supabase.from("reviews")
+      .select("id, rating, comment, reply, created_at, users(name)")
+      .eq("professional_id", prof.id).order("created_at", { ascending: false });
+    setReviews(newReviews || []);
+    setSubmittingReview(false);
   }
 
   async function handleReport(e: React.FormEvent) {
@@ -149,9 +214,11 @@ export default function ProfissionalPage() {
     count: reviews.filter((r) => r.rating === star).length,
     pct: reviews.length ? Math.round((reviews.filter((r) => r.rating === star).length / reviews.length) * 100) : 0,
   }));
-
-  // Foto: prioriza prof.avatar, depois users.avatar
   const avatarUrl = prof.avatar || prof.users?.avatar || null;
+  const workHours = prof.work_hours as Record<string, { open: string; close: string; closed: boolean }> | null;
+  const todayIndex = new Date().getDay();
+  const todayKey = DAYS[todayIndex].toLowerCase();
+  const todayHours = workHours?.[todayKey];
 
   return (
     <>
@@ -173,12 +240,9 @@ export default function ProfissionalPage() {
           <div className="flex items-start gap-4">
             <div className="relative">
               {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={prof.users?.name}
+                <img src={avatarUrl} alt={prof.users?.name}
                   className="w-20 h-20 rounded-2xl object-cover"
-                  style={{ boxShadow: "0 0 24px rgba(59,130,246,0.3)" }}
-                />
+                  style={{ boxShadow: "0 0 24px rgba(59,130,246,0.3)" }} />
               ) : (
                 <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl"
                   style={{ background: "linear-gradient(135deg,#1e3a5f,#1d4ed8)", color: "#93c5fd", boxShadow: "0 0 24px rgba(59,130,246,0.3)" }}>
@@ -227,6 +291,17 @@ export default function ProfissionalPage() {
               </div>
             ))}
           </div>
+
+          {/* Horário de hoje */}
+          {workHours && todayHours && (
+            <div className="mt-4 flex items-center gap-2 px-3 py-2.5 rounded-xl"
+              style={{ background: todayHours.closed ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)", border: `1px solid ${todayHours.closed ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)"}` }}>
+              <Clock size={13} style={{ color: todayHours.closed ? "#f87171" : "#22c55e" }} />
+              <span className="text-xs font-medium" style={{ color: todayHours.closed ? "#f87171" : "#22c55e" }}>
+                {todayHours.closed ? "Fechado hoje" : `Hoje: ${todayHours.open} – ${todayHours.close}`}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Bio */}
@@ -234,6 +309,37 @@ export default function ProfissionalPage() {
           <div className="px-4 py-4" style={{ borderBottom: "1px solid #1F1F23" }}>
             <h2 className="font-syne font-bold text-sm text-foreground mb-2">Sobre</h2>
             <p className="text-sm text-muted leading-relaxed">{prof.bio}</p>
+          </div>
+        )}
+
+        {/* Horários completos */}
+        {workHours && (
+          <div className="px-4 py-4" style={{ borderBottom: "1px solid #1F1F23" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Clock size={14} style={{ color: "#3B82F6" }} />
+              <h2 className="font-syne font-bold text-sm text-foreground">Horários de atendimento</h2>
+            </div>
+            <div className="space-y-2">
+              {DAYS.map((day) => {
+                const key = day.toLowerCase();
+                const h = workHours[key];
+                const isToday = DAYS[todayIndex] === day;
+                if (!h) return null;
+                return (
+                  <div key={day} className="flex items-center justify-between py-1.5 px-3 rounded-lg"
+                    style={{ background: isToday ? "rgba(59,130,246,0.08)" : "transparent", border: isToday ? "1px solid rgba(59,130,246,0.2)" : "1px solid transparent" }}>
+                    <span className="text-xs font-medium" style={{ color: isToday ? "#93c5fd" : "#64748b", minWidth: "36px" }}>
+                      {day}{isToday && <span className="ml-1 text-[9px]">(hoje)</span>}
+                    </span>
+                    {h.closed ? (
+                      <span className="text-xs" style={{ color: "#ef4444" }}>Fechado</span>
+                    ) : (
+                      <span className="text-xs font-medium text-foreground">{h.open} – {h.close}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -252,9 +358,32 @@ export default function ProfissionalPage() {
           </div>
         )}
 
-        {/* Reviews */}
+        {/* Avaliações */}
         <div className="px-4 py-4">
-          <h2 className="font-syne font-bold text-sm text-foreground mb-4">Avaliações ({reviews.length})</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-syne font-bold text-sm text-foreground">Avaliações ({reviews.length})</h2>
+            {userId && !alreadyReviewed && (
+              <button onClick={() => {
+                if (!hasWhatsappClick) {
+                  toast.error("Contate o profissional pelo WhatsApp antes de avaliar");
+                  return;
+                }
+                setShowReview(true);
+              }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
+                style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBBF24" }}>
+                <Star size={11} />
+                Avaliar
+              </button>
+            )}
+            {alreadyReviewed && (
+              <span className="text-xs text-muted flex items-center gap-1">
+                <CheckCircle size={11} style={{ color: "#22c55e" }} />
+                Você já avaliou
+              </span>
+            )}
+          </div>
+
           {reviews.length > 0 && (
             <div className="p-4 rounded-2xl mb-4" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
               <div className="flex items-center gap-4">
@@ -277,12 +406,21 @@ export default function ProfissionalPage() {
               </div>
             </div>
           )}
+
           {reviews.length === 0 && (
             <div className="text-center py-8">
               <Star size={24} className="text-muted mx-auto mb-2" />
               <p className="text-sm text-muted">Nenhuma avaliação ainda</p>
+              {userId && !alreadyReviewed && hasWhatsappClick && (
+                <button onClick={() => setShowReview(true)}
+                  className="mt-3 px-4 py-2 rounded-xl text-xs font-bold"
+                  style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBBF24" }}>
+                  Seja o primeiro a avaliar ⭐
+                </button>
+              )}
             </div>
           )}
+
           <div className="space-y-3">
             {reviews.map((review: any) => (
               <div key={review.id} className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -322,7 +460,37 @@ export default function ProfissionalPage() {
         </button>
       </div>
 
-      {/* Report modal */}
+      {/* Modal avaliação */}
+      {showReview && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.7)" }}
+          onClick={(e) => e.target === e.currentTarget && setShowReview(false)}>
+          <div className="w-full max-w-lg rounded-t-3xl p-5 animate-slide-up"
+            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-syne font-bold text-foreground">Avaliar {prof.users?.name}</h3>
+              <button onClick={() => setShowReview(false)} className="text-muted"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleSubmitReview}>
+              <div className="flex justify-center mb-4">
+                <StarSelector value={reviewRating} onChange={setReviewRating} />
+              </div>
+              <textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Conte como foi o serviço..." rows={4} required minLength={10}
+                className="w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted mb-3"
+                style={{ background: "#09090B", border: "1px solid #1F1F23", outline: "none", resize: "none" }} />
+              <button type="submit" disabled={submittingReview}
+                className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2"
+                style={{ background: "linear-gradient(135deg,#FBBF24,#f59e0b)", opacity: submittingReview ? 0.7 : 1 }}>
+                {submittingReview && <Loader2 size={14} className="animate-spin" />}
+                Enviar avaliação
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal denúncia */}
       {showReport && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.7)" }}
