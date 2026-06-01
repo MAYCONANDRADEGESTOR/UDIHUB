@@ -154,12 +154,12 @@ export default function AdminPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-6">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <div className="flex items-center gap-3">
-          <Link href="/inicio" className="text-muted"><ArrowLeft size={20} /></Link>
+          <Link href="/" className="text-muted"><ArrowLeft size={20} /></Link>
           <div className="flex-1">
             <h1 className="font-syne font-bold text-xl text-foreground">Admin</h1>
             <p className="text-xs text-muted">UDIHUB Dashboard</p>
