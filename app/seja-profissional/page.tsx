@@ -9,7 +9,7 @@ import {
   Zap,
 } from "lucide-react";
 import { PLANS } from "@/lib/constants";
-import BottomNav from "@/components/BottomNav";
+import BottomNav from "@/app/components/BottomNav";
 
 const FEATURES_PRO = [
   "Aparece primeiro nas buscas",
