@@ -42,8 +42,8 @@ export default function ProfissionalPage() {
 
       const { data: profData } = await supabase
         .from("professionals")
-        .select(`id, slug, bio, whatsapp, avg_rating, available_now, plan, views_count, created_at,
-          users(name, city),
+        .select(`id, slug, bio, whatsapp, avg_rating, available_now, plan, views_count, created_at, avatar,
+          users(name, city, avatar),
           categories(name, icon, slug),
           professional_neighborhoods(neighborhoods(name)),
           professional_photos(url, caption, order)`)
@@ -134,6 +134,9 @@ export default function ProfissionalPage() {
     pct: reviews.length ? Math.round((reviews.filter((r) => r.rating === star).length / reviews.length) * 100) : 0,
   }));
 
+  // Foto: prioriza prof.avatar, depois users.avatar
+  const avatarUrl = prof.avatar || prof.users?.avatar || null;
+
   return (
     <>
       <div className="min-h-screen bg-background pb-36">
@@ -153,10 +156,19 @@ export default function ProfissionalPage() {
         <div className="px-4 py-6" style={{ background: "linear-gradient(180deg,#0F172A 0%,#09090B 100%)" }}>
           <div className="flex items-start gap-4">
             <div className="relative">
-              <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl"
-                style={{ background: "linear-gradient(135deg,#1e3a5f,#1d4ed8)", color: "#93c5fd", boxShadow: "0 0 24px rgba(59,130,246,0.3)" }}>
-                {getInitials(prof.users?.name || "?")}
-              </div>
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={prof.users?.name}
+                  className="w-20 h-20 rounded-2xl object-cover"
+                  style={{ boxShadow: "0 0 24px rgba(59,130,246,0.3)" }}
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl"
+                  style={{ background: "linear-gradient(135deg,#1e3a5f,#1d4ed8)", color: "#93c5fd", boxShadow: "0 0 24px rgba(59,130,246,0.3)" }}>
+                  {getInitials(prof.users?.name || "?")}
+                </div>
+              )}
               {prof.available_now && (
                 <div className="absolute -bottom-1.5 -right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
                   style={{ background: "rgba(34,197,94,0.2)", border: "1px solid rgba(34,197,94,0.5)", color: "#22c55e" }}>
