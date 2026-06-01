@@ -3,9 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle, CreditCard, Zap, AlertCircle, Loader2, ExternalLink } from "lucide-react";
+import { ArrowLeft, CheckCircle, CreditCard, Zap, AlertCircle, Loader2, ExternalLink, Calendar } from "lucide-react";
 import { PLANS } from "@/lib/constants";
 import toast from "react-hot-toast";
+
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
 
 export default function AssinaturaPage() {
   const router = useRouter();
@@ -50,7 +56,7 @@ export default function AssinaturaPage() {
 
   const isActive = professional?.status === "active" && subscription?.status === "active";
   const isPending = subscription?.status === "pending";
-  const planData = PLANS[selectedPlan];
+  const nextBillingFormatted = formatDate(subscription?.next_billing);
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -88,7 +94,7 @@ export default function AssinaturaPage() {
                 ● Ativo
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 mb-4">
               {PLANS[professional.plan].features.map((feat) => (
                 <div key={feat} className="flex items-center gap-2">
                   <CheckCircle size={12} style={{ color: "#3B82F6" }} />
@@ -96,6 +102,17 @@ export default function AssinaturaPage() {
                 </div>
               ))}
             </div>
+
+            {/* Próximo vencimento */}
+            {nextBillingFormatted && (
+              <div className="flex items-center gap-2 pt-3"
+                style={{ borderTop: "1px solid rgba(59,130,246,0.2)" }}>
+                <Calendar size={13} style={{ color: "#60a5fa" }} />
+                <span className="text-xs" style={{ color: "#93c5fd" }}>
+                  Próximo vencimento: <span className="font-semibold text-white">{nextBillingFormatted}</span>
+                </span>
+              </div>
+            )}
           </div>
         ) : isPending ? (
           <div className="flex items-start gap-3 p-4 rounded-2xl"
