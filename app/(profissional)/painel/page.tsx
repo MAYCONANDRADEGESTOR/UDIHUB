@@ -1,123 +1,200 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  MessageCircle, Star, Camera, CreditCard, TrendingUp,
-  Users, Zap, Award, Loader2,
-  BookOpen, Lightbulb, Share2, Clock,
-} from "lucide-react";
+import { ArrowLeft, Camera, Loader2, CheckCircle, X, Clock, Moon, Coffee } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { CATEGORIES, CITIES } from "@/lib/constants";
+import { getInitials } from "@/lib/utils";
+import toast from "react-hot-toast";
 
-interface Stats {
-  leadsTotal: number;
-  leadsWeek: number;
-  viewsTotal: number;
-  avgRating: number;
-  reviewsTotal: number;
-  plan: string;
-  status: string;
-  coupon_code: string | null;
-  trial_ends_at: string | null;
-}
+const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
-const TIPS = [
-  {
-    icon: Camera,
-    color: "#3B82F6",
-    title: "Adicione fotos do seu trabalho",
-    desc: "Profissionais com fotos recebem até 3x mais contatos. Mostre seus melhores trabalhos!",
-    action: "Adicionar fotos",
-    href: "/painel/fotos",
-  },
-  {
-    icon: Star,
-    color: "#FBBF24",
-    title: "Peça avaliações aos clientes",
-    desc: "Após cada serviço, peça para o cliente avaliar seu perfil. Avaliações geram mais confiança.",
-    action: "Ver avaliações",
-    href: "/painel/avaliacoes",
-  },
-  {
-    icon: Share2,
-    color: "#22c55e",
-    title: "Compartilhe seu perfil",
-    desc: "Envie o link do seu perfil UDIHUB no seu WhatsApp, Instagram e cartão de visita.",
-    action: "Compartilhar e pedir avaliações",
-    href: "/painel/avaliacoes",
-  },
-  {
-    icon: Clock,
-    color: "#a855f7",
-    title: "Ative disponibilidade agora",
-    desc: "Perfis marcados como 'disponível agora' aparecem com destaque nas buscas.",
-    action: "Editar perfil",
-    href: "/painel/perfil",
-  },
+const DAYS = [
+  { key: "dom", label: "Domingo" },
+  { key: "seg", label: "Segunda" },
+  { key: "ter", label: "Terça" },
+  { key: "qua", label: "Quarta" },
+  { key: "qui", label: "Quinta" },
+  { key: "sex", label: "Sexta" },
+  { key: "sáb", label: "Sábado" },
 ];
 
-const MARKETING_TIPS = [
-  { icon: "📱", title: "Bio poderosa", desc: "Escreva uma bio clara: experiência, especialidade e diferencial. Seja direto e confiante." },
-  { icon: "📸", title: "Fotos que vendem", desc: "Use fotos do antes/depois do serviço. Mostre qualidade e organização no trabalho." },
-  { icon: "⭐", title: "Primeira resposta rápida", desc: "Responda no WhatsApp em até 5 minutos. Clientes escolhem quem responde mais rápido." },
-  { icon: "💬", title: "Orçamento profissional", desc: "Responda com nome, preço e prazo. Quem é claro no orçamento fecha mais contratos." },
-  { icon: "🔁", title: "Peça indicação", desc: "Após um serviço bem feito, peça indicação. 80% dos negócios vêm de boca a boca." },
-  { icon: "📍", title: "Bairros estratégicos", desc: "Cadastre os bairros onde você atende. Apareça para clientes perto de você." },
-];
+type DayHours = {
+  open: string;
+  close: string;
+  closed: boolean;
+  lunch: boolean;
+  lunchStart: string;
+  lunchEnd: string;
+  nocturnal: boolean;
+};
 
-export default function PainelPage() {
+type WorkHours = Record<string, DayHours>;
+
+const DEFAULT_DAY: DayHours = {
+  open: "08:00", close: "17:00", closed: false,
+  lunch: false, lunchStart: "12:00", lunchEnd: "13:00",
+  nocturnal: false,
+};
+
+const DEFAULT_HOURS: WorkHours = {
+  dom: { ...DEFAULT_DAY, closed: true },
+  seg: { ...DEFAULT_DAY },
+  ter: { ...DEFAULT_DAY },
+  qua: { ...DEFAULT_DAY },
+  qui: { ...DEFAULT_DAY },
+  sex: { ...DEFAULT_DAY },
+  sáb: { ...DEFAULT_DAY, close: "13:00" },
+};
+
+export default function EditarPerfilPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [allNeighborhoods, setAllNeighborhoods] = useState<{ id: string; name: string }[]>([]);
+  const [selectedNeighborhoodIds, setSelectedNeighborhoodIds] = useState<string[]>([]);
+  const [workHours, setWorkHours] = useState<WorkHours>(DEFAULT_HOURS);
+  const [showHours, setShowHours] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [form, setForm] = useState({
+    name: "", email: "", phone: "", whatsapp: "",
+    category: "", bio: "", available_now: false,
+  });
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
+      setUserId(user.id);
 
-      const { data: userData } = await supabase
-        .from("users").select("name, role").eq("id", user.id).single();
+      const cityRes = await supabase.from("cities").select("id").eq("slug", "uberlandia").single();
+      const cityId = cityRes.data?.id || "";
 
-      if (!userData || userData.role !== "professional") {
-        router.push("/inicio");
-        return;
-      }
-
-      setUserName(userData.name?.split(" ")[0] || "Profissional");
-
-      const { data: prof } = await supabase
-        .from("professionals")
-        .select("id, plan, status, avg_rating, views_count, coupon_code, trial_ends_at")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!prof) { router.push("/inicio"); return; }
-
-      const [leadsTotal, leadsWeek, reviews] = await Promise.all([
-        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).eq("professional_id", prof.id),
-        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).eq("professional_id", prof.id).gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
-        supabase.from("reviews").select("id", { count: "exact", head: true }).eq("professional_id", prof.id),
+      const [{ data: prof }, { data: userData }, { data: neighborhoods }] = await Promise.all([
+        supabase.from("professionals")
+          .select("id, whatsapp, bio, available_now, work_hours, categories(slug), professional_neighborhoods(neighborhood_id)")
+          .eq("user_id", user.id).single(),
+        supabase.from("users").select("name, email, phone, avatar").eq("id", user.id).single(),
+        supabase.from("neighborhoods").select("id, name").eq("city_id", cityId).order("name"),
       ]);
 
-      setStats({
-        leadsTotal: leadsTotal.count || 0,
-        leadsWeek: leadsWeek.count || 0,
-        viewsTotal: prof.views_count || 0,
-        avgRating: prof.avg_rating || 0,
-        reviewsTotal: reviews.count || 0,
-        plan: prof.plan,
-        status: prof.status,
-        coupon_code: prof.coupon_code,
-        trial_ends_at: prof.trial_ends_at,
-      });
+      if (!prof) { router.push("/seja-profissional"); return; }
 
+      setProfessionalId(prof.id);
+      setAvatar(userData?.avatar || null);
+      setAllNeighborhoods(neighborhoods || []);
+      setSelectedNeighborhoodIds(
+        (prof.professional_neighborhoods as any[])?.map((pn: any) => pn.neighborhood_id) || []
+      );
+      if (prof.work_hours) {
+        // Migrar dados antigos (sem lunch/nocturnal) para novo formato
+        const saved = prof.work_hours as Record<string, any>;
+        const migrated: WorkHours = {};
+        for (const key of Object.keys(DEFAULT_HOURS)) {
+          migrated[key] = { ...DEFAULT_DAY, ...(saved[key] || {}) };
+        }
+        setWorkHours(migrated);
+        setShowHours(true);
+      }
+      setForm({
+        name: userData?.name || "",
+        email: userData?.email || user.email || "",
+        phone: userData?.phone || "",
+        whatsapp: prof.whatsapp || "",
+        category: (prof.categories as any)?.slug || "",
+        bio: prof.bio || "",
+        available_now: prof.available_now || false,
+      });
       setLoading(false);
     }
     load();
   }, []);
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Foto muito grande. Máximo 5MB."); return; }
+    setUploadingAvatar(true);
+    const supabase = createClient();
+    const ext = file.name.split(".").pop();
+    const path = `${userId}/avatar.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (error) { toast.error("Erro ao fazer upload"); setUploadingAvatar(false); return; }
+    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+    const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from("users").update({ avatar: avatarUrl }).eq("id", userId);
+    setAvatar(avatarUrl);
+    toast.success("Foto atualizada!");
+    setUploadingAvatar(false);
+  }
+
+  function toggleNeighborhood(id: string) {
+    setSelectedNeighborhoodIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function updateDayHours(key: string, field: keyof DayHours, value: string | boolean) {
+    setWorkHours((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], [field]: value },
+    }));
+  }
+
+  function applyNocturnal(key: string, isNocturnal: boolean) {
+    setWorkHours((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        nocturnal: isNocturnal,
+        open: isNocturnal ? "18:00" : "08:00",
+        close: isNocturnal ? "23:00" : "17:00",
+        lunch: false,
+      },
+    }));
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!professionalId || !userId) return;
+    setSaving(true);
+    const supabase = createClient();
+    const { data: cat } = await supabase.from("categories").select("id").eq("slug", form.category).single();
+
+    await Promise.all([
+      supabase.from("users").update({ name: form.name, phone: form.phone || null }).eq("id", userId),
+      supabase.from("professionals").update({
+        whatsapp: form.whatsapp.replace(/\D/g, ""),
+        bio: form.bio,
+        available_now: form.available_now,
+        work_hours: showHours ? workHours : null,
+        ...(cat ? { category_id: cat.id } : {}),
+      }).eq("id", professionalId),
+    ]);
+
+    await supabase.from("professional_neighborhoods").delete().eq("professional_id", professionalId);
+    if (selectedNeighborhoodIds.length > 0) {
+      await supabase.from("professional_neighborhoods").insert(
+        selectedNeighborhoodIds.map((nid) => ({ professional_id: professionalId, neighborhood_id: nid }))
+      );
+    }
+
+    setSaving(false);
+    toast.success("Perfil atualizado!");
+  }
+
+  const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted transition-all duration-200";
+  const inputStyle = { background: "#09090B", border: "1px solid #1F1F23", outline: "none" };
+  const inputReadOnly = { background: "#09090B", border: "1px solid #1F1F23", outline: "none", opacity: 0.5 };
+  const timeInput = "text-xs px-2 py-1.5 rounded-lg text-foreground";
+  const timeStyle = { background: "#111113", border: "1px solid #1F1F23", outline: "none" };
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -125,205 +202,263 @@ export default function PainelPage() {
     </div>
   );
 
-  const isActive = stats?.status === "active";
-  const isCoupon = !!stats?.coupon_code;
-  const isTrial = !!stats?.trial_ends_at && new Date(stats.trial_ends_at) > new Date();
-  const trialDaysLeft = stats?.trial_ends_at
-    ? Math.ceil((new Date(stats.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    : 0;
-
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
+      <div className="sticky top-0 z-40 flex items-center gap-3 px-4 h-14"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-syne font-bold text-xl text-foreground">Olá, {userName}! 👋</h1>
-            <p className="text-xs text-muted mt-0.5">Painel do profissional</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {isCoupon && (
-              <span className="text-[9px] px-2 py-1 rounded-full font-bold"
-                style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)" }}>
-                CUPOM ATIVO
-              </span>
-            )}
-            {isTrial && (
-              <span className="text-[9px] px-2 py-1 rounded-full font-bold"
-                style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
-                TRIAL {trialDaysLeft}d
-              </span>
-            )}
-            {!isActive && !isCoupon && !isTrial && (
-              <Link href="/painel/assinatura"
-                className="text-[9px] px-2 py-1 rounded-full font-bold"
-                style={{ background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}>
-                INATIVO
-              </Link>
-            )}
-          </div>
-        </div>
+        <Link href="/painel" className="text-muted"><ArrowLeft size={20} /></Link>
+        <h1 className="font-syne font-bold text-lg text-foreground flex-1">Editar perfil</h1>
       </div>
 
-      <div className="px-4 py-4 space-y-5">
+      <form onSubmit={handleSave} className="px-4 py-4 space-y-5">
 
-        {/* Alerta inativo */}
-        {!isActive && !isCoupon && !isTrial && (
-          <div className="p-4 rounded-2xl"
-            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
-            <p className="font-syne font-bold text-sm mb-1" style={{ color: "#f87171" }}>Perfil inativo</p>
-            <p className="text-xs text-muted mb-3">Ative sua assinatura para aparecer nas buscas e receber clientes.</p>
-            <Link href="/painel/assinatura"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white"
-              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
-              <CreditCard size={14} /> Ativar assinatura
-            </Link>
-          </div>
-        )}
-
-        {/* Trial aviso */}
-        {isTrial && (
-          <div className="p-4 rounded-2xl"
-            style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
-            <p className="font-syne font-bold text-sm mb-1" style={{ color: "#FBBF24" }}>
-              🎉 {trialDaysLeft} dias grátis restantes
-            </p>
-            <p className="text-xs text-muted">Aproveite o período de experiência! Após o trial, assine para continuar recebendo clientes.</p>
-          </div>
-        )}
-
-        {/* Métricas */}
-        <div>
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#3B82F6" }}>SUAS MÉTRICAS</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <MessageCircle size={14} style={{ color: "#22c55e" }} />
-                <span className="text-xs text-muted">Leads esta semana</span>
-              </div>
-              <div className="font-syne font-extrabold text-2xl text-foreground">{stats?.leadsWeek}</div>
-              <div className="text-[10px] text-muted mt-1">{stats?.leadsTotal} no total</div>
-            </div>
-            <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp size={14} style={{ color: "#3B82F6" }} />
-                <span className="text-xs text-muted">Visualizações</span>
-              </div>
-              <div className="font-syne font-extrabold text-2xl text-foreground">{stats?.viewsTotal}</div>
-              <div className="text-[10px] text-muted mt-1">
-                {stats?.avgRating ? `⭐ ${Number(stats.avgRating).toFixed(1)} (${stats?.reviewsTotal} avaliações)` : "Sem avaliações ainda"}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Menu rápido */}
-        <div>
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#3B82F6" }}>GERENCIAR</p>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { href: "/painel/perfil", icon: Users, label: "Meu perfil", desc: "Editar dados e bairros" },
-              { href: "/painel/fotos", icon: Camera, label: "Fotos", desc: "Adicionar fotos do trabalho" },
-              { href: "/painel/leads", icon: MessageCircle, label: "Leads", desc: "Ver contatos recebidos" },
-              { href: "/painel/assinatura", icon: CreditCard, label: "Assinatura", desc: "Gerenciar plano" },
-            ].map(({ href, icon: Icon, label, desc }) => (
-              <Link key={href} href={href}
-                className="p-4 rounded-2xl flex flex-col gap-2"
+        {/* Avatar */}
+        <div className="flex items-center gap-4">
+          <div className="relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+            {uploadingAvatar ? (
+              <div className="w-20 h-20 rounded-2xl flex items-center justify-center"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                  style={{ background: "rgba(59,130,246,0.1)" }}>
-                  <Icon size={15} style={{ color: "#3B82F6" }} />
-                </div>
-                <div>
-                  <p className="font-semibold text-xs text-foreground">{label}</p>
-                  <p className="text-[10px] text-muted">{desc}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Próximos passos */}
-        <div>
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#22c55e" }}>PRÓXIMOS PASSOS</p>
-          <div className="space-y-2">
-            {TIPS.map(({ icon: Icon, color, title, desc, action, href }) => (
-              <Link key={title} href={href}
-                className="flex items-start gap-3 p-4 rounded-2xl"
-                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: `${color}15` }}>
-                  <Icon size={16} style={{ color }} />
-                </div>
-                <div className="flex-1">
-                  <p className="font-syne font-bold text-xs text-foreground mb-0.5">{title}</p>
-                  <p className="text-[11px] leading-relaxed" style={{ color: "#64748b" }}>{desc}</p>
-                  <p className="text-[10px] font-bold mt-1.5" style={{ color }}>{action} →</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Guia de marketing */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <BookOpen size={14} style={{ color: "#a855f7" }} />
-            <p className="text-[10px] font-bold tracking-widest" style={{ color: "#a855f7" }}>GUIA DE SUCESSO</p>
-          </div>
-          <div className="p-4 rounded-2xl"
-            style={{ background: "linear-gradient(135deg, #1a0a2e, #2d1b4e)", border: "1px solid rgba(168,85,247,0.3)" }}>
-            <div className="flex items-center gap-2 mb-3">
-              <Lightbulb size={16} style={{ color: "#a855f7" }} />
-              <p className="font-syne font-bold text-sm text-white">Como conseguir mais clientes</p>
+                <Loader2 size={20} style={{ color: "#3B82F6" }} className="animate-spin" />
+              </div>
+            ) : avatar ? (
+              <img src={avatar} alt="Avatar" className="w-20 h-20 rounded-2xl object-cover"
+                style={{ border: "2px solid #1F1F23" }} />
+            ) : (
+              <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl"
+                style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
+                {getInitials(form.name)}
+              </div>
+            )}
+            <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ background: "#3B82F6", boxShadow: "0 0 10px rgba(59,130,246,0.5)" }}>
+              <Camera size={12} className="text-white" />
             </div>
+          </div>
+          <div>
+            <p className="font-syne font-bold text-foreground">{form.name || "Seu nome"}</p>
+            <p className="text-xs text-muted">Toque para tirar foto ou escolher da galeria</p>
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+        </div>
+
+        {/* Disponível agora */}
+        <div className="flex items-center justify-between p-4 rounded-2xl"
+          style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+          <div>
+            <p className="font-semibold text-sm text-foreground">Disponível agora</p>
+            <p className="text-xs text-muted">Aparece badge verde no seu perfil</p>
+          </div>
+          <button type="button" onClick={() => setForm({ ...form, available_now: !form.available_now })}
+            className="w-12 h-6 rounded-full transition-all duration-200 relative flex-shrink-0"
+            style={{ background: form.available_now ? "#22c55e" : "#1F1F23" }}>
+            <div className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200"
+              style={{ left: form.available_now ? "calc(100% - 20px)" : 4 }} />
+          </button>
+        </div>
+
+        {/* Campos */}
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">Nome completo</label>
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Seu nome" required className={inputClass} style={inputStyle} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">E-mail</label>
+            <input type="email" value={form.email} readOnly className={inputClass} style={inputReadOnly} />
+            <p className="text-[10px] text-muted mt-1">Para alterar o e-mail entre em contato com o suporte</p>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">Telefone</label>
+            <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="(34) 99999-9999" className={inputClass} style={inputStyle} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">WhatsApp (recebe leads)</label>
+            <input type="tel" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+              placeholder="(34) 99999-9999" required className={inputClass} style={inputStyle} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">Especialidade</label>
+            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+              className={inputClass} style={{ ...inputStyle, color: "#FAFAFA" }}>
+              {CATEGORIES.map((cat) => (
+                <option key={cat.slug} value={cat.slug}>{cat.icon} {cat.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">Bio</label>
+            <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
+              rows={4} maxLength={300} placeholder="Fale sobre sua experiência e serviços..."
+              className={inputClass} style={{ ...inputStyle, resize: "none" }} />
+            <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
+          </div>
+        </div>
+
+        {/* ── HORÁRIOS DE ATENDIMENTO ── */}
+        <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Clock size={15} style={{ color: "#3B82F6" }} />
+              <p className="font-syne font-bold text-sm text-foreground">Horários de atendimento</p>
+            </div>
+            <button type="button" onClick={() => setShowHours(!showHours)}
+              className="w-12 h-6 rounded-full transition-all duration-200 relative flex-shrink-0"
+              style={{ background: showHours ? "#3B82F6" : "#1F1F23" }}>
+              <div className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200"
+                style={{ left: showHours ? "calc(100% - 20px)" : 4 }} />
+            </button>
+          </div>
+          <p className="text-xs text-muted mb-3">
+            {showHours ? "Configure os horários exibidos no seu perfil." : "Ative para mostrar seus horários no perfil."}
+          </p>
+
+          {showHours && (
             <div className="space-y-3">
-              {MARKETING_TIPS.map(({ icon, title, desc }) => (
-                <div key={title} className="flex items-start gap-3">
-                  <span className="text-base flex-shrink-0">{icon}</span>
-                  <div>
-                    <p className="font-semibold text-xs text-white mb-0.5">{title}</p>
-                    <p className="text-[11px] leading-relaxed" style={{ color: "#c4b5fd" }}>{desc}</p>
+              {DAYS.map(({ key, label }) => {
+                const h: DayHours = { ...DEFAULT_DAY, ...(workHours[key] || {}) };
+                return (
+                  <div key={key} className="rounded-xl overflow-hidden"
+                    style={{ background: "#09090B", border: "1px solid #1F1F23" }}>
+
+                    {/* Linha principal */}
+                    <div className="flex items-center gap-2 px-3 py-2">
+                      <span className="text-xs font-semibold text-muted w-12 flex-shrink-0">{label}</span>
+
+                      {h.closed ? (
+                        <span className="flex-1 text-xs" style={{ color: "#ef4444" }}>Fechado</span>
+                      ) : (
+                        <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+                          <input type="time" value={h.open}
+                            onChange={(e) => updateDayHours(key, "open", e.target.value)}
+                            className={timeInput} style={timeStyle} />
+                          <span className="text-xs text-muted">–</span>
+                          <input type="time" value={h.close}
+                            onChange={(e) => updateDayHours(key, "close", e.target.value)}
+                            className={timeInput} style={timeStyle} />
+                        </div>
+                      )}
+
+                      {/* Botão Fechar/Abrir */}
+                      <button type="button" onClick={() => updateDayHours(key, "closed", !h.closed)}
+                        className="text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0"
+                        style={{
+                          background: h.closed ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                          color: h.closed ? "#22c55e" : "#f87171",
+                          border: `1px solid ${h.closed ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
+                        }}>
+                        {h.closed ? "Abrir" : "Fechar"}
+                      </button>
+                    </div>
+
+                    {/* Toggles almoço + noturno */}
+                    {!h.closed && (
+                      <div className="flex items-center gap-3 px-3 pb-2">
+
+                        {/* Almoço */}
+                        <button type="button"
+                          onClick={() => updateDayHours(key, "lunch", !h.lunch)}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all"
+                          style={{
+                            background: h.lunch ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.04)",
+                            border: `1px solid ${h.lunch ? "rgba(251,191,36,0.3)" : "#1F1F23"}`,
+                            color: h.lunch ? "#FBBF24" : "#64748b",
+                          }}>
+                          <Coffee size={10} />
+                          Almoço
+                        </button>
+
+                        {/* Noturno */}
+                        {!h.nocturnal ? (
+                          <button type="button"
+                            onClick={() => applyNocturnal(key, true)}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all"
+                            style={{
+                              background: "rgba(255,255,255,0.04)",
+                              border: "1px solid #1F1F23",
+                              color: "#64748b",
+                            }}>
+                            <Moon size={10} />
+                            Noturno
+                          </button>
+                        ) : (
+                          <button type="button"
+                            onClick={() => applyNocturnal(key, false)}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all"
+                            style={{
+                              background: "rgba(168,85,247,0.1)",
+                              border: "1px solid rgba(168,85,247,0.3)",
+                              color: "#a855f7",
+                            }}>
+                            <Moon size={10} />
+                            Noturno ✓
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Horário de almoço */}
+                    {!h.closed && h.lunch && (
+                      <div className="flex items-center gap-2 px-3 pb-2.5"
+                        style={{ borderTop: "1px solid #1F1F23", paddingTop: "8px" }}>
+                        <Coffee size={11} style={{ color: "#FBBF24" }} className="flex-shrink-0" />
+                        <span className="text-[10px] text-muted flex-shrink-0">Almoço:</span>
+                        <input type="time" value={h.lunchStart}
+                          onChange={(e) => updateDayHours(key, "lunchStart", e.target.value)}
+                          className={timeInput} style={timeStyle} />
+                        <span className="text-xs text-muted">–</span>
+                        <input type="time" value={h.lunchEnd}
+                          onChange={(e) => updateDayHours(key, "lunchEnd", e.target.value)}
+                          className={timeInput} style={timeStyle} />
+                      </div>
+                    )}
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Bairros */}
+        <div>
+          <label className="block text-xs font-medium text-muted mb-2">
+            Bairros atendidos ({selectedNeighborhoodIds.length} selecionados)
+          </label>
+          {selectedNeighborhoodIds.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {allNeighborhoods.filter((n) => selectedNeighborhoodIds.includes(n.id)).map((n) => (
+                <div key={n.id} className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
+                  style={{ background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)", color: "#93c5fd" }}>
+                  {n.name}
+                  <button type="button" onClick={() => toggleNeighborhood(n.id)}><X size={10} /></button>
                 </div>
               ))}
             </div>
+          )}
+          <div className="max-h-40 overflow-y-auto rounded-xl p-2 space-y-0.5"
+            style={{ background: "#09090B", border: "1px solid #1F1F23" }}>
+            {allNeighborhoods.map((n) => {
+              const selected = selectedNeighborhoodIds.includes(n.id);
+              return (
+                <button key={n.id} type="button" onClick={() => toggleNeighborhood(n.id)}
+                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs transition-all duration-150 flex items-center justify-between"
+                  style={{ background: selected ? "rgba(59,130,246,0.1)" : "transparent", color: selected ? "#93c5fd" : "#A1A1AA" }}>
+                  {n.name}
+                  {selected && <CheckCircle size={10} style={{ color: "#3B82F6" }} />}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Upgrade pro */}
-        {stats?.plan === "basic" && isActive && (
-          <div className="p-4 rounded-2xl"
-            style={{ background: "linear-gradient(135deg, #0F1729, #1e3a5f)", border: "1px solid rgba(59,130,246,0.3)" }}>
-            <div className="flex items-center gap-2 mb-2">
-              <Award size={14} style={{ color: "#3B82F6" }} />
-              <span className="font-syne font-bold text-sm text-white">Quer mais clientes?</span>
-            </div>
-            <p className="text-xs mb-3" style={{ color: "#93c5fd" }}>
-              O Plano Pro aparece primeiro nas buscas e tem badge de destaque. Por apenas +R$30/mês.
-            </p>
-            <Link href="/painel/assinatura"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white"
-              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
-              <Zap size={14} /> Upgrade para Pro — R$99/mês
-            </Link>
-          </div>
-        )}
-
-        {/* Suporte */}
-        <div className="p-4 rounded-2xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-          <p className="text-sm font-semibold text-foreground mb-1">Precisa de ajuda?</p>
-          <p className="text-xs text-muted mb-3">Nossa equipe responde em minutos</p>
-          <a href="https://wa.me/5534999999999?text=Olá! Preciso de ajuda com meu perfil no UDIHUB"
-            target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm text-white"
-            style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
-            <MessageCircle size={14} /> Falar com suporte
-          </a>
-        </div>
-
-      </div>
+        <button type="submit" disabled={saving}
+          className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2"
+          style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)", opacity: saving ? 0.7 : 1 }}>
+          {saving ? <Loader2 size={16} className="animate-spin" /> : null}
+          {saving ? "Salvando..." : "Salvar perfil"}
+        </button>
+      </form>
     </div>
   );
 }
