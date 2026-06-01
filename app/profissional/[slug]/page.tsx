@@ -53,9 +53,25 @@ export default function ProfissionalPage() {
 
       if (!profData) { setLoading(false); return; }
 
-      // Register view
-      await supabase.from("profile_views").insert({ professional_id: profData.id, viewer_ip: "" });
-      await supabase.from("professionals").update({ views_count: (profData.views_count || 0) + 1 }).eq("id", profData.id);
+      // Registrar view única por usuário ou por sessão anônima
+      const storageKey = `viewed_${profData.id}`;
+      const alreadyViewed = sessionStorage.getItem(storageKey);
+
+      if (!alreadyViewed) {
+        if (user) {
+          // Usuário logado: upsert garante 1 view por user por perfil
+          await supabase.from("profile_views").upsert(
+            { professional_id: profData.id, viewer_id: user.id, viewer_ip: "" },
+            { onConflict: "professional_id,viewer_id", ignoreDuplicates: true }
+          );
+        } else {
+          // Anônimo: guarda na sessão para não contar de novo na mesma visita
+          await supabase.from("profile_views").insert(
+            { professional_id: profData.id, viewer_ip: "" }
+          );
+        }
+        sessionStorage.setItem(storageKey, "1");
+      }
 
       const { data: reviewsData } = await supabase
         .from("reviews")
