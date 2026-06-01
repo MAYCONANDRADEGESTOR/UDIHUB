@@ -11,8 +11,7 @@ import {
   Zap,
 } from "lucide-react";
 import { PLANS } from "@/lib/constants";
-import BottomNav from "@/app/components/BottomNav";
-
+import BottomNav from "@/app/components/layout/BottomNav";
 const FEATURES_PRO = [
   "Aparece primeiro nas buscas",
   "Badge PRO em destaque azul",
