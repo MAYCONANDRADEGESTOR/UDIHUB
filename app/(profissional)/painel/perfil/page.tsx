@@ -3,13 +3,36 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Camera, Loader2, CheckCircle, X } from "lucide-react";
+import { ArrowLeft, Camera, Loader2, CheckCircle, X, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { getInitials } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
+
+const DAYS = [
+  { key: "dom", label: "Domingo" },
+  { key: "seg", label: "Segunda" },
+  { key: "ter", label: "Terça" },
+  { key: "qua", label: "Quarta" },
+  { key: "qui", label: "Quinta" },
+  { key: "sex", label: "Sexta" },
+  { key: "sáb", label: "Sábado" },
+];
+
+type DayHours = { open: string; close: string; closed: boolean };
+type WorkHours = Record<string, DayHours>;
+
+const DEFAULT_HOURS: WorkHours = {
+  dom: { open: "08:00", close: "17:00", closed: true },
+  seg: { open: "08:00", close: "17:00", closed: false },
+  ter: { open: "08:00", close: "17:00", closed: false },
+  qua: { open: "08:00", close: "17:00", closed: false },
+  qui: { open: "08:00", close: "17:00", closed: false },
+  sex: { open: "08:00", close: "17:00", closed: false },
+  sáb: { open: "08:00", close: "13:00", closed: false },
+};
 
 export default function EditarPerfilPage() {
   const router = useRouter();
@@ -21,6 +44,8 @@ export default function EditarPerfilPage() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [allNeighborhoods, setAllNeighborhoods] = useState<{ id: string; name: string }[]>([]);
   const [selectedNeighborhoodIds, setSelectedNeighborhoodIds] = useState<string[]>([]);
+  const [workHours, setWorkHours] = useState<WorkHours>(DEFAULT_HOURS);
+  const [showHours, setShowHours] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "",
@@ -44,7 +69,7 @@ export default function EditarPerfilPage() {
 
       const [{ data: prof }, { data: userData }, { data: neighborhoods }] = await Promise.all([
         supabase.from("professionals")
-          .select("id, whatsapp, bio, available_now, categories(slug), professional_neighborhoods(neighborhood_id)")
+          .select("id, whatsapp, bio, available_now, work_hours, categories(slug), professional_neighborhoods(neighborhood_id)")
           .eq("user_id", user.id).single(),
         supabase.from("users").select("name, email, phone, avatar").eq("id", user.id).single(),
         supabase.from("neighborhoods").select("id, name").eq("city_id", cityId).order("name"),
@@ -58,6 +83,10 @@ export default function EditarPerfilPage() {
       setSelectedNeighborhoodIds(
         (prof.professional_neighborhoods as any[])?.map((pn: any) => pn.neighborhood_id) || []
       );
+      if (prof.work_hours) {
+        setWorkHours(prof.work_hours as WorkHours);
+        setShowHours(true);
+      }
       setForm({
         name: userData?.name || "",
         email: userData?.email || user.email || "",
@@ -100,6 +129,13 @@ export default function EditarPerfilPage() {
     );
   }
 
+  function updateDayHours(key: string, field: keyof DayHours, value: string | boolean) {
+    setWorkHours((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], [field]: value },
+    }));
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!professionalId || !userId) return;
@@ -117,6 +153,7 @@ export default function EditarPerfilPage() {
         whatsapp: form.whatsapp.replace(/\D/g, ""),
         bio: form.bio,
         available_now: form.available_now,
+        work_hours: showHours ? workHours : null,
         ...(cat ? { category_id: cat.id } : {}),
       }).eq("id", professionalId),
     ]);
@@ -152,7 +189,7 @@ export default function EditarPerfilPage() {
 
       <form onSubmit={handleSave} className="px-4 py-4 space-y-5">
 
-        {/* Avatar com upload */}
+        {/* Avatar */}
         <div className="flex items-center gap-4">
           <div className="relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             {uploadingAvatar ? (
@@ -237,6 +274,64 @@ export default function EditarPerfilPage() {
               className={inputClass} style={{ ...inputStyle, resize: "none" }} />
             <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
           </div>
+        </div>
+
+        {/* ── HORÁRIOS DE ATENDIMENTO ── */}
+        <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Clock size={15} style={{ color: "#3B82F6" }} />
+              <p className="font-syne font-bold text-sm text-foreground">Horários de atendimento</p>
+            </div>
+            <button type="button" onClick={() => setShowHours(!showHours)}
+              className="w-12 h-6 rounded-full transition-all duration-200 relative flex-shrink-0"
+              style={{ background: showHours ? "#3B82F6" : "#1F1F23" }}>
+              <div className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200"
+                style={{ left: showHours ? "calc(100% - 20px)" : 4 }} />
+            </button>
+          </div>
+          <p className="text-xs text-muted mb-3">
+            {showHours ? "Configure os horários que aparecerão no seu perfil público." : "Ative para mostrar seus horários no perfil."}
+          </p>
+
+          {showHours && (
+            <div className="space-y-2">
+              {DAYS.map(({ key, label }) => {
+                const h = workHours[key] || { open: "08:00", close: "17:00", closed: false };
+                return (
+                  <div key={key} className="flex items-center gap-2 py-2 px-3 rounded-xl"
+                    style={{ background: "#09090B", border: "1px solid #1F1F23" }}>
+                    <span className="text-xs font-medium text-muted w-14 flex-shrink-0">{label}</span>
+                    {h.closed ? (
+                      <span className="flex-1 text-xs" style={{ color: "#ef4444" }}>Fechado</span>
+                    ) : (
+                      <div className="flex items-center gap-1.5 flex-1">
+                        <input type="time" value={h.open}
+                          onChange={(e) => updateDayHours(key, "open", e.target.value)}
+                          className="text-xs px-2 py-1 rounded-lg text-foreground flex-1"
+                          style={{ background: "#111113", border: "1px solid #1F1F23", outline: "none" }} />
+                        <span className="text-xs text-muted">–</span>
+                        <input type="time" value={h.close}
+                          onChange={(e) => updateDayHours(key, "close", e.target.value)}
+                          className="text-xs px-2 py-1 rounded-lg text-foreground flex-1"
+                          style={{ background: "#111113", border: "1px solid #1F1F23", outline: "none" }} />
+                      </div>
+                    )}
+                    <button type="button"
+                      onClick={() => updateDayHours(key, "closed", !h.closed)}
+                      className="text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0"
+                      style={{
+                        background: h.closed ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                        color: h.closed ? "#22c55e" : "#f87171",
+                        border: `1px solid ${h.closed ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`,
+                      }}>
+                      {h.closed ? "Abrir" : "Fechar"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Bairros */}
