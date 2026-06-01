@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const apiUrl = process.env.ASAAS_API_URL;
     const apiKey = process.env.ASAAS_API_KEY!;
 
-    // 1. Cria ou busca cliente no Asaas
+    // 1. Cria cliente no Asaas
     const customerRes = await fetch(`${apiUrl}/customers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "access_token": apiKey },
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dueDate = tomorrow.toISOString().split("T")[0];
 
-    // 2. Cria assinatura mensal
+    // 2. Cria assinatura mensal com URL de retorno
     const subRes = await fetch(`${apiUrl}/subscriptions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "access_token": apiKey },
@@ -66,6 +66,10 @@ export async function POST(request: NextRequest) {
         nextDueDate: dueDate,
         description: `${planName} — Assinatura mensal UDIHUB`,
         externalReference: `${prof.id}|${plan}`,
+        posPayment: {
+          type: "FIXED",
+          url: "https://udihub.com.br/painel/retorno",
+        },
       }),
     });
     const subscription = await subRes.json();
@@ -74,8 +78,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Erro ao criar assinatura", details: subscription.errors?.[0]?.description || JSON.stringify(subscription) }, { status: 500 });
     }
 
-    // 3. Busca a primeira cobrança gerada pela assinatura (tem a URL de pagamento)
-    await new Promise(r => setTimeout(r, 1500)); // aguarda Asaas gerar a cobrança
+    // 3. Busca a primeira cobrança gerada (tem a URL de pagamento)
+    await new Promise(r => setTimeout(r, 1500));
     const paymentsRes = await fetch(`${apiUrl}/payments?subscription=${subscription.id}&limit=1`, {
       headers: { "access_token": apiKey },
     });
