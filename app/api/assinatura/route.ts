@@ -121,7 +121,7 @@ export async function GET() {
 
     const { data: sub } = await supabase
       .from("subscriptions")
-      .select("plan, status, created_at, asaas_subscription_id")
+      .select("plan, status, created_at, asaas_subscription_id, next_billing")
       .eq("professional_id", prof.id).single();
 
     return NextResponse.json({ subscription: sub, professional: prof });
