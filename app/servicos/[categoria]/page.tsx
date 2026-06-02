@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, SlidersHorizontal, Star, MapPin, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal, Star, MapPin, MessageCircle, X, UserPlus } from "lucide-react";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { ProfessionalCardSkeleton } from "@/app/components/ui/Skeletons";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
@@ -21,11 +22,15 @@ interface Filters {
 
 export default function CategoriaPage() {
   const params = useParams();
+  const router = useRouter();
   const slug = params.categoria as string;
   const category = CATEGORIES.find((c) => c.slug === slug);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"whatsapp" | "profile" | null>(null);
   const [filters, setFilters] = useState<Filters>({
     neighborhood: "", minRating: 0, availableOnly: false, sortBy: "pro_first",
   });
@@ -34,6 +39,10 @@ export default function CategoriaPage() {
     async function load() {
       setLoading(true);
       const supabase = createClient();
+
+      // Verificar se está logado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
 
       const { data: cat } = await supabase
         .from("categories").select("id").eq("slug", slug).single();
@@ -70,6 +79,11 @@ export default function CategoriaPage() {
   }, [slug, filters]);
 
   async function handleWhatsAppClick(prof: any) {
+    if (!userId) {
+      setPendingAction("whatsapp");
+      setShowLoginModal(true);
+      return;
+    }
     try {
       await fetch("/api/whatsapp-click", {
         method: "POST",
@@ -82,6 +96,14 @@ export default function CategoriaPage() {
       });
     } catch {}
     window.open(buildWhatsAppUrl(prof.whatsapp, `Olá! Vi seu perfil no UDIHUB e gostaria de um orçamento.`), "_blank");
+  }
+
+  function handleProfileClick(e: React.MouseEvent) {
+    if (!userId) {
+      e.preventDefault();
+      setPendingAction("profile");
+      setShowLoginModal(true);
+    }
   }
 
   if (!category) return (
@@ -206,7 +228,8 @@ export default function CategoriaPage() {
             {professionals.map((prof) => (
               <div key={prof.id} className="rounded-2xl overflow-hidden"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <Link href={`/profissional/${prof.slug}`} className="block p-4">
+                <Link href={`/profissional/${prof.slug}`} className="block p-4"
+                  onClick={handleProfileClick}>
                   <div className="flex items-start gap-3">
                     <div className="relative flex-shrink-0">
                       {(prof.users as any)?.avatar ? (
@@ -259,6 +282,46 @@ export default function CategoriaPage() {
           </div>
         )}
       </div>
+
+      {/* Modal login */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.75)" }}
+          onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}>
+          <div className="w-full max-w-lg rounded-t-3xl p-6 animate-slide-up"
+            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <button onClick={() => setShowLoginModal(false)}
+              className="absolute top-4 right-4 text-muted"><X size={18} /></button>
+            <div className="flex justify-center mb-4">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                <UserPlus size={26} style={{ color: "#3B82F6" }} />
+              </div>
+            </div>
+            <h3 className="font-syne font-bold text-xl text-foreground text-center mb-2">
+              {pendingAction === "whatsapp" ? "Cadastre-se para falar com o profissional" : "Cadastre-se para ver o perfil completo"}
+            </h3>
+            <p className="text-sm text-muted text-center mb-6 leading-relaxed">
+              O UDIHUB é gratuito para clientes. Crie sua conta em menos de 1 minuto.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Link href="/cadastro"
+                className="w-full py-4 rounded-2xl font-bold text-base text-white text-center"
+                style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)" }}>
+                Criar conta grátis
+              </Link>
+              <Link href="/login"
+                className="w-full py-3.5 rounded-2xl font-semibold text-sm text-center"
+                style={{ background: "#09090B", border: "1px solid #1F1F23", color: "#94a3b8" }}>
+                Já tenho conta — Entrar
+              </Link>
+            </div>
+            <p className="text-center text-[10px] text-muted mt-4">
+              100% gratuito · Sem cartão de crédito
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
