@@ -8,18 +8,58 @@ export const metadata: Metadata = {
     default: "UDIHUB — Encontre o profissional certo, perto de você",
     template: "%s | UDIHUB",
   },
-  description: "Marketplace local de serviços para o Triângulo Mineiro. Encontre encanadores, eletricistas, pintores e muito mais perto de você.",
-  keywords: ["serviços", "profissionais", "Uberlândia", "Triângulo Mineiro"],
-  authors: [{ name: "UDIHUB" }],
+  description: "UDIHUB é o marketplace de serviços locais do Triângulo Mineiro. Encontre encanadores, eletricistas, pintores, personal trainers e muito mais perto de você em Uberlândia, MG. Grátis para clientes.",
+  keywords: [
+    "UDIHUB",
+    "udihub",
+    "marketplace serviços Uberlândia",
+    "profissionais Uberlândia",
+    "encanador Uberlândia",
+    "eletricista Uberlândia",
+    "pintor Uberlândia",
+    "serviços locais Triângulo Mineiro",
+    "profissionais Uberaba",
+    "encontrar profissional MG",
+  ],
+  authors: [{ name: "UDIHUB", url: "https://udihub.com.br" }],
   creator: "UDIHUB",
+  publisher: "UDIHUB",
+  metadataBase: new URL("https://udihub.com.br"),
+  alternates: {
+    canonical: "https://udihub.com.br",
+  },
   openGraph: {
     type: "website",
     locale: "pt_BR",
     url: "https://udihub.com.br",
     siteName: "UDIHUB",
     title: "UDIHUB — Encontre o profissional certo, perto de você",
-    description: "Marketplace local de serviços para o Triângulo Mineiro.",
-    images: [{ url: "/logo.png", width: 512, height: 512, alt: "UDIHUB" }],
+    description: "Marketplace de serviços locais do Triângulo Mineiro. Encontre profissionais em Uberlândia, MG. Grátis para clientes.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "UDIHUB — Marketplace de serviços em Uberlândia MG",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "UDIHUB — Profissionais perto de você",
+    description: "Marketplace de serviços locais do Triângulo Mineiro.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
   manifest: "/manifest.json",
   appleWebApp: {
@@ -31,6 +71,9 @@ export const metadata: Metadata = {
     icon: "/logo.png",
     apple: "/logo.png",
     shortcut: "/logo.png",
+  },
+  verification: {
+    google: "cA4wo2-DPRYakeEmQw3Lj_tAQLV2R0CJyJrQN5Z2TDk",
   },
 };
 
@@ -51,6 +94,50 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
+        {/* Schema.org — dados estruturados para o Google */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "name": "UDIHUB",
+              "alternateName": "UDI HUB",
+              "url": "https://udihub.com.br",
+              "description": "Marketplace de serviços locais do Triângulo Mineiro",
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                  "@type": "EntryPoint",
+                  "urlTemplate": "https://udihub.com.br/servicos/{search_term_string}"
+                },
+                "query-input": "required name=search_term_string"
+              }
+            })
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "UDIHUB",
+              "url": "https://udihub.com.br",
+              "logo": "https://udihub.com.br/logo.png",
+              "description": "Marketplace de serviços locais do Triângulo Mineiro",
+              "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Uberlândia",
+                "addressRegion": "MG",
+                "addressCountry": "BR"
+              },
+              "sameAs": [
+                "https://www.instagram.com/udihub"
+              ]
+            })
+          }}
+        />
       </head>
       <body className="font-sans bg-background text-foreground antialiased">
         {children}
