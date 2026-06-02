@@ -10,8 +10,8 @@ import {
   ArrowRight,
   Zap,
 } from "lucide-react";
-import { PLANS } from "@/lib/constants";
 import BottomNav from "@/app/components/layout/BottomNav";
+
 const FEATURES_PRO = [
   "Aparece primeiro nas buscas",
   "Badge PRO em destaque azul",
@@ -56,15 +56,23 @@ export default function SejaProfissionalPage() {
             Crie seu perfil no UDIHUB, apareça nas buscas de clientes da sua cidade e receba leads em tempo real.
           </p>
 
+          {/* Aviso de preço claro */}
+          <div className="flex items-center justify-center gap-2 mb-4 px-4 py-2.5 rounded-xl mx-auto max-w-xs"
+            style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
+            <span className="text-xs font-semibold" style={{ color: "#FBBF24" }}>
+              💳 Assinatura mensal a partir de R$69/mês
+            </span>
+          </div>
+
           <Link href="/cadastro"
             className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-white text-base transition-all duration-200"
             style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 32px rgba(59,130,246,0.5)" }}>
-            Criar perfil grátis
+            Começar agora
             <ArrowRight size={18} />
           </Link>
 
-          <p className="text-xs text-muted mt-4">
-            Sem taxa de cadastro · Pagamento só após criar o perfil
+          <p className="text-xs text-muted mt-3">
+            Cadastro gratuito · Assinatura a partir de R$69/mês · Cancele quando quiser
           </p>
         </div>
       </section>
@@ -73,7 +81,8 @@ export default function SejaProfissionalPage() {
       <section className="px-4 py-10">
         <div className="max-w-lg mx-auto">
           <p className="text-[10px] font-black tracking-[0.15em] mb-2 text-center" style={{ color: "#3B82F6" }}>PLANOS</p>
-          <h2 className="font-syne font-bold text-xl text-foreground text-center mb-6">Escolha o seu plano</h2>
+          <h2 className="font-syne font-bold text-xl text-foreground text-center mb-2">Escolha o seu plano</h2>
+          <p className="text-xs text-center text-muted mb-6">Cobrança mensal recorrente · Sem fidelidade</p>
 
           <div className="grid grid-cols-1 gap-4">
 
@@ -85,6 +94,7 @@ export default function SejaProfissionalPage() {
                   <span className="font-syne font-extrabold text-3xl text-foreground">R$69</span>
                   <span className="text-sm text-muted">/mês</span>
                 </div>
+                <p className="text-xs text-muted mt-1">Cobrado mensalmente via PIX ou cartão</p>
               </div>
               <div className="space-y-2 mb-5">
                 {FEATURES_BASIC.map((feat) => (
@@ -97,7 +107,7 @@ export default function SejaProfissionalPage() {
               <Link href="/cadastro"
                 className="block text-center py-3 rounded-xl font-bold text-sm text-white"
                 style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
-                Começar com Básico
+                Assinar Básico — R$69/mês
               </Link>
             </div>
 
@@ -115,6 +125,7 @@ export default function SejaProfissionalPage() {
                   <span className="font-syne font-extrabold text-3xl text-white">R$99</span>
                   <span className="text-sm text-muted">/mês</span>
                 </div>
+                <p className="text-xs text-muted mt-1">Cobrado mensalmente via PIX ou cartão</p>
               </div>
               <div className="space-y-2 mb-5">
                 {FEATURES_PRO.map((feat) => (
@@ -127,13 +138,13 @@ export default function SejaProfissionalPage() {
               <Link href="/cadastro"
                 className="block text-center py-3 rounded-xl font-bold text-sm text-white"
                 style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 16px rgba(59,130,246,0.4)" }}>
-                Começar com Pro
+                Assinar Pro — R$99/mês
               </Link>
             </div>
           </div>
 
           <p className="text-center text-xs text-muted mt-4">
-            Cancele a qualquer momento · Sem fidelidade · Cobrança mensal recorrente
+            ⚠️ O perfil fica ativo somente após a confirmação do pagamento
           </p>
         </div>
       </section>
@@ -144,7 +155,7 @@ export default function SejaProfissionalPage() {
           <p className="text-[10px] font-black tracking-[0.15em] mb-6 text-center" style={{ color: "#3B82F6" }}>COMO FUNCIONA</p>
           <div className="space-y-3">
             {[
-              { icon: Zap, title: "Perfil ativo imediatamente", desc: "Após o pagamento, seu perfil aparece nas buscas em minutos. Sem aprovação manual." },
+              { icon: Zap, title: "Perfil ativo após o pagamento", desc: "Assine um plano, pague via PIX ou cartão e seu perfil aparece nas buscas em minutos." },
               { icon: MessageCircle, title: "Leads direto no WhatsApp", desc: "Clientes clicam no botão e chegam direto no seu WhatsApp. Você nunca perde um contato." },
               { icon: TrendingUp, title: "Painel de métricas", desc: "Veja quantos leads recebeu hoje, essa semana e no mês. Gráficos simples e claros." },
               { icon: Star, title: "Avaliações reais", desc: "Só clientes que clicaram no seu WhatsApp avaliam. Nada de avaliações falsas." },
@@ -166,17 +177,58 @@ export default function SejaProfissionalPage() {
         </div>
       </section>
 
-      {/* ── CTA FINAL ── */}
+      {/* ── FAQ RÁPIDO ── */}
       <section className="px-4 py-10">
+        <div className="max-w-lg mx-auto">
+          <p className="text-[10px] font-black tracking-[0.15em] mb-6 text-center" style={{ color: "#3B82F6" }}>DÚVIDAS</p>
+          <div className="space-y-3">
+            {[
+              {
+                q: "O perfil é gratuito?",
+                a: "O cadastro é gratuito, mas para aparecer nas buscas e receber clientes você precisa de uma assinatura mensal. Plano Básico R$69/mês ou Plano Pro R$99/mês."
+              },
+              {
+                q: "Quando meu perfil fica ativo?",
+                a: "Imediatamente após a confirmação do pagamento. O processo leva menos de 5 minutos via PIX."
+              },
+              {
+                q: "Posso cancelar quando quiser?",
+                a: "Sim. Sem fidelidade, sem multa. Você cancela pelo painel e seu perfil fica ativo até o final do período pago."
+              },
+              {
+                q: "Como recebo os clientes?",
+                a: "Diretamente no seu WhatsApp. Quando um cliente clica no botão do seu perfil, abre uma conversa direto com você."
+              },
+            ].map(({ q, a }) => (
+              <details key={q} className="group rounded-2xl overflow-hidden"
+                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                <summary className="flex items-center justify-between px-4 py-3.5 cursor-pointer list-none gap-4">
+                  <span className="font-medium text-sm text-foreground">{q}</span>
+                  <span className="text-muted text-lg leading-none group-open:rotate-45 transition-transform duration-200">+</span>
+                </summary>
+                <div className="px-4 pb-4">
+                  <p className="text-xs leading-relaxed" style={{ color: "#64748b" }}>{a}</p>
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA FINAL ── */}
+      <section className="px-4 py-10" style={{ background: "#080809" }}>
         <div className="max-w-lg mx-auto text-center">
-          <h2 className="font-syne font-bold text-xl text-foreground mb-3">Pronto para começar?</h2>
-          <p className="text-sm text-muted mb-6">Junte-se aos profissionais que já estão recebendo clientes pelo UDIHUB.</p>
+          <h2 className="font-syne font-bold text-xl text-foreground mb-2">Pronto para começar?</h2>
+          <p className="text-sm text-muted mb-2">Junte-se aos profissionais que já estão recebendo clientes pelo UDIHUB.</p>
+          <p className="text-xs font-semibold mb-6" style={{ color: "#FBBF24" }}>
+            💳 Planos a partir de R$69/mês · Sem fidelidade
+          </p>
           <Link href="/cadastro"
             className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl font-bold text-white text-base"
             style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.4)" }}>
-            Criar perfil grátis <ArrowRight size={18} />
+            Começar agora <ArrowRight size={18} />
           </Link>
-          <p className="text-xs text-muted mt-3">Sem taxa de cadastro · Cancele quando quiser</p>
+          <p className="text-xs text-muted mt-3">Cadastro gratuito · Perfil ativo após pagamento</p>
         </div>
       </section>
 
