@@ -10,6 +10,9 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
+// Taxa Asaas PIX: 0,99% por transação
+const ASAAS_FEE_RATE = 0.0099;
+
 interface Metrics {
   totalProfessionals: number;
   activeProfessionals: number;
@@ -19,6 +22,8 @@ interface Metrics {
   totalClients: number;
   totalUsers: number;
   monthlyRevenue: number;
+  netRevenue: number;
+  asaasFees: number;
   totalLeads: number;
   leadsToday: number;
   leadsWeek: number;
@@ -97,6 +102,8 @@ export default function AdminPage() {
       ]);
 
       const revenue = (subscriptions.data || []).reduce((acc, s) => acc + (s.plan === "pro" ? 99 : 69), 0);
+      const fees = (subscriptions.data || []).reduce((acc, s) => acc + (s.plan === "pro" ? 99 : 69) * ASAAS_FEE_RATE, 0);
+      const netRevenue = revenue - fees;
 
       setMetrics({
         totalProfessionals: totalProf.count || 0,
@@ -107,6 +114,8 @@ export default function AdminPage() {
         totalClients: totalClients.count || 0,
         totalUsers: totalUsers.count || 0,
         monthlyRevenue: revenue,
+        netRevenue: Math.round(netRevenue * 100) / 100,
+        asaasFees: Math.round(fees * 100) / 100,
         totalLeads: totalLeads.count || 0,
         leadsToday: leadsToday.count || 0,
         leadsWeek: leadsWeek.count || 0,
@@ -153,6 +162,8 @@ export default function AdminPage() {
     { href: "/admin/metricas", icon: BarChart3, label: "Métricas", desc: "Faturamento e dados", badge: null },
   ];
 
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
@@ -196,16 +207,26 @@ export default function AdminPage() {
 
         {/* Receita + Leads */}
         <div className="grid grid-cols-2 gap-3">
+          {/* Card receita com líquido */}
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-2 mb-2">
               <CreditCard size={14} style={{ color: "#22c55e" }} />
               <span className="text-xs text-muted">Receita mensal</span>
             </div>
             <div className="font-syne font-extrabold text-2xl" style={{ color: "#22c55e" }}>
-              R${(metrics?.monthlyRevenue || 0).toLocaleString("pt-BR")}
+              R${fmt(metrics?.netRevenue || 0)}
             </div>
-            <div className="text-[10px] text-muted mt-1">{metrics?.activeProfessionals} assinantes ativos</div>
+            <div className="text-[10px] mt-1" style={{ color: "#64748b" }}>
+              Bruto: R${(metrics?.monthlyRevenue || 0).toLocaleString("pt-BR")}
+            </div>
+            <div className="text-[10px]" style={{ color: "#f87171" }}>
+              Taxa Asaas: -R${fmt(metrics?.asaasFees || 0)}
+            </div>
+            <div className="text-[10px] text-muted mt-0.5">
+              {metrics?.activeProfessionals} assinantes ativos
+            </div>
           </div>
+
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-2 mb-2">
               <MessageCircle size={14} style={{ color: "#3B82F6" }} />
