@@ -1,27 +1,51 @@
 import { MetadataRoute } from "next";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { CATEGORIES } from "@/lib/constants";
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://udihub.com.br";
-  const now = new Date();
+const BASE_URL = "https://udihub.com.br";
 
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
-    { url: baseUrl, lastModified: now, changeFrequency: "daily", priority: 1.0 },
-    { url: `${baseUrl}/servicos`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
-    { url: `${baseUrl}/seja-profissional`, lastModified: now, changeFrequency: "weekly", priority: 0.9 },
-    { url: `${baseUrl}/como-funciona`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
-    { url: `${baseUrl}/cadastro`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
-    { url: `${baseUrl}/login`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${baseUrl}/termos`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${baseUrl}/privacidade`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+    { url: BASE_URL, lastModified: new Date(), changeFrequency: "weekly", priority: 1.0 },
+    { url: `${BASE_URL}/servicos`, lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
+    { url: `${BASE_URL}/seja-profissional`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE_URL}/cadastro`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/login`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE_URL}/como-funciona`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/termos`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
+    { url: `${BASE_URL}/privacidade`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
   ];
 
   const categoryPages: MetadataRoute.Sitemap = CATEGORIES.map((cat) => ({
-    url: `${baseUrl}/servicos/${cat.slug}`,
-    lastModified: now,
+    url: `${BASE_URL}/servicos/${cat.slug}`,
+    lastModified: new Date(),
     changeFrequency: "daily" as const,
-    priority: 0.8,
+    priority: 0.85,
   }));
 
-  return [...staticPages, ...categoryPages];
+  let professionalPages: MetadataRoute.Sitemap = [];
+  try {
+    // Usar cliente público direto — sem cookies de autenticação
+    const supabase = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    const { data: professionals } = await supabase
+      .from("professionals")
+      .select("slug, created_at")
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+
+    if (professionals) {
+      professionalPages = professionals.map((prof) => ({
+        url: `${BASE_URL}/profissional/${prof.slug}`,
+        lastModified: new Date(prof.created_at),
+        changeFrequency: "weekly" as const,
+        priority: 0.75,
+      }));
+    }
+  } catch {}
+
+  return [...staticPages, ...categoryPages, ...professionalPages];
 }
