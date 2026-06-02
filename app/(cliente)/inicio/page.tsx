@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, ChevronDown, Search, Zap, MessageCircle, Star, Heart, Loader2 } from "lucide-react";
+import { MapPin, ChevronDown, Search, Zap, MessageCircle, Star, Heart, Loader2, X, UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
 import { ProfessionalCardSkeleton } from "@/app/components/ui/Skeletons";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
@@ -25,6 +26,7 @@ interface Professional {
 }
 
 export default function InicioPage() {
+  const router = useRouter();
   const [city, setCity] = useState("Uberlândia");
   const [neighborhood, setNeighborhood] = useState("");
   const [showLocationSelect, setShowLocationSelect] = useState(false);
@@ -32,6 +34,8 @@ export default function InicioPage() {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"whatsapp" | "profile" | null>(null);
 
   const QUICK_CATS = CATEGORIES.slice(0, 6);
 
@@ -55,7 +59,6 @@ export default function InicioPage() {
       setFavorites(favs?.map((f) => f.professional_id) || []);
     }
 
-    // ✅ Adicionado avatar na query
     const { data } = await supabase
       .from("professionals")
       .select(`id, slug, whatsapp, avg_rating, available_now, plan,
@@ -90,6 +93,12 @@ export default function InicioPage() {
   }
 
   async function handleWhatsApp(prof: Professional) {
+    // Exige login para chamar no WhatsApp
+    if (!userId) {
+      setPendingAction("whatsapp");
+      setShowLoginModal(true);
+      return;
+    }
     try {
       await fetch("/api/whatsapp-click", {
         method: "POST",
@@ -98,6 +107,15 @@ export default function InicioPage() {
       });
     } catch {}
     window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
+  }
+
+  function handleProfileClick(e: React.MouseEvent, slug: string) {
+    // Exige login para ver perfil completo
+    if (!userId) {
+      e.preventDefault();
+      setPendingAction("profile");
+      setShowLoginModal(true);
+    }
   }
 
   return (
@@ -189,9 +207,10 @@ export default function InicioPage() {
                 return (
                   <div key={prof.id} className="rounded-2xl overflow-hidden"
                     style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                    <Link href={`/profissional/${prof.slug}`} className="block p-4">
+                    <Link href={`/profissional/${prof.slug}`}
+                      className="block p-4"
+                      onClick={(e) => handleProfileClick(e, prof.slug)}>
                       <div className="flex items-start gap-3">
-                        {/* ✅ Avatar com foto real */}
                         <div className="relative flex-shrink-0">
                           {(prof.users as any)?.avatar ? (
                             <Image
@@ -258,6 +277,50 @@ export default function InicioPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de login obrigatório */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.75)" }}
+          onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}>
+          <div className="w-full max-w-lg rounded-t-3xl p-6 animate-slide-up"
+            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <button onClick={() => setShowLoginModal(false)}
+              className="absolute top-4 right-4 text-muted"><X size={18} /></button>
+
+            <div className="flex justify-center mb-4">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
+                <UserPlus size={26} style={{ color: "#3B82F6" }} />
+              </div>
+            </div>
+
+            <h3 className="font-syne font-bold text-xl text-foreground text-center mb-2">
+              {pendingAction === "whatsapp" ? "Cadastre-se para falar com o profissional" : "Cadastre-se para ver o perfil completo"}
+            </h3>
+            <p className="text-sm text-muted text-center mb-6 leading-relaxed">
+              O UDIHUB é gratuito para clientes. Crie sua conta em menos de 1 minuto e encontre os melhores profissionais de Uberlândia.
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <Link href="/cadastro"
+                className="w-full py-4 rounded-2xl font-bold text-base text-white text-center"
+                style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)" }}>
+                Criar conta grátis
+              </Link>
+              <Link href="/login"
+                className="w-full py-3.5 rounded-2xl font-semibold text-sm text-center"
+                style={{ background: "#09090B", border: "1px solid #1F1F23", color: "#94a3b8" }}>
+                Já tenho conta — Entrar
+              </Link>
+            </div>
+
+            <p className="text-center text-[10px] text-muted mt-4">
+              100% gratuito · Sem cartão de crédito · Cancele quando quiser
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
