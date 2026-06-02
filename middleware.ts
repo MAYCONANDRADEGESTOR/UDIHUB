@@ -4,13 +4,30 @@ import { createServerClient } from "@supabase/ssr";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  });
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return request.cookies.getAll(); },
-        setAll() {},
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          // Renovar cookies da sessão corretamente
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          response = NextResponse.next({
+            request: { headers: request.headers },
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
+        },
       },
     }
   );
@@ -26,10 +43,10 @@ export async function middleware(request: NextRequest) {
 
     // Usuario banido
     if (userData?.banned) {
-      const response = NextResponse.redirect(new URL("/banido", request.url));
-      response.cookies.delete("sb-access-token");
-      response.cookies.delete("sb-refresh-token");
-      return response;
+      const res = NextResponse.redirect(new URL("/banido", request.url));
+      res.cookies.delete("sb-access-token");
+      res.cookies.delete("sb-refresh-token");
+      return res;
     }
 
     // PROFISSIONAL: verifica se esta ativo
@@ -45,7 +62,6 @@ export async function middleware(request: NextRequest) {
       const inTrial = prof?.trial_ends_at && new Date(prof.trial_ends_at) > new Date();
       const liberado = isActive || hasCoupon || inTrial;
 
-      // Paginas liberadas mesmo sem pagar
       const allowedPaths = [
         "/painel/assinatura",
         "/painel/perfil",
@@ -56,12 +72,10 @@ export async function middleware(request: NextRequest) {
       ];
       const isAllowed = allowedPaths.some((p) => pathname.startsWith(p));
 
-      // Se NAO esta liberado e tenta acessar area restrita
       if (!liberado && pathname.startsWith("/painel") && !isAllowed) {
         return NextResponse.redirect(new URL("/painel/assinatura", request.url));
       }
 
-      // Profissional liberado em /inicio vai pro painel
       if (pathname === "/inicio" && liberado) {
         return NextResponse.redirect(new URL("/painel", request.url));
       }
@@ -81,9 +95,15 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/admin") && userData?.role !== "admin") {
       return NextResponse.redirect(new URL("/inicio", request.url));
     }
+  } else {
+    // Sem sessão — proteger rotas privadas
+    const privateRoutes = ["/painel", "/admin", "/inicio", "/favoritos"];
+    if (privateRoutes.some((p) => pathname.startsWith(p))) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
