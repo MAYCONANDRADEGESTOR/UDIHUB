@@ -5,13 +5,23 @@ import { useRouter } from "next/navigation";
 import {
   Users, MapPin, CreditCard, Flag, BarChart3,
   ArrowUpRight, MessageCircle, Loader2, TrendingUp,
-  Trash2, X, ArrowLeft, AlertCircle, UserX, UserCheck,
+  Trash2, X, ArrowLeft, AlertCircle, UserCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
-// Taxa Asaas PIX: 0,99% por transação
-const ASAAS_FEE_RATE = 0.0099;
+// Taxa real Asaas PIX: R$0,99 fixo + 1,39% por transação
+const ASAAS_PIX_FIXED = 0.99;
+const ASAAS_PIX_PERCENT = 0.0139;
+
+function calcNet(valor: number) {
+  const fee = (valor * ASAAS_PIX_PERCENT) + ASAAS_PIX_FIXED;
+  return { net: valor - fee, fee };
+}
+
+function fmt2(v: number) {
+  return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 interface Metrics {
   totalProfessionals: number;
@@ -101,9 +111,16 @@ export default function AdminPage() {
         supabase.from("reports").select("id, reason, status, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(3),
       ]);
 
-      const revenue = (subscriptions.data || []).reduce((acc, s) => acc + (s.plan === "pro" ? 99 : 69), 0);
-      const fees = (subscriptions.data || []).reduce((acc, s) => acc + (s.plan === "pro" ? 99 : 69) * ASAAS_FEE_RATE, 0);
-      const netRevenue = revenue - fees;
+      // Calcular receita bruta e líquida com taxa real do Asaas
+      let totalRevenue = 0;
+      let totalFees = 0;
+      for (const s of subscriptions.data || []) {
+        const valor = s.plan === "pro" ? 99 : 69;
+        const { net, fee } = calcNet(valor);
+        totalRevenue += valor;
+        totalFees += fee;
+      }
+      const totalNet = totalRevenue - totalFees;
 
       setMetrics({
         totalProfessionals: totalProf.count || 0,
@@ -113,9 +130,9 @@ export default function AdminPage() {
         basicProfessionals: basicProf.count || 0,
         totalClients: totalClients.count || 0,
         totalUsers: totalUsers.count || 0,
-        monthlyRevenue: revenue,
-        netRevenue: Math.round(netRevenue * 100) / 100,
-        asaasFees: Math.round(fees * 100) / 100,
+        monthlyRevenue: totalRevenue,
+        netRevenue: Math.round(totalNet * 100) / 100,
+        asaasFees: Math.round(totalFees * 100) / 100,
         totalLeads: totalLeads.count || 0,
         leadsToday: leadsToday.count || 0,
         leadsWeek: leadsWeek.count || 0,
@@ -152,7 +169,7 @@ export default function AdminPage() {
 
   const meta275 = Math.round(((metrics?.activeProfessionals || 0) / 275) * 100);
   const conversionRate = metrics?.totalUsers
-    ? Math.round(((metrics.totalProfessionals) / metrics.totalUsers) * 100)
+    ? Math.round((metrics.totalProfessionals / metrics.totalUsers) * 100)
     : 0;
 
   const ADMIN_SECTIONS = [
@@ -161,8 +178,6 @@ export default function AdminPage() {
     { href: "/admin/denuncias", icon: Flag, label: "Denúncias", desc: "Resolver denúncias", badge: metrics?.pendingReports || 0 },
     { href: "/admin/metricas", icon: BarChart3, label: "Métricas", desc: "Faturamento e dados", badge: null },
   ];
-
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -207,20 +222,20 @@ export default function AdminPage() {
 
         {/* Receita + Leads */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Card receita com líquido */}
+          {/* Card receita líquida */}
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-2 mb-2">
               <CreditCard size={14} style={{ color: "#22c55e" }} />
-              <span className="text-xs text-muted">Receita mensal</span>
+              <span className="text-xs text-muted">Receita líquida</span>
             </div>
             <div className="font-syne font-extrabold text-2xl" style={{ color: "#22c55e" }}>
-              R${fmt(metrics?.netRevenue || 0)}
+              R${fmt2(metrics?.netRevenue || 0)}
             </div>
             <div className="text-[10px] mt-1" style={{ color: "#64748b" }}>
               Bruto: R${(metrics?.monthlyRevenue || 0).toLocaleString("pt-BR")}
             </div>
             <div className="text-[10px]" style={{ color: "#f87171" }}>
-              Taxa Asaas: -R${fmt(metrics?.asaasFees || 0)}
+              Taxa Asaas: -R${fmt2(metrics?.asaasFees || 0)}
             </div>
             <div className="text-[10px] text-muted mt-0.5">
               {metrics?.activeProfessionals} assinantes ativos
