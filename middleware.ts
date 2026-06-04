@@ -17,7 +17,6 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          // Renovar cookies da sessão corretamente
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
@@ -41,7 +40,7 @@ export async function middleware(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    // Usuario banido
+    // Usuário banido
     if (userData?.banned) {
       const res = NextResponse.redirect(new URL("/banido", request.url));
       res.cookies.delete("sb-access-token");
@@ -49,8 +48,18 @@ export async function middleware(request: NextRequest) {
       return res;
     }
 
-    // PROFISSIONAL: verifica se esta ativo
-    if (userData?.role === "professional") {
+    const role = userData?.role;
+
+    // ── ADMIN ──
+    if (role === "admin") {
+      // Admin em qualquer rota privada de outro role → redireciona para /admin
+      if (pathname.startsWith("/painel") || pathname.startsWith("/inicio")) {
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
+    }
+
+    // ── PROFISSIONAL ──
+    if (role === "professional") {
       const { data: prof } = await supabase
         .from("professionals")
         .select("status, coupon_code, trial_ends_at")
@@ -76,28 +85,32 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL("/painel/assinatura", request.url));
       }
 
+      // Profissional em /inicio → vai para /painel
       if (pathname === "/inicio" && liberado) {
+        return NextResponse.redirect(new URL("/painel", request.url));
+      }
+
+      // Profissional tentando acessar /admin → volta para /painel
+      if (pathname.startsWith("/admin")) {
         return NextResponse.redirect(new URL("/painel", request.url));
       }
     }
 
-    // Admin em /inicio vai para /admin
-    if (pathname === "/inicio" && userData?.role === "admin") {
-      return NextResponse.redirect(new URL("/admin", request.url));
+    // ── CLIENTE ──
+    if (role === "client") {
+      // Cliente tentando acessar /painel → vai para /perfil
+      if (pathname.startsWith("/painel")) {
+        return NextResponse.redirect(new URL("/perfil", request.url));
+      }
+      // Cliente tentando acessar /admin → vai para /inicio
+      if (pathname.startsWith("/admin")) {
+        return NextResponse.redirect(new URL("/inicio", request.url));
+      }
     }
 
-    // Cliente tentando acessar /painel vai para /inicio
-    if (pathname.startsWith("/painel") && userData?.role === "client") {
-      return NextResponse.redirect(new URL("/inicio", request.url));
-    }
-
-    // Nao-admin tentando acessar /admin vai para /inicio
-    if (pathname.startsWith("/admin") && userData?.role !== "admin") {
-      return NextResponse.redirect(new URL("/inicio", request.url));
-    }
   } else {
     // Sem sessão — proteger rotas privadas
-    const privateRoutes = ["/painel", "/admin", "/inicio", "/favoritos"];
+    const privateRoutes = ["/painel", "/admin", "/inicio", "/favoritos", "/perfil"];
     if (privateRoutes.some((p) => pathname.startsWith(p))) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
