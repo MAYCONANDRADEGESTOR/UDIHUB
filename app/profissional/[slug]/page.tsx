@@ -43,23 +43,33 @@ export default function ProfissionalPage() {
   const [loading, setLoading] = useState(true);
   const [favorited, setFavorited] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [favoriteId, setFavoriteId] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
   const [submittingReport, setSubmittingReport] = useState(false);
+  // Avaliação
   const [showReview, setShowReview] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
-  const [hasWhatsappClick, setHasWhatsappClick] = useState(false);
+  // Denúncia de avaliação
+  const [reportReviewModal, setReportReviewModal] = useState<string | null>(null);
+  const [reportReviewReason, setReportReviewReason] = useState("");
+  const [submittingReviewReport, setSubmittingReviewReport] = useState(false);
+  const [isProfOwner, setIsProfOwner] = useState(false);
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserId(user.id);
+      if (user) {
+        setUserId(user.id);
+        const { data: userData } = await supabase.from("users").select("role").eq("id", user.id).single();
+        setUserRole(userData?.role || null);
+      }
 
       const { data: profData } = await supabase
         .from("professionals")
@@ -74,7 +84,14 @@ export default function ProfissionalPage() {
 
       if (!profData) { setLoading(false); return; }
 
-      // View única por usuário/sessão
+      // Verificar se é o dono do perfil
+      if (user) {
+        const { data: ownProf } = await supabase.from("professionals")
+          .select("id").eq("user_id", user.id).eq("id", profData.id).single();
+        if (ownProf) setIsProfOwner(true);
+      }
+
+      // View única
       const storageKey = `viewed_${profData.id}`;
       const alreadyViewed = sessionStorage.getItem(storageKey);
       if (!alreadyViewed) {
@@ -103,10 +120,6 @@ export default function ProfissionalPage() {
         const { data: existingReview } = await supabase.from("reviews")
           .select("id").eq("professional_id", profData.id).eq("client_id", user.id).single();
         if (existingReview) setAlreadyReviewed(true);
-
-        const { data: click } = await supabase.from("whatsapp_clicks")
-          .select("id").eq("professional_id", profData.id).eq("clicker_id", user.id).limit(1).single();
-        if (click) setHasWhatsappClick(true);
       }
 
       setProf(profData);
@@ -123,7 +136,6 @@ export default function ProfissionalPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ professional_id: prof.id, city: prof.users?.city || "Uberlândia" }),
       });
-      setHasWhatsappClick(true);
     } catch {}
     window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
@@ -182,6 +194,22 @@ export default function ProfissionalPage() {
     setReportSent(true);
     setSubmittingReport(false);
     setTimeout(() => { setShowReport(false); setReportSent(false); setReportReason(""); }, 2000);
+  }
+
+  async function handleReviewReport(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reportReviewModal || !prof?.id) return;
+    setSubmittingReviewReport(true);
+    const supabase = createClient();
+    await supabase.from("review_reports").insert({
+      review_id: reportReviewModal,
+      professional_id: prof.id,
+      reason: reportReviewReason,
+    });
+    toast.success("Denúncia enviada! Analisaremos em breve.");
+    setReportReviewModal(null);
+    setReportReviewReason("");
+    setSubmittingReviewReport(false);
   }
 
   if (loading) return <div className="min-h-screen bg-background pt-16 pb-32"><ProfileSkeleton /></div>;
@@ -288,10 +316,7 @@ export default function ProfissionalPage() {
               style={{ background: todayHours.closed ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)", border: `1px solid ${todayHours.closed ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)"}` }}>
               <Clock size={13} style={{ color: todayHours.closed ? "#f87171" : "#22c55e" }} />
               <span className="text-xs font-medium" style={{ color: todayHours.closed ? "#f87171" : "#22c55e" }}>
-                {todayHours.closed
-                  ? "Fechado hoje"
-                  : `Hoje: ${todayHours.open} – ${todayHours.close}${todayHours.lunch ? ` · Almoço: ${todayHours.lunchStart}–${todayHours.lunchEnd}` : ""}`
-                }
+                {todayHours.closed ? "Fechado hoje" : `Hoje: ${todayHours.open} – ${todayHours.close}${todayHours.lunch ? ` · Almoço: ${todayHours.lunchStart}–${todayHours.lunchEnd}` : ""}`}
               </span>
               {todayHours.nocturnal && <Moon size={11} style={{ color: "#a855f7" }} />}
             </div>
@@ -368,15 +393,20 @@ export default function ProfissionalPage() {
         <div className="px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-syne font-bold text-sm text-foreground">Avaliações ({reviews.length})</h2>
-            {userId && !alreadyReviewed && (
-              <button onClick={() => {
-                if (!hasWhatsappClick) { toast.error("Contate o profissional pelo WhatsApp antes de avaliar"); return; }
-                setShowReview(true);
-              }}
+            {/* Botão avaliar — aberto para todos os logados que não são o dono */}
+            {userId && !alreadyReviewed && !isProfOwner && (
+              <button onClick={() => setShowReview(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
                 style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBBF24" }}>
                 <Star size={11} />Avaliar
               </button>
+            )}
+            {!userId && (
+              <Link href="/login"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
+                style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBBF24" }}>
+                <Star size={11} />Avaliar
+              </Link>
             )}
             {alreadyReviewed && (
               <span className="text-xs text-muted flex items-center gap-1">
@@ -412,7 +442,7 @@ export default function ProfissionalPage() {
             <div className="text-center py-8">
               <Star size={24} className="text-muted mx-auto mb-2" />
               <p className="text-sm text-muted">Nenhuma avaliação ainda</p>
-              {userId && !alreadyReviewed && hasWhatsappClick && (
+              {userId && !alreadyReviewed && !isProfOwner && (
                 <button onClick={() => setShowReview(true)}
                   className="mt-3 px-4 py-2 rounded-xl text-xs font-bold"
                   style={{ background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", color: "#FBBF24" }}>
@@ -436,7 +466,18 @@ export default function ProfissionalPage() {
                       <StarRow rating={review.rating} size={10} />
                     </div>
                   </div>
-                  <span className="text-[10px] text-muted">{new Date(review.created_at).toLocaleDateString("pt-BR")}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted">{new Date(review.created_at).toLocaleDateString("pt-BR")}</span>
+                    {/* Botão denunciar avaliação — só para o dono do perfil */}
+                    {isProfOwner && (
+                      <button onClick={() => setReportReviewModal(review.id)}
+                        className="p-1 rounded-lg"
+                        style={{ background: "rgba(239,68,68,0.08)" }}
+                        title="Denunciar avaliação">
+                        <Flag size={11} style={{ color: "#f87171" }} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-muted leading-relaxed">{review.comment}</p>
                 {review.reply && (
@@ -491,7 +532,48 @@ export default function ProfissionalPage() {
         </div>
       )}
 
-      {/* Modal denúncia */}
+      {/* Modal denúncia de avaliação */}
+      {reportReviewModal && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.7)" }}
+          onClick={(e) => e.target === e.currentTarget && setReportReviewModal(null)}>
+          <div className="w-full max-w-lg rounded-t-3xl p-5 animate-slide-up"
+            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-syne font-bold text-foreground">Denunciar avaliação</h3>
+              <button onClick={() => setReportReviewModal(null)} className="text-muted"><X size={18} /></button>
+            </div>
+            <p className="text-xs text-muted mb-4 leading-relaxed">
+              Informe o motivo da denúncia. Nossa equipe irá analisar e tomar as providências necessárias.
+            </p>
+            <form onSubmit={handleReviewReport}>
+              <div className="flex flex-col gap-2 mb-3">
+                {["Avaliação falsa ou fraudulenta", "Conteúdo ofensivo ou inapropriado", "Não contratou meus serviços", "Outro motivo"].map((reason) => (
+                  <button key={reason} type="button"
+                    onClick={() => setReportReviewReason(reason)}
+                    className="text-left px-4 py-3 rounded-xl text-sm transition-all"
+                    style={{
+                      background: reportReviewReason === reason ? "rgba(239,68,68,0.1)" : "#09090B",
+                      border: reportReviewReason === reason ? "1px solid rgba(239,68,68,0.3)" : "1px solid #1F1F23",
+                      color: reportReviewReason === reason ? "#f87171" : "#A1A1AA",
+                    }}>
+                    {reason}
+                  </button>
+                ))}
+              </div>
+              <button type="submit"
+                disabled={!reportReviewReason || submittingReviewReport}
+                className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2"
+                style={{ background: "#ef4444", opacity: (!reportReviewReason || submittingReviewReport) ? 0.5 : 1 }}>
+                {submittingReviewReport && <Loader2 size={14} className="animate-spin" />}
+                Enviar denúncia
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal denúncia do perfil */}
       {showReport && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.7)" }}
