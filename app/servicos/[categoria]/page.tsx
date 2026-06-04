@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, SlidersHorizontal, Star, MapPin, MessageCircle, X, UserPlus } from "lucide-react";
+import { ArrowLeft, SlidersHorizontal, Star, MapPin, MessageCircle, X, UserPlus, Eye } from "lucide-react";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { ProfessionalCardSkeleton } from "@/app/components/ui/Skeletons";
@@ -39,14 +39,11 @@ export default function CategoriaPage() {
     async function load() {
       setLoading(true);
       const supabase = createClient();
-
-      // Verificar se está logado
       const { data: { user } } = await supabase.auth.getUser();
       if (user) setUserId(user.id);
 
       const { data: cat } = await supabase
         .from("categories").select("id").eq("slug", slug).single();
-
       if (!cat) { setLoading(false); return; }
 
       let query = supabase
@@ -228,6 +225,7 @@ export default function CategoriaPage() {
             {professionals.map((prof) => (
               <div key={prof.id} className="rounded-2xl overflow-hidden"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                {/* Info do profissional */}
                 <Link href={`/profissional/${prof.slug}`} className="block p-4"
                   onClick={handleProfileClick}>
                   <div className="flex items-start gap-3">
@@ -243,7 +241,7 @@ export default function CategoriaPage() {
                       )}
                       {prof.available_now && (
                         <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
-                          style={{ background: "#22c55e", borderColor: "#111113", boxShadow: "0 0 8px rgba(34,197,94,0.7)" }} />
+                          style={{ background: "#22c55e", borderColor: "#111113" }} />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -264,17 +262,28 @@ export default function CategoriaPage() {
                           <span className="text-xs text-muted">{prof.avg_rating > 0 ? Number(prof.avg_rating).toFixed(1) : "Novo"}</span>
                         </div>
                         {prof.available_now && (
-                          <span className="badge-available text-[9px] px-1.5 py-0.5">Disponível</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
+                            style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>
+                            Disponível
+                          </span>
                         )}
                       </div>
                     </div>
                   </div>
                 </Link>
-                <div className="px-4 pb-4">
+
+                {/* Botões — Ver perfil + WhatsApp */}
+                <div className="px-4 pb-4 grid grid-cols-2 gap-2">
+                  <Link href={`/profissional/${prof.slug}`}
+                    onClick={handleProfileClick}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
+                    style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#93c5fd" }}>
+                    <Eye size={15} /> Ver perfil
+                  </Link>
                   <button onClick={() => handleWhatsAppClick(prof)}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
                     style={{ background: "linear-gradient(135deg, #16a34a, #15803d)", boxShadow: "0 0 12px rgba(22,163,74,0.25)" }}>
-                    <MessageCircle size={15} /> Chamar no WhatsApp
+                    <MessageCircle size={15} /> WhatsApp
                   </button>
                 </div>
               </div>
