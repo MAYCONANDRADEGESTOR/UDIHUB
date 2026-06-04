@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search, Ban, CheckCircle, User, Briefcase, AlertTriangle, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Search, Ban, CheckCircle, User, Briefcase, AlertTriangle, X, Loader2, Crown, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials, formatDate } from "@/lib/utils";
 
@@ -14,6 +14,8 @@ interface UserItem {
   banned: boolean;
   ban_reason?: string;
   created_at: string;
+  plan?: string | null;
+  prof_status?: string | null;
 }
 
 export default function AdminUsuariosPage() {
@@ -29,11 +31,27 @@ export default function AdminUsuariosPage() {
 
   async function loadUsers() {
     const supabase = createClient();
-    const { data } = await supabase
+    const { data: usersData } = await supabase
       .from("users")
       .select("id, name, email, role, banned, ban_reason, created_at")
       .order("created_at", { ascending: false });
-    setUsers((data as any) || []);
+
+    if (!usersData) { setLoading(false); return; }
+
+    // Buscar planos dos profissionais
+    const { data: profsData } = await supabase
+      .from("professionals")
+      .select("user_id, plan, status");
+
+    const profMap = new Map(profsData?.map((p) => [p.user_id, { plan: p.plan, status: p.status }]) || []);
+
+    const enriched = usersData.map((u: any) => ({
+      ...u,
+      plan: profMap.get(u.id)?.plan || null,
+      prof_status: profMap.get(u.id)?.status || null,
+    }));
+
+    setUsers(enriched);
     setLoading(false);
   }
 
@@ -74,6 +92,39 @@ export default function AdminUsuariosPage() {
     const matchRole = roleFilter === "all" || u.role === roleFilter;
     return matchQuery && matchRole;
   });
+
+  function PlanBadge({ plan, status }: { plan?: string | null; status?: string | null }) {
+    if (!plan) return null;
+    if (plan === "pro") return (
+      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
+        style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
+        <Crown size={8} /> PRO
+      </span>
+    );
+    return (
+      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
+        style={{ background: "rgba(59,130,246,0.1)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.2)" }}>
+        <Star size={8} /> Básico
+      </span>
+    );
+  }
+
+  function StatusBadge({ status }: { status?: string | null }) {
+    if (!status) return null;
+    const colors: Record<string, { bg: string; text: string; label: string }> = {
+      active: { bg: "rgba(34,197,94,0.1)", text: "#22c55e", label: "Ativo" },
+      inactive: { bg: "rgba(239,68,68,0.1)", text: "#f87171", label: "Inativo" },
+      suspended: { bg: "rgba(239,68,68,0.15)", text: "#f87171", label: "Suspenso" },
+      pending: { bg: "rgba(251,191,36,0.1)", text: "#FBBF24", label: "Pendente" },
+    };
+    const c = colors[status] || colors.inactive;
+    return (
+      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
+        style={{ background: c.bg, color: c.text }}>
+        {c.label}
+      </span>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-6">
@@ -127,13 +178,17 @@ export default function AdminUsuariosPage() {
                     {getInitials(user.name || "?")}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                       <span className="font-semibold text-sm text-foreground">{user.name}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5"
                         style={{ background: user.role === "professional" ? "rgba(59,130,246,0.1)" : "rgba(161,161,170,0.1)", color: user.role === "professional" ? "#93c5fd" : "#A1A1AA" }}>
                         {user.role === "professional" ? <Briefcase size={9} /> : <User size={9} />}
                         {user.role === "professional" ? "Profissional" : "Cliente"}
                       </span>
+                      {/* Plano */}
+                      {user.role === "professional" && <PlanBadge plan={user.plan} status={user.prof_status} />}
+                      {/* Status do profissional */}
+                      {user.role === "professional" && <StatusBadge status={user.prof_status} />}
                       {user.banned && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
                           style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>BANIDO</span>
