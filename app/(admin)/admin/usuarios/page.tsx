@@ -16,6 +16,8 @@ interface UserItem {
   created_at: string;
   plan?: string | null;
   prof_status?: string | null;
+  category?: string | null;
+  category_icon?: string | null;
 }
 
 export default function AdminUsuariosPage() {
@@ -23,6 +25,8 @@ export default function AdminUsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "client" | "professional">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [categories, setCategories] = useState<{ name: string; icon: string }[]>([]);
   const [banModal, setBanModal] = useState<{ user: UserItem; action: "ban" | "unban" } | null>(null);
   const [banReason, setBanReason] = useState("");
   const [processing, setProcessing] = useState(false);
@@ -38,18 +42,30 @@ export default function AdminUsuariosPage() {
 
     if (!usersData) { setLoading(false); return; }
 
-    // Buscar planos dos profissionais
     const { data: profsData } = await supabase
       .from("professionals")
-      .select("user_id, plan, status");
+      .select("user_id, plan, status, categories(name, icon)");
 
-    const profMap = new Map(profsData?.map((p) => [p.user_id, { plan: p.plan, status: p.status }]) || []);
+    const profMap = new Map(profsData?.map((p: any) => [p.user_id, {
+      plan: p.plan,
+      status: p.status,
+      category: p.categories?.name || null,
+      category_icon: p.categories?.icon || null,
+    }]) || []);
 
     const enriched = usersData.map((u: any) => ({
       ...u,
       plan: profMap.get(u.id)?.plan || null,
       prof_status: profMap.get(u.id)?.status || null,
+      category: profMap.get(u.id)?.category || null,
+      category_icon: profMap.get(u.id)?.category_icon || null,
     }));
+
+    // Coletar categorias únicas para o filtro
+    const uniqueCategories = [...new Set(
+      enriched.filter((u) => u.category).map((u) => JSON.stringify({ name: u.category, icon: u.category_icon }))
+    )].map((s) => JSON.parse(s));
+    setCategories(uniqueCategories);
 
     setUsers(enriched);
     setLoading(false);
@@ -90,10 +106,11 @@ export default function AdminUsuariosPage() {
     const matchQuery = u.name?.toLowerCase().includes(query.toLowerCase()) ||
       u.email?.toLowerCase().includes(query.toLowerCase());
     const matchRole = roleFilter === "all" || u.role === roleFilter;
-    return matchQuery && matchRole;
+    const matchCategory = categoryFilter === "all" || u.category === categoryFilter;
+    return matchQuery && matchRole && matchCategory;
   });
 
-  function PlanBadge({ plan, status }: { plan?: string | null; status?: string | null }) {
+  function PlanBadge({ plan }: { plan?: string | null }) {
     if (!plan) return null;
     if (plan === "pro") return (
       <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
@@ -120,9 +137,7 @@ export default function AdminUsuariosPage() {
     const c = colors[status] || colors.inactive;
     return (
       <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
-        style={{ background: c.bg, color: c.text }}>
-        {c.label}
-      </span>
+        style={{ background: c.bg, color: c.text }}>{c.label}</span>
     );
   }
 
@@ -136,6 +151,7 @@ export default function AdminUsuariosPage() {
       </div>
 
       <div className="px-4 py-4 space-y-3">
+        {/* Busca */}
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
           style={{ background: "#111113", border: "1px solid #1F1F23" }}>
           <Search size={16} className="text-muted" />
@@ -144,7 +160,8 @@ export default function AdminUsuariosPage() {
             className="flex-1 bg-transparent text-sm text-foreground placeholder-muted outline-none" />
         </div>
 
-        <div className="flex gap-2">
+        {/* Filtro por role */}
+        <div className="flex gap-2 flex-wrap">
           {(["all", "client", "professional"] as const).map((r) => (
             <button key={r} onClick={() => setRoleFilter(r)}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
@@ -157,6 +174,32 @@ export default function AdminUsuariosPage() {
             </button>
           ))}
         </div>
+
+        {/* Filtro por categoria */}
+        {categories.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setCategoryFilter("all")}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={{
+                background: categoryFilter === "all" ? "rgba(168,85,247,0.2)" : "#111113",
+                border: categoryFilter === "all" ? "1px solid rgba(168,85,247,0.4)" : "1px solid #1F1F23",
+                color: categoryFilter === "all" ? "#a855f7" : "#A1A1AA",
+              }}>
+              Todas categorias
+            </button>
+            {categories.map(({ name, icon }) => (
+              <button key={name} onClick={() => setCategoryFilter(name)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{
+                  background: categoryFilter === name ? "rgba(168,85,247,0.2)" : "#111113",
+                  border: categoryFilter === name ? "1px solid rgba(168,85,247,0.4)" : "1px solid #1F1F23",
+                  color: categoryFilter === name ? "#a855f7" : "#A1A1AA",
+                }}>
+                {icon} {name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -185,9 +228,7 @@ export default function AdminUsuariosPage() {
                         {user.role === "professional" ? <Briefcase size={9} /> : <User size={9} />}
                         {user.role === "professional" ? "Profissional" : "Cliente"}
                       </span>
-                      {/* Plano */}
-                      {user.role === "professional" && <PlanBadge plan={user.plan} status={user.prof_status} />}
-                      {/* Status do profissional */}
+                      {user.role === "professional" && <PlanBadge plan={user.plan} />}
                       {user.role === "professional" && <StatusBadge status={user.prof_status} />}
                       {user.banned && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
@@ -195,6 +236,12 @@ export default function AdminUsuariosPage() {
                       )}
                     </div>
                     <p className="text-xs text-muted truncate">{user.email}</p>
+                    {/* Profissão */}
+                    {user.category && (
+                      <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>
+                        {user.category_icon} {user.category}
+                      </p>
+                    )}
                     {user.ban_reason && <p className="text-xs mt-0.5" style={{ color: "#f87171" }}>Motivo: {user.ban_reason}</p>}
                     <p className="text-[10px] text-muted mt-0.5">Desde {formatDate(user.created_at)}</p>
                   </div>
