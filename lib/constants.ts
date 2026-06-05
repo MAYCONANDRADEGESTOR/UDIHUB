@@ -17,6 +17,12 @@ export const CATEGORIES = [
   { slug: "instalador-piso", name: "Instalador de Piso / Porcelanato", icon: "🏠" },
   { slug: "energia-solar", name: "Instalador de Energia Solar", icon: "☀️" },
   { slug: "tecnico-som", name: "Técnico de Som / Imagem", icon: "🔊" },
+  { slug: "telhador", name: "Telhador / Telhadista", icon: "🏠" },
+  { slug: "calha-rufos", name: "Calha e Rufos", icon: "🌧️" },
+  { slug: "pintura-fachada", name: "Pintura de Fachada", icon: "🖌️" },
+  { slug: "grades-telas", name: "Instalador de Grades e Telas", icon: "🔒" },
+  { slug: "limpeza-caixa-dagua", name: "Limpeza de Caixa D'água", icon: "💧" },
+  { slug: "dedetizacao-termitas", name: "Dedetização de Térmitas", icon: "🐜" },
 
   // Serviços Domésticos
   { slug: "diarista", name: "Diarista / Faxineira", icon: "🧹" },
@@ -29,11 +35,13 @@ export const CATEGORIES = [
   { slug: "desentupidor-esgoto", name: "Desentupidor de Esgoto", icon: "🚰" },
   { slug: "dedetizacao", name: "Dedetização", icon: "🐛" },
   { slug: "chaveiro", name: "Chaveiro", icon: "🔑" },
+  { slug: "chaveiro-24h", name: "Chaveiro 24h", icon: "🔑" },
   { slug: "jardineiro", name: "Jardineiro", icon: "🌿" },
   { slug: "piscineiro", name: "Piscineiro / Manutenção de Piscina", icon: "🏊" },
   { slug: "limpeza-sofa", name: "Limpeza de Sofá / Tapete", icon: "🧹" },
   { slug: "cameras-cftv", name: "Instalador de Câmeras / CFTV", icon: "📷" },
   { slug: "lavanderia", name: "Lavanderia / Passadoria", icon: "👕" },
+  { slug: "aluguel-equipamentos", name: "Aluguel de Equipamentos", icon: "🔧" },
 
   // Tecnologia
   { slug: "tecnico-informatica", name: "Técnico de Informática", icon: "💻" },
@@ -46,12 +54,20 @@ export const CATEGORIES = [
 
   // Veículos
   { slug: "mecanico", name: "Mecânico", icon: "🚗" },
-  { slug: "lavador-veiculos", name: "Lavador de Veículos", icon: "🚿" },
+  { slug: "funilaria", name: "Funilaria e Pintura", icon: "🔨" },
+  { slug: "martelinho-ouro", name: "Martelinho de Ouro", icon: "🔧" },
   { slug: "pintura-automotiva", name: "Pintura Automotiva", icon: "🎨" },
+  { slug: "tapecaria-automotiva", name: "Tapeçaria Automotiva", icon: "🚗" },
+  { slug: "som-automotivo", name: "Instalador de Som Automotivo", icon: "🎵" },
+  { slug: "higienizacao-veiculos", name: "Higienização de Veículos", icon: "🧽" },
+  { slug: "acessorios-automotivos", name: "Instalador de Acessórios Automotivos", icon: "⚙️" },
+  { slug: "rastreador-veicular", name: "Rastreador Veicular", icon: "📡" },
+  { slug: "lavador-veiculos", name: "Lavador de Veículos", icon: "🚿" },
   { slug: "envelopamento", name: "Envelopamento de Veículos", icon: "🚗" },
   { slug: "borracheiro", name: "Borracheiro", icon: "🔧" },
   { slug: "motorista", name: "Motorista / Mototaxista", icon: "🚙" },
   { slug: "mudanca-transporte", name: "Mudança e Transporte", icon: "🚚" },
+  { slug: "guincho", name: "Guincho / Reboque", icon: "🚛" },
 
   // Saúde e Bem-Estar
   { slug: "cuidador-idosos", name: "Cuidador de Idosos", icon: "👴" },
@@ -64,6 +80,9 @@ export const CATEGORIES = [
   { slug: "fisioterapeuta", name: "Fisioterapeuta", icon: "🏥" },
   { slug: "enfermeiro", name: "Enfermeiro(a) Domiciliar", icon: "💉" },
   { slug: "terapeuta", name: "Terapeuta / Reiki", icon: "🧘" },
+  { slug: "dentista", name: "Dentista Domiciliar", icon: "🦷" },
+  { slug: "acupuntura", name: "Acupunturista", icon: "📍" },
+  { slug: "podologo-domiciliar", name: "Podólogo Domiciliar", icon: "🦶" },
 
   // Beleza
   { slug: "cabeleireiro", name: "Cabeleireiro / Barbeiro", icon: "✂️" },
@@ -92,10 +111,13 @@ export const CATEGORIES = [
   { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐾" },
   { slug: "banho-tosa", name: "Banho e Tosa", icon: "🐩" },
   { slug: "veterinario", name: "Veterinário Domiciliar", icon: "🐕" },
+  { slug: "adestrador", name: "Adestrador de Cães", icon: "🐕" },
+  { slug: "hotel-pets", name: "Hotel para Pets", icon: "🐾" },
 
   // Profissionais Liberais
   { slug: "advogado", name: "Advogado", icon: "⚖️" },
   { slug: "contador", name: "Contador", icon: "🧾" },
+  { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
   { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
 
   // Outros
