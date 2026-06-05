@@ -49,17 +49,16 @@ export default function ProfissionalPage() {
   const [reportReason, setReportReason] = useState("");
   const [reportSent, setReportSent] = useState(false);
   const [submittingReport, setSubmittingReport] = useState(false);
-  // Avaliação
   const [showReview, setShowReview] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [alreadyReviewed, setAlreadyReviewed] = useState(false);
-  // Denúncia de avaliação
   const [reportReviewModal, setReportReviewModal] = useState<string | null>(null);
   const [reportReviewReason, setReportReviewReason] = useState("");
   const [submittingReviewReport, setSubmittingReviewReport] = useState(false);
   const [isProfOwner, setIsProfOwner] = useState(false);
+  const [extraCategories, setExtraCategories] = useState<any[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -84,14 +83,20 @@ export default function ProfissionalPage() {
 
       if (!profData) { setLoading(false); return; }
 
-      // Verificar se é o dono do perfil
+      // Buscar categorias extras
+      const { data: profCats } = await supabase
+        .from("professional_categories")
+        .select("categories(name, icon, slug), is_primary")
+        .eq("professional_id", profData.id)
+        .eq("is_primary", false);
+      setExtraCategories(profCats || []);
+
       if (user) {
         const { data: ownProf } = await supabase.from("professionals")
           .select("id").eq("user_id", user.id).eq("id", profData.id).single();
         if (ownProf) setIsProfOwner(true);
       }
 
-      // View única
       const storageKey = `viewed_${profData.id}`;
       const alreadyViewed = sessionStorage.getItem(storageKey);
       if (!alreadyViewed) {
@@ -279,7 +284,22 @@ export default function ProfissionalPage() {
                 <h1 className="font-syne font-extrabold text-xl text-foreground">{prof.users?.name}</h1>
                 {prof.plan === "pro" && <span className="badge-pro">PRO</span>}
               </div>
-              <p className="text-xs text-muted mb-2">{prof.categories?.icon} {prof.categories?.name}</p>
+
+              {/* Categoria principal */}
+              <p className="text-xs text-muted mb-1">{prof.categories?.icon} {prof.categories?.name}</p>
+
+              {/* Categorias extras */}
+              {extraCategories.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {extraCategories.map((pc: any) => (
+                    <span key={pc.categories?.slug} className="text-[10px] px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1F1F23", color: "#64748b" }}>
+                      {pc.categories?.icon} {pc.categories?.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center gap-2 mb-1">
                 <StarRow rating={Math.round(prof.avg_rating)} />
                 <span className="text-sm font-bold text-foreground">{prof.avg_rating > 0 ? Number(prof.avg_rating).toFixed(1) : "Novo"}</span>
@@ -393,7 +413,6 @@ export default function ProfissionalPage() {
         <div className="px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-syne font-bold text-sm text-foreground">Avaliações ({reviews.length})</h2>
-            {/* Botão avaliar — aberto para todos os logados que não são o dono */}
             {userId && !alreadyReviewed && !isProfOwner && (
               <button onClick={() => setShowReview(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
@@ -468,12 +487,10 @@ export default function ProfissionalPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-muted">{new Date(review.created_at).toLocaleDateString("pt-BR")}</span>
-                    {/* Botão denunciar avaliação — só para o dono do perfil */}
                     {isProfOwner && (
                       <button onClick={() => setReportReviewModal(review.id)}
                         className="p-1 rounded-lg"
-                        style={{ background: "rgba(239,68,68,0.08)" }}
-                        title="Denunciar avaliação">
+                        style={{ background: "rgba(239,68,68,0.08)" }}>
                         <Flag size={11} style={{ color: "#f87171" }} />
                       </button>
                     )}
