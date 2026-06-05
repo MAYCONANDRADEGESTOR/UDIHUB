@@ -14,6 +14,9 @@ export const CATEGORIES = [
   { slug: "arquiteto", name: "Arquiteto / Decorador de Interiores", icon: "🏠" },
   { slug: "portao-automatico", name: "Portão Automático", icon: "🚪" },
   { slug: "estofador", name: "Estofador", icon: "🛋️" },
+  { slug: "instalador-piso", name: "Instalador de Piso / Porcelanato", icon: "🏠" },
+  { slug: "energia-solar", name: "Instalador de Energia Solar", icon: "☀️" },
+  { slug: "tecnico-som", name: "Técnico de Som / Imagem", icon: "🔊" },
 
   // Serviços Domésticos
   { slug: "diarista", name: "Diarista / Faxineira", icon: "🧹" },
@@ -23,18 +26,23 @@ export const CATEGORIES = [
   { slug: "eletrodomesticos", name: "Eletrodomésticos (Conserto)", icon: "🔌" },
   { slug: "montador-moveis", name: "Montador de Móveis", icon: "🪑" },
   { slug: "desentupidora", name: "Desentupidora", icon: "🚿" },
+  { slug: "desentupidor-esgoto", name: "Desentupidor de Esgoto", icon: "🚰" },
   { slug: "dedetizacao", name: "Dedetização", icon: "🐛" },
   { slug: "chaveiro", name: "Chaveiro", icon: "🔑" },
   { slug: "jardineiro", name: "Jardineiro", icon: "🌿" },
   { slug: "piscineiro", name: "Piscineiro / Manutenção de Piscina", icon: "🏊" },
   { slug: "limpeza-sofa", name: "Limpeza de Sofá / Tapete", icon: "🧹" },
   { slug: "cameras-cftv", name: "Instalador de Câmeras / CFTV", icon: "📷" },
+  { slug: "lavanderia", name: "Lavanderia / Passadoria", icon: "👕" },
 
   // Tecnologia
   { slug: "tecnico-informatica", name: "Técnico de Informática", icon: "💻" },
   { slug: "tecnico-celular", name: "Técnico de Celular", icon: "📱" },
   { slug: "desenvolvedor", name: "Desenvolvedor / Programador", icon: "👨‍💻" },
   { slug: "designer-grafico", name: "Designer Gráfico", icon: "🎭" },
+  { slug: "social-media", name: "Social Media / Marketing", icon: "📱" },
+  { slug: "editor-video", name: "Editor de Vídeo", icon: "🎬" },
+  { slug: "criador-sites", name: "Criador de Sites / Landing Page", icon: "🌐" },
 
   // Veículos
   { slug: "mecanico", name: "Mecânico", icon: "🚗" },
@@ -50,24 +58,52 @@ export const CATEGORIES = [
   { slug: "baba", name: "Babá / Cuidador Infantil", icon: "👶" },
   { slug: "personal-trainer", name: "Personal Trainer", icon: "💪" },
   { slug: "nutricionista", name: "Nutricionista", icon: "🥗" },
+  { slug: "nutricionista-esportivo", name: "Nutricionista Esportivo", icon: "🥦" },
   { slug: "psicologo", name: "Psicólogo", icon: "🧠" },
   { slug: "massagista", name: "Massagista", icon: "💆" },
+  { slug: "fisioterapeuta", name: "Fisioterapeuta", icon: "🏥" },
+  { slug: "enfermeiro", name: "Enfermeiro(a) Domiciliar", icon: "💉" },
+  { slug: "terapeuta", name: "Terapeuta / Reiki", icon: "🧘" },
 
   // Beleza
   { slug: "cabeleireiro", name: "Cabeleireiro / Barbeiro", icon: "✂️" },
   { slug: "manicure", name: "Manicure / Pedicure", icon: "💅" },
   { slug: "maquiadora", name: "Maquiadora", icon: "💄" },
+  { slug: "esteticista", name: "Esteticista / Depilação", icon: "🌸" },
+  { slug: "designer-sobrancelhas", name: "Designer de Sobrancelhas", icon: "👁️" },
+  { slug: "micropigmentacao", name: "Micropigmentação", icon: "🖌️" },
+  { slug: "tatuador", name: "Tatuador / Body Piercing", icon: "🖊️" },
+  { slug: "podologo", name: "Podólogo", icon: "🦶" },
+
+  // Alimentação
+  { slug: "confeitaria", name: "Confeitaria / Doces", icon: "🎂" },
+  { slug: "cozinheiro", name: "Cozinheiro(a) / Chef", icon: "👨‍🍳" },
+  { slug: "marmitaria", name: "Marmitaria / Refeições", icon: "🍱" },
+  { slug: "bartender", name: "Bartender / Coqueteleiro", icon: "🍹" },
+
+  // Eventos
+  { slug: "dj", name: "DJ / Sonorização", icon: "🎵" },
+  { slug: "decorador-festas", name: "Decorador de Festas", icon: "🎉" },
+  { slug: "cerimonialista", name: "Cerimonialista", icon: "💍" },
+  { slug: "buffet", name: "Buffet / Garçom", icon: "🍽️" },
+  { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
+
+  // Animais
+  { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐾" },
+  { slug: "banho-tosa", name: "Banho e Tosa", icon: "🐩" },
+  { slug: "veterinario", name: "Veterinário Domiciliar", icon: "🐕" },
 
   // Profissionais Liberais
   { slug: "advogado", name: "Advogado", icon: "⚖️" },
   { slug: "contador", name: "Contador", icon: "🧾" },
-  { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
   { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
 
   // Outros
-  { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐾" },
   { slug: "costureira", name: "Costureira / Alfaiate", icon: "🧵" },
   { slug: "carregador", name: "Carregador / Ajudante", icon: "💪" },
+  { slug: "seguranca-particular", name: "Segurança Particular", icon: "🛡️" },
+  { slug: "tradutor", name: "Tradutor / Intérprete", icon: "🌍" },
+  { slug: "assistente-virtual", name: "Assistente Virtual", icon: "💼" },
 ];
 
 export const CITIES = [
