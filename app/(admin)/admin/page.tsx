@@ -10,7 +10,6 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
-// Taxa real Asaas PIX: R$0,99 fixo + 1,39% por transação
 const ASAAS_PIX_FIXED = 0.99;
 const ASAAS_PIX_PERCENT = 0.0139;
 
@@ -111,7 +110,6 @@ export default function AdminPage() {
         supabase.from("reports").select("id, reason, status, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(3),
       ]);
 
-      // Calcular receita bruta e líquida com taxa real do Asaas
       let totalRevenue = 0;
       let totalFees = 0;
       for (const s of subscriptions.data || []) {
@@ -203,7 +201,7 @@ export default function AdminPage() {
             style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
             <AlertCircle size={14} style={{ color: "#f87171" }} className="flex-shrink-0" />
             <p className="text-xs" style={{ color: "#f87171" }}>
-              <strong>{metrics?.inactiveProfessionals}</strong> profissional(is) com perfil inativo — assinatura pendente
+              <strong>{metrics?.inactiveProfessionals}</strong> profissional(is) com perfil inativo
             </p>
             <Link href="/admin/usuarios" className="ml-auto text-[10px] font-bold" style={{ color: "#f87171" }}>Ver →</Link>
           </div>
@@ -214,7 +212,7 @@ export default function AdminPage() {
             style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
             <Flag size={14} style={{ color: "#FBBF24" }} className="flex-shrink-0" />
             <p className="text-xs" style={{ color: "#FBBF24" }}>
-              <strong>{metrics?.pendingReports}</strong> denúncia(s) pendente(s) para resolver
+              <strong>{metrics?.pendingReports}</strong> denúncia(s) pendente(s)
             </p>
             <Link href="/admin/denuncias" className="ml-auto text-[10px] font-bold" style={{ color: "#FBBF24" }}>Ver →</Link>
           </div>
@@ -222,74 +220,74 @@ export default function AdminPage() {
 
         {/* Receita + Leads */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Card receita líquida */}
-          <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="flex items-center gap-2 mb-2">
-              <CreditCard size={14} style={{ color: "#22c55e" }} />
-              <span className="text-xs text-muted">Receita líquida</span>
+          {/* Card receita líquida — CORRIGIDO */}
+          <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <CreditCard size={13} style={{ color: "#22c55e" }} />
+              <span className="text-[11px] text-muted">Receita líquida</span>
             </div>
-            <div className="font-syne font-extrabold text-2xl" style={{ color: "#22c55e" }}>
+            <div className="font-syne font-extrabold text-lg leading-tight" style={{ color: "#22c55e" }}>
               R${fmt2(metrics?.netRevenue || 0)}
             </div>
-            <div className="text-[10px] mt-1" style={{ color: "#64748b" }}>
+            <div className="text-[9px] mt-1 truncate" style={{ color: "#64748b" }}>
               Bruto: R${(metrics?.monthlyRevenue || 0).toLocaleString("pt-BR")}
             </div>
-            <div className="text-[10px]" style={{ color: "#f87171" }}>
-              Taxa Asaas: -R${fmt2(metrics?.asaasFees || 0)}
+            <div className="text-[9px] truncate" style={{ color: "#f87171" }}>
+              Taxa: -R${fmt2(metrics?.asaasFees || 0)}
             </div>
-            <div className="text-[10px] text-muted mt-0.5">
-              {metrics?.activeProfessionals} assinantes ativos
+            <div className="text-[9px] text-muted mt-0.5 truncate">
+              {metrics?.activeProfessionals} assinantes
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="flex items-center gap-2 mb-2">
-              <MessageCircle size={14} style={{ color: "#3B82F6" }} />
-              <span className="text-xs text-muted">Leads hoje</span>
+          <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <MessageCircle size={13} style={{ color: "#3B82F6" }} />
+              <span className="text-[11px] text-muted">Leads hoje</span>
             </div>
-            <div className="font-syne font-extrabold text-2xl text-foreground">{metrics?.leadsToday}</div>
-            <div className="text-[10px] text-muted mt-1">{metrics?.leadsWeek} esta semana</div>
+            <div className="font-syne font-extrabold text-lg text-foreground">{metrics?.leadsToday}</div>
+            <div className="text-[9px] text-muted mt-1">{metrics?.leadsWeek} esta semana</div>
           </div>
         </div>
 
         {/* Novos usuários + conversão */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="flex items-center gap-2 mb-2">
-              <UserCheck size={14} style={{ color: "#a855f7" }} />
-              <span className="text-xs text-muted">Novos hoje</span>
+          <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <UserCheck size={13} style={{ color: "#a855f7" }} />
+              <span className="text-[11px] text-muted">Novos hoje</span>
             </div>
-            <div className="font-syne font-extrabold text-2xl" style={{ color: "#a855f7" }}>
+            <div className="font-syne font-extrabold text-lg" style={{ color: "#a855f7" }}>
               {metrics?.newUsersToday}
             </div>
-            <div className="text-[10px] text-muted mt-1">{metrics?.newUsersWeek} esta semana</div>
+            <div className="text-[9px] text-muted mt-1">{metrics?.newUsersWeek} esta semana</div>
           </div>
-          <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp size={14} style={{ color: "#f59e0b" }} />
-              <span className="text-xs text-muted">Conversão</span>
+          <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <TrendingUp size={13} style={{ color: "#f59e0b" }} />
+              <span className="text-[11px] text-muted">Conversão</span>
             </div>
-            <div className="font-syne font-extrabold text-2xl" style={{ color: "#f59e0b" }}>
+            <div className="font-syne font-extrabold text-lg" style={{ color: "#f59e0b" }}>
               {conversionRate}%
             </div>
-            <div className="text-[10px] text-muted mt-1">usuários → profissionais</div>
+            <div className="text-[9px] text-muted mt-1">usuários → profissionais</div>
           </div>
         </div>
 
         {/* Grid métricas */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {[
             { label: "Profissionais", value: metrics?.totalProfessionals || 0, color: "#3B82F6" },
             { label: "Clientes", value: metrics?.totalClients || 0, color: "#a855f7" },
             { label: "Ativos", value: metrics?.activeProfessionals || 0, color: "#22c55e" },
             { label: "Inativos", value: metrics?.inactiveProfessionals || 0, color: "#f87171" },
-            { label: "Plano Básico", value: metrics?.basicProfessionals || 0, color: "#3B82F6" },
-            { label: "Plano Pro", value: metrics?.proProfessionals || 0, color: "#f59e0b" },
+            { label: "Básico", value: metrics?.basicProfessionals || 0, color: "#3B82F6" },
+            { label: "Pro", value: metrics?.proProfessionals || 0, color: "#f59e0b" },
           ].map(({ label, value, color }) => (
-            <div key={label} className="p-3 rounded-2xl text-center"
+            <div key={label} className="p-2.5 rounded-2xl text-center"
               style={{ background: "#111113", border: "1px solid #1F1F23" }}>
               <div className="font-syne font-bold text-xl" style={{ color }}>{value}</div>
-              <div className="text-[10px] text-muted">{label}</div>
+              <div className="text-[9px] text-muted">{label}</div>
             </div>
           ))}
         </div>
@@ -422,7 +420,6 @@ export default function AdminPage() {
             </div>
             <p className="text-sm text-muted mb-6">
               Deletar <strong className="text-foreground">{deleteModal.name}</strong> permanentemente?
-              Isso remove todos os dados do usuário e profissional vinculado.
             </p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteModal(null)}
