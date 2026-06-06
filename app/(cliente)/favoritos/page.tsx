@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Heart, ArrowRight, MapPin, Star, MessageCircle, Loader2, X } from "lucide-react";
+import Image from "next/image";
+import { Heart, ArrowRight, MapPin, Star, MessageCircle, Loader2, X, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -18,7 +19,8 @@ interface FavoriteProfessional {
     avg_rating: number;
     available_now: boolean;
     plan: string;
-    users: { name: string };
+    avatar: string | null;
+    users: { name: string; avatar: string | null };
     categories: { name: string; icon: string };
     professional_neighborhoods: { neighborhoods: { name: string } }[];
   };
@@ -29,18 +31,20 @@ export default function FavoritosPage() {
   const [favorites, setFavorites] = useState<FavoriteProfessional[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
+      setUserId(user.id);
 
       const { data } = await supabase
         .from("favorites")
         .select(`id, professional_id,
-          professionals(id, slug, whatsapp, avg_rating, available_now, plan,
-            users(name),
+          professionals(id, slug, whatsapp, avg_rating, available_now, plan, avatar,
+            users(name, avatar),
             categories(name, icon),
             professional_neighborhoods(neighborhoods(name))
           )`)
@@ -62,12 +66,12 @@ export default function FavoritosPage() {
     toast.success("Removido dos favoritos");
   }
 
-  async function handleWhatsApp(prof: FavoriteProfessional["professionals"], professionalId: string) {
+  async function handleWhatsApp(prof: any) {
     try {
       await fetch("/api/whatsapp-click", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ professional_id: professionalId }),
+        body: JSON.stringify({ professional_id: prof.id }),
       });
     } catch {}
     window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
@@ -111,17 +115,29 @@ export default function FavoritosPage() {
             {favorites.map((fav) => {
               const prof = fav.professionals as any;
               const neighborhood = prof?.professional_neighborhoods?.[0]?.neighborhoods?.name;
+              const avatarUrl = prof?.avatar || prof?.users?.avatar || null;
+
               return (
                 <div key={fav.id} className="rounded-2xl overflow-hidden"
                   style={{ background: "#111113", border: "1px solid #1F1F23" }}>
                   <div className="p-4">
                     <div className="flex items-start gap-3">
-                      {/* Avatar */}
+                      {/* Avatar com foto real */}
                       <Link href={`/profissional/${prof?.slug}`} className="relative flex-shrink-0">
-                        <div className="w-14 h-14 rounded-xl flex items-center justify-center font-syne font-bold text-lg"
-                          style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
-                          {getInitials(prof?.users?.name || "?")}
-                        </div>
+                        {avatarUrl ? (
+                          <Image
+                            src={avatarUrl}
+                            alt={prof?.users?.name || "Profissional"}
+                            width={56}
+                            height={56}
+                            className="w-14 h-14 rounded-xl object-cover"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-xl flex items-center justify-center font-syne font-bold text-lg"
+                            style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
+                            {getInitials(prof?.users?.name || "?")}
+                          </div>
+                        )}
                         {prof?.available_now && (
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
                             style={{ background: "#22c55e", borderColor: "#111113", boxShadow: "0 0 8px rgba(34,197,94,0.7)" }} />
@@ -161,18 +177,28 @@ export default function FavoritosPage() {
                               {prof?.avg_rating > 0 ? Number(prof.avg_rating).toFixed(1) : "Novo"}
                             </span>
                           </div>
-                          {prof?.available_now && <span className="badge-available text-[9px] px-1.5 py-0.5">Disponível</span>}
+                          {prof?.available_now && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
+                              style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>
+                              Disponível
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* WhatsApp */}
-                  <div className="px-4 pb-4">
-                    <button onClick={() => handleWhatsApp(prof, prof.id)}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
+                  {/* Botões Ver perfil + WhatsApp */}
+                  <div className="px-4 pb-4 grid grid-cols-2 gap-2">
+                    <Link href={`/profissional/${prof?.slug}`}
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
+                      style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#93c5fd" }}>
+                      <Eye size={15} /> Ver perfil
+                    </Link>
+                    <button onClick={() => handleWhatsApp(prof)}
+                      className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
                       style={{ background: "linear-gradient(135deg, #16a34a, #15803d)", boxShadow: "0 0 12px rgba(22,163,74,0.25)" }}>
-                      <MessageCircle size={15} /> Chamar no WhatsApp
+                      <MessageCircle size={15} /> WhatsApp
                     </button>
                   </div>
                 </div>
