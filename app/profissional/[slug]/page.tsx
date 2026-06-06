@@ -246,7 +246,6 @@ export default function ProfissionalPage() {
   return (
     <>
       <div className="min-h-screen bg-background pb-36">
-        {/* Top bar */}
         <div className="sticky top-0 z-40 flex items-center justify-between px-4 h-14"
           style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
           <button onClick={() => router.back()} className="text-muted"><ArrowLeft size={20} /></button>
@@ -258,7 +257,6 @@ export default function ProfissionalPage() {
           </div>
         </div>
 
-        {/* Hero */}
         <div className="px-4 py-6" style={{ background: "linear-gradient(180deg,#0F172A 0%,#09090B 100%)" }}>
           <div className="flex items-start gap-4">
             <div className="relative">
@@ -284,11 +282,7 @@ export default function ProfissionalPage() {
                 <h1 className="font-syne font-extrabold text-xl text-foreground">{prof.users?.name}</h1>
                 {prof.plan === "pro" && <span className="badge-pro">PRO</span>}
               </div>
-
-              {/* Categoria principal */}
               <p className="text-xs text-muted mb-1">{prof.categories?.icon} {prof.categories?.name}</p>
-
-              {/* Categorias extras */}
               {extraCategories.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-2">
                   {extraCategories.map((pc: any) => (
@@ -299,7 +293,6 @@ export default function ProfissionalPage() {
                   ))}
                 </div>
               )}
-
               <div className="flex items-center gap-2 mb-1">
                 <StarRow rating={Math.round(prof.avg_rating)} />
                 <span className="text-sm font-bold text-foreground">{prof.avg_rating > 0 ? Number(prof.avg_rating).toFixed(1) : "Novo"}</span>
@@ -314,7 +307,6 @@ export default function ProfissionalPage() {
             </div>
           </div>
 
-          {/* Stats */}
           <div className="grid grid-cols-3 gap-3 mt-5">
             {[
               { label: "Avaliação", value: prof.avg_rating > 0 ? Number(prof.avg_rating).toFixed(1) : "—", icon: "⭐" },
@@ -330,7 +322,6 @@ export default function ProfissionalPage() {
             ))}
           </div>
 
-          {/* Horário de hoje */}
           {workHours && todayHours && (
             <div className="mt-4 flex items-center gap-2 px-3 py-2.5 rounded-xl"
               style={{ background: todayHours.closed ? "rgba(239,68,68,0.08)" : "rgba(34,197,94,0.08)", border: `1px solid ${todayHours.closed ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)"}` }}>
@@ -343,7 +334,6 @@ export default function ProfissionalPage() {
           )}
         </div>
 
-        {/* Bio */}
         {prof.bio && (
           <div className="px-4 py-4" style={{ borderBottom: "1px solid #1F1F23" }}>
             <h2 className="font-syne font-bold text-sm text-foreground mb-2">Sobre</h2>
@@ -351,7 +341,6 @@ export default function ProfissionalPage() {
           </div>
         )}
 
-        {/* Horários completos */}
         {workHours && (
           <div className="px-4 py-4" style={{ borderBottom: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-2 mb-3">
@@ -394,7 +383,6 @@ export default function ProfissionalPage() {
           </div>
         )}
 
-        {/* Neighborhoods */}
         {neighborhoods.length > 0 && (
           <div className="px-4 py-4" style={{ borderBottom: "1px solid #1F1F23" }}>
             <h2 className="font-syne font-bold text-sm text-foreground mb-3">Bairros atendidos</h2>
@@ -409,7 +397,6 @@ export default function ProfissionalPage() {
           </div>
         )}
 
-        {/* Avaliações */}
         <div className="px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-syne font-bold text-sm text-foreground">Avaliações ({reviews.length})</h2>
@@ -560,9 +547,6 @@ export default function ProfissionalPage() {
               <h3 className="font-syne font-bold text-foreground">Denunciar avaliação</h3>
               <button onClick={() => setReportReviewModal(null)} className="text-muted"><X size={18} /></button>
             </div>
-            <p className="text-xs text-muted mb-4 leading-relaxed">
-              Informe o motivo da denúncia. Nossa equipe irá analisar e tomar as providências necessárias.
-            </p>
             <form onSubmit={handleReviewReport}>
               <div className="flex flex-col gap-2 mb-3">
                 {["Avaliação falsa ou fraudulenta", "Conteúdo ofensivo ou inapropriado", "Não contratou meus serviços", "Outro motivo"].map((reason) => (
