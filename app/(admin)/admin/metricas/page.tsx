@@ -2,49 +2,56 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Users, TrendingUp, Eye, MessageCircle, Star, Loader2, UserCheck, Briefcase } from "lucide-react";
+import { ArrowLeft, Users, TrendingUp, Eye, MessageCircle, Star, Loader2, UserCheck, Briefcase, CreditCard, MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-interface DayData {
-  dia: string;
-  cadastros: number;
-  profissionais: number;
-  clientes: number;
+const ASAAS_FIXED = 0.99;
+const ASAAS_PERCENT = 0.0139;
+
+function calcNet(valor: number) {
+  return valor - (valor * ASAAS_PERCENT + ASAAS_FIXED);
 }
 
-interface ViewData {
-  dia: string;
-  total_views: number;
-  visitantes_unicos: number;
+function fmt2(v: number) {
+  return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-interface LeadData {
-  dia: string;
-  total_leads: number;
+function fmtK(v: number) {
+  if (v >= 1000) return `R$${(v / 1000).toFixed(1)}k`;
+  return `R$${fmt2(v)}`;
 }
+
+interface DayData { dia: string; cadastros: number; profissionais: number; clientes: number; }
+interface ViewData { dia: string; total_views: number; }
+interface LeadData { dia: string; total_leads: number; }
+
+const CIDADES_PROJECAO = [
+  { nome: "Uberlândia", populacao: "700k", potencial: 500, ativo: true },
+  { nome: "Uberaba", populacao: "340k", potencial: 250, ativo: false },
+  { nome: "Patos de Minas", populacao: "160k", potencial: 120, ativo: false },
+  { nome: "Ituiutaba", populacao: "110k", potencial: 80, ativo: false },
+  { nome: "Araguari", populacao: "120k", potencial: 90, ativo: false },
+  { nome: "Frutal", populacao: "60k", potencial: 50, ativo: false },
+  { nome: "Araxá", populacao: "110k", potencial: 80, ativo: false },
+  { nome: "Monte Carmelo", populacao: "50k", potencial: 40, ativo: false },
+];
 
 export default function AdminMetricasPage() {
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<"7" | "30" | "90">("30");
+  const [mixPlanos, setMixPlanos] = useState(50); // % de Pro
+  const [cidadesAtivas, setCidadesAtivas] = useState<string[]>(["Uberlândia"]);
   const [cadastrosDia, setCadastrosDia] = useState<DayData[]>([]);
   const [viewsDia, setViewsDia] = useState<ViewData[]>([]);
   const [leadsDia, setLeadsDia] = useState<LeadData[]>([]);
   const [totais, setTotais] = useState({
-    totalUsuarios: 0,
-    totalProfissionais: 0,
-    totalClientes: 0,
-    totalViews: 0,
-    totalLeads: 0,
-    totalAvaliacoes: 0,
-    cadastrosHoje: 0,
-    cadastrosSemana: 0,
-    cadastrosMes: 0,
-    leadsHoje: 0,
-    leadsSemana: 0,
-    leadsMes: 0,
-    viewsHoje: 0,
-    viewsSemana: 0,
-    viewsMes: 0,
+    totalUsuarios: 0, totalProfissionais: 0, totalClientes: 0,
+    totalViews: 0, totalLeads: 0, totalAvaliacoes: 0,
+    cadastrosHoje: 0, cadastrosSemana: 0, cadastrosMes: 0,
+    leadsHoje: 0, leadsSemana: 0, leadsMes: 0,
+    viewsHoje: 0, viewsSemana: 0, viewsMes: 0,
+    basicAtivos: 0, proAtivos: 0,
+    receitaBruta: 0, receitaLiquida: 0, taxasAsaas: 0,
   });
 
   useEffect(() => { loadMetrics(); }, [periodo]);
@@ -65,7 +72,7 @@ export default function AdminMetricasPage() {
         cadastrosHoje, cadastrosSemana, cadastrosMes,
         leadsHoje, leadsSemana, leadsMes,
         viewsHoje, viewsSemana, viewsMes,
-        usersData, viewsData, leadsData,
+        subscriptions, usersData, viewsData, leadsData,
       ] = await Promise.all([
         supabase.from("users").select("id", { count: "exact", head: true }),
         supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "professional"),
@@ -82,10 +89,23 @@ export default function AdminMetricasPage() {
         supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
         supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
         supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
+        supabase.from("subscriptions").select("plan").eq("status", "active"),
         supabase.from("users").select("created_at, role").gte("created_at", periodoStart).order("created_at", { ascending: true }),
-        supabase.from("profile_views").select("created_at, viewer_id").gte("created_at", periodoStart).order("created_at", { ascending: true }),
+        supabase.from("profile_views").select("created_at").gte("created_at", periodoStart).order("created_at", { ascending: true }),
         supabase.from("whatsapp_clicks").select("created_at").gte("created_at", periodoStart).order("created_at", { ascending: true }),
       ]);
+
+      // Calcular receita real
+      let bruta = 0, liquida = 0, taxas = 0, basicAtivos = 0, proAtivos = 0;
+      for (const s of subscriptions.data || []) {
+        const v = s.plan === "pro" ? 99 : 69;
+        const net = calcNet(v);
+        bruta += v;
+        liquida += net;
+        taxas += v - net;
+        if (s.plan === "pro") proAtivos++;
+        else basicAtivos++;
+      }
 
       setTotais({
         totalUsuarios: totalUsers.count || 0,
@@ -103,53 +123,77 @@ export default function AdminMetricasPage() {
         viewsHoje: viewsHoje.count || 0,
         viewsSemana: viewsSemana.count || 0,
         viewsMes: viewsMes.count || 0,
+        basicAtivos, proAtivos,
+        receitaBruta: bruta, receitaLiquida: liquida, taxasAsaas: taxas,
       });
 
-      // Agrupar cadastros por dia
-      const cadastrosMap: Record<string, DayData> = {};
+      // Gráficos
+      const cMap: Record<string, DayData> = {};
       for (const u of usersData.data || []) {
         const dia = u.created_at.slice(0, 10);
-        if (!cadastrosMap[dia]) cadastrosMap[dia] = { dia, cadastros: 0, profissionais: 0, clientes: 0 };
-        cadastrosMap[dia].cadastros++;
-        if (u.role === "professional") cadastrosMap[dia].profissionais++;
-        if (u.role === "client") cadastrosMap[dia].clientes++;
+        if (!cMap[dia]) cMap[dia] = { dia, cadastros: 0, profissionais: 0, clientes: 0 };
+        cMap[dia].cadastros++;
+        if (u.role === "professional") cMap[dia].profissionais++;
+        if (u.role === "client") cMap[dia].clientes++;
       }
-      setCadastrosDia(Object.values(cadastrosMap));
+      setCadastrosDia(Object.values(cMap));
 
-      // Agrupar views por dia
-      const viewsMap: Record<string, ViewData> = {};
+      const vMap: Record<string, ViewData> = {};
       for (const v of viewsData.data || []) {
         const dia = v.created_at.slice(0, 10);
-        if (!viewsMap[dia]) viewsMap[dia] = { dia, total_views: 0, visitantes_unicos: 0 };
-        viewsMap[dia].total_views++;
-        if (v.viewer_id) viewsMap[dia].visitantes_unicos++;
+        if (!vMap[dia]) vMap[dia] = { dia, total_views: 0 };
+        vMap[dia].total_views++;
       }
-      setViewsDia(Object.values(viewsMap));
+      setViewsDia(Object.values(vMap));
 
-      // Agrupar leads por dia
-      const leadsMap: Record<string, LeadData> = {};
+      const lMap: Record<string, LeadData> = {};
       for (const l of leadsData.data || []) {
         const dia = l.created_at.slice(0, 10);
-        if (!leadsMap[dia]) leadsMap[dia] = { dia, total_leads: 0 };
-        leadsMap[dia].total_leads++;
+        if (!lMap[dia]) lMap[dia] = { dia, total_leads: 0 };
+        lMap[dia].total_leads++;
       }
-      setLeadsDia(Object.values(leadsMap));
+      setLeadsDia(Object.values(lMap));
 
     } catch (err) {
-      console.error("Erro ao carregar métricas:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   }
 
-  function formatDate(dateStr: string) {
-    const [, month, day] = dateStr.split("-");
-    return `${day}/${month}`;
+  function formatDate(d: string) {
+    const [, m, day] = d.split("-");
+    return `${day}/${m}`;
   }
+
+  // Cálculo de projeção por cenário
+  function calcProjecao(totalAssinantes: number, pctPro: number) {
+    const pro = Math.round(totalAssinantes * (pctPro / 100));
+    const basic = totalAssinantes - pro;
+    const bruto = (pro * 99) + (basic * 69);
+    const liquido = (pro * calcNet(99)) + (basic * calcNet(69));
+    return { pro, basic, bruto, liquido };
+  }
+
+  // Projeção por cidades ativas
+  const potencialCidadesAtivas = CIDADES_PROJECAO
+    .filter(c => cidadesAtivas.includes(c.nome))
+    .reduce((acc, c) => acc + c.potencial, 0);
+  const projecaoCidades = calcProjecao(potencialCidadesAtivas, mixPlanos);
+
+  const cenarios = [
+    { label: "Atual", assinantes: totais.basicAtivos + totais.proAtivos, pctPro: totais.proAtivos > 0 ? Math.round((totais.proAtivos / (totais.basicAtivos + totais.proAtivos)) * 100) : 50 },
+    { label: "50 assinantes", assinantes: 50, pctPro: mixPlanos },
+    { label: "100 assinantes", assinantes: 100, pctPro: mixPlanos },
+    { label: "275 assinantes", assinantes: 275, pctPro: mixPlanos },
+    { label: "500 assinantes", assinantes: 500, pctPro: mixPlanos },
+  ];
 
   const maxCadastros = Math.max(...cadastrosDia.map(d => d.cadastros), 1);
   const maxViews = Math.max(...viewsDia.map(d => d.total_views), 1);
   const maxLeads = Math.max(...leadsDia.map(d => d.total_leads), 1);
+  const totalAtivos = totais.basicAtivos + totais.proAtivos;
+  const meta275pct = Math.round((totalAtivos / 275) * 100);
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -159,10 +203,11 @@ export default function AdminMetricasPage() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
+      {/* Header */}
       <div className="sticky top-0 z-40 flex items-center gap-3 px-4 h-14"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <Link href="/admin" className="text-muted"><ArrowLeft size={20} /></Link>
-        <h1 className="font-syne font-bold text-lg text-foreground flex-1">Métricas</h1>
+        <h1 className="font-syne font-bold text-lg text-foreground flex-1">Métricas & Projeções</h1>
         <div className="flex gap-1">
           {(["7", "30", "90"] as const).map((p) => (
             <button key={p} onClick={() => setPeriodo(p)}
@@ -171,18 +216,228 @@ export default function AdminMetricasPage() {
                 background: periodo === p ? "rgba(59,130,246,0.2)" : "#111113",
                 border: periodo === p ? "1px solid rgba(59,130,246,0.4)" : "1px solid #1F1F23",
                 color: periodo === p ? "#3B82F6" : "#A1A1AA",
-              }}>
-              {p}d
-            </button>
+              }}>{p}d</button>
           ))}
         </div>
       </div>
 
-      <div className="px-4 py-4 space-y-4">
+      <div className="px-4 py-4 space-y-5">
 
-        {/* Totais gerais */}
+        {/* ── FATURAMENTO ATUAL ── */}
         <div>
-          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#3B82F6" }}>TOTAIS GERAIS</p>
+          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#22c55e" }}>💰 FATURAMENTO ATUAL</p>
+
+          {/* Cards receita */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="p-3 rounded-2xl text-center" style={{ background: "#111113", border: "1px solid rgba(34,197,94,0.3)" }}>
+              <div className="text-[10px] text-muted mb-1">Bruto/mês</div>
+              <div className="font-syne font-bold text-base" style={{ color: "#22c55e" }}>R${fmt2(totais.receitaBruta)}</div>
+            </div>
+            <div className="p-3 rounded-2xl text-center" style={{ background: "#111113", border: "1px solid rgba(34,197,94,0.5)" }}>
+              <div className="text-[10px] text-muted mb-1">Líquido/mês</div>
+              <div className="font-syne font-bold text-base" style={{ color: "#22c55e" }}>R${fmt2(totais.receitaLiquida)}</div>
+            </div>
+            <div className="p-3 rounded-2xl text-center" style={{ background: "#111113", border: "1px solid rgba(239,68,68,0.2)" }}>
+              <div className="text-[10px] text-muted mb-1">Taxa Asaas</div>
+              <div className="font-syne font-bold text-base" style={{ color: "#f87171" }}>R${fmt2(totais.taxasAsaas)}</div>
+            </div>
+          </div>
+
+          {/* Breakdown planos */}
+          <div className="p-4 rounded-2xl space-y-3" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <p className="text-xs font-bold text-muted">Distribuição de planos ativos</p>
+
+            {/* Básico */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] px-2 py-0.5 rounded font-bold"
+                  style={{ background: "rgba(59,130,246,0.1)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.2)" }}>
+                  ⭐ Básico R$69
+                </span>
+                <span className="text-sm font-bold text-foreground">{totais.basicAtivos}x</span>
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-bold" style={{ color: "#3B82F6" }}>R${fmt2(totais.basicAtivos * 69)}</div>
+                <div className="text-[10px]" style={{ color: "#22c55e" }}>→ R${fmt2(totais.basicAtivos * calcNet(69))} líq.</div>
+              </div>
+            </div>
+
+            {/* Pro */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] px-2 py-0.5 rounded font-bold"
+                  style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
+                  👑 Pro R$99
+                </span>
+                <span className="text-sm font-bold text-foreground">{totais.proAtivos}x</span>
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-bold" style={{ color: "#FBBF24" }}>R${fmt2(totais.proAtivos * 99)}</div>
+                <div className="text-[10px]" style={{ color: "#22c55e" }}>→ R${fmt2(totais.proAtivos * calcNet(99))} líq.</div>
+              </div>
+            </div>
+
+            {/* Divisor */}
+            <div style={{ borderTop: "1px solid #1F1F23" }} className="pt-2 flex items-center justify-between">
+              <span className="text-xs font-bold text-foreground">Total líquido/mês</span>
+              <span className="text-base font-syne font-extrabold" style={{ color: "#22c55e" }}>
+                R${fmt2(totais.receitaLiquida)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── META 275 ── */}
+        <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={14} style={{ color: "#3B82F6" }} />
+              <span className="font-syne font-bold text-sm text-foreground">Meta ano 1 — Uberlândia</span>
+            </div>
+            <span className="text-sm font-bold" style={{ color: "#3B82F6" }}>{meta275pct}%</span>
+          </div>
+          <div className="h-3 rounded-full overflow-hidden mb-2" style={{ background: "#1F1F23" }}>
+            <div className="h-full rounded-full transition-all duration-1000"
+              style={{ width: `${Math.min(meta275pct, 100)}%`, background: "linear-gradient(90deg, #3B82F6, #22c55e)" }} />
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[10px] text-muted">{totalAtivos} ativos ({totais.basicAtivos} básico · {totais.proAtivos} pro)</span>
+            <span className="text-[10px] text-muted">275 meta</span>
+          </div>
+        </div>
+
+        {/* ── PROJEÇÃO DE RECEITA ── */}
+        <div>
+          <p className="text-[10px] font-bold tracking-widest mb-2" style={{ color: "#3B82F6" }}>📈 PROJEÇÃO DE RECEITA</p>
+
+          {/* Slider mix de planos */}
+          <div className="p-3 rounded-2xl mb-3" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted">Mix de planos</span>
+              <span className="text-xs font-bold text-foreground">
+                {100 - mixPlanos}% Básico · {mixPlanos}% Pro
+              </span>
+            </div>
+            <input type="range" min={0} max={100} value={mixPlanos}
+              onChange={(e) => setMixPlanos(Number(e.target.value))}
+              className="w-full h-2 rounded-full appearance-none cursor-pointer"
+              style={{ background: `linear-gradient(to right, #FBBF24 ${mixPlanos}%, #1F1F23 ${mixPlanos}%)` }} />
+            <div className="flex justify-between mt-1">
+              <span className="text-[9px]" style={{ color: "#93c5fd" }}>100% Básico</span>
+              <span className="text-[9px]" style={{ color: "#FBBF24" }}>100% Pro</span>
+            </div>
+          </div>
+
+          {/* Tabela de cenários */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="grid grid-cols-4 px-3 py-2 text-[10px] font-bold text-muted uppercase"
+              style={{ borderBottom: "1px solid #1F1F23" }}>
+              <span>Cenário</span>
+              <span className="text-center">Básico/Pro</span>
+              <span className="text-center">Bruto</span>
+              <span className="text-center" style={{ color: "#22c55e" }}>Líquido</span>
+            </div>
+            {cenarios.map(({ label, assinantes, pctPro }) => {
+              const p = calcProjecao(assinantes, pctPro);
+              const isAtual = label === "Atual";
+              return (
+                <div key={label} className="grid grid-cols-4 px-3 py-2.5 text-xs"
+                  style={{
+                    borderBottom: "1px solid #0f0f11",
+                    background: isAtual ? "rgba(59,130,246,0.05)" : "transparent"
+                  }}>
+                  <span className="font-semibold" style={{ color: isAtual ? "#93c5fd" : "#A1A1AA" }}>
+                    {isAtual ? "🔴 Atual" : label}
+                  </span>
+                  <span className="text-center text-muted text-[10px]">{p.basic}/{p.pro}</span>
+                  <span className="text-center font-medium text-foreground">{fmtK(p.bruto)}</span>
+                  <span className="text-center font-bold" style={{ color: "#22c55e" }}>{fmtK(p.liquido)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── PROJEÇÃO POR CIDADES ── */}
+        <div>
+          <p className="text-[10px] font-bold tracking-widest mb-2" style={{ color: "#a855f7" }}>🗺️ PROJEÇÃO POR CIDADES</p>
+          <p className="text-[10px] text-muted mb-3">Selecione as cidades para simular o potencial total</p>
+
+          <div className="space-y-2 mb-3">
+            {CIDADES_PROJECAO.map((cidade) => {
+              const ativa = cidadesAtivas.includes(cidade.nome);
+              const p = calcProjecao(cidade.potencial, mixPlanos);
+              return (
+                <button key={cidade.nome} type="button"
+                  onClick={() => {
+                    if (cidade.nome === "Uberlândia") return; // não pode desativar Uberlândia
+                    setCidadesAtivas(prev =>
+                      ativa ? prev.filter(c => c !== cidade.nome) : [...prev, cidade.nome]
+                    );
+                  }}
+                  className="w-full flex items-center justify-between p-3 rounded-xl transition-all"
+                  style={{
+                    background: ativa ? "rgba(168,85,247,0.08)" : "#111113",
+                    border: ativa ? "1px solid rgba(168,85,247,0.3)" : "1px solid #1F1F23",
+                    cursor: cidade.nome === "Uberlândia" ? "default" : "pointer",
+                  }}>
+                  <div className="flex items-center gap-2 text-left">
+                    <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
+                      style={{ background: ativa ? "#a855f7" : "#1F1F23", border: `1px solid ${ativa ? "#a855f7" : "#374151"}` }}>
+                      {ativa && <span className="text-white text-[9px]">✓</span>}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-foreground">{cidade.nome}</span>
+                        {cidade.nome === "Uberlândia" && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
+                            style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>ATIVO</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-muted">{cidade.populacao} hab · potencial {cidade.potencial} profissionais</span>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-xs font-bold" style={{ color: ativa ? "#a855f7" : "#374151" }}>{fmtK(p.bruto)}</div>
+                    <div className="text-[10px]" style={{ color: ativa ? "#22c55e" : "#374151" }}>{fmtK(p.liquido)} líq.</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Resultado projeção cidades */}
+          <div className="p-4 rounded-2xl" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.3)" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin size={14} style={{ color: "#a855f7" }} />
+              <span className="font-syne font-bold text-sm text-foreground">
+                {cidadesAtivas.length} cidade{cidadesAtivas.length !== 1 ? "s" : ""} ativa{cidadesAtivas.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center p-3 rounded-xl" style={{ background: "rgba(0,0,0,0.3)" }}>
+                <div className="text-[10px] text-muted mb-1">Potencial total</div>
+                <div className="font-syne font-bold text-lg" style={{ color: "#a855f7" }}>{potencialCidadesAtivas}</div>
+                <div className="text-[10px] text-muted">profissionais</div>
+              </div>
+              <div className="text-center p-3 rounded-xl" style={{ background: "rgba(0,0,0,0.3)" }}>
+                <div className="text-[10px] text-muted mb-1">Receita potencial</div>
+                <div className="font-syne font-bold text-lg" style={{ color: "#22c55e" }}>{fmtK(projecaoCidades.liquido)}</div>
+                <div className="text-[10px] text-muted">líquido/mês</div>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: "1px solid rgba(168,85,247,0.2)" }}>
+              <span className="text-[10px] text-muted">{projecaoCidades.basic} básico + {projecaoCidades.pro} pro</span>
+              <span className="text-[10px] font-bold" style={{ color: "#a855f7" }}>
+                {fmtK(projecaoCidades.bruto)} bruto → {fmtK(projecaoCidades.liquido)} líquido
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── TOTAIS GERAIS ── */}
+        <div>
+          <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#3B82F6" }}>📊 TOTAIS GERAIS</p>
           <div className="grid grid-cols-3 gap-2">
             {[
               { label: "Usuários", value: totais.totalUsuarios, icon: <Users size={14} />, color: "#3B82F6" },
@@ -202,7 +457,7 @@ export default function AdminMetricasPage() {
           </div>
         </div>
 
-        {/* Cadastros */}
+        {/* ── CADASTROS ── */}
         <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
           <div className="flex items-center gap-2 mb-3">
             <Users size={14} style={{ color: "#3B82F6" }} />
@@ -221,13 +476,13 @@ export default function AdminMetricasPage() {
               </div>
             ))}
           </div>
-          {cadastrosDia.length > 0 && (
+          {cadastrosDia.length > 0 ? (
             <div>
-              <div className="flex items-end gap-1 h-16">
+              <div className="flex items-end gap-1 h-14">
                 {cadastrosDia.map((d) => (
                   <div key={d.dia} className="flex-1 flex flex-col justify-end">
                     <div className="w-full rounded-sm"
-                      style={{ height: `${Math.max((d.cadastros / maxCadastros) * 100, 5)}%`, background: "#3B82F6", opacity: 0.8, minHeight: "3px" }} />
+                      style={{ height: `${Math.max((d.cadastros / maxCadastros) * 100, 5)}%`, background: "#3B82F6", opacity: 0.8 }} />
                   </div>
                 ))}
               </div>
@@ -236,13 +491,10 @@ export default function AdminMetricasPage() {
                 <span className="text-[9px] text-muted">{cadastrosDia[cadastrosDia.length - 1]?.dia ? formatDate(cadastrosDia[cadastrosDia.length - 1].dia) : ""}</span>
               </div>
             </div>
-          )}
-          {cadastrosDia.length === 0 && (
-            <p className="text-xs text-muted text-center py-4">Nenhum cadastro no período</p>
-          )}
+          ) : <p className="text-xs text-muted text-center py-2">Nenhum cadastro no período</p>}
         </div>
 
-        {/* Visualizações */}
+        {/* ── VISUALIZAÇÕES ── */}
         <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
           <div className="flex items-center gap-2 mb-3">
             <Eye size={14} style={{ color: "#f59e0b" }} />
@@ -261,13 +513,13 @@ export default function AdminMetricasPage() {
               </div>
             ))}
           </div>
-          {viewsDia.length > 0 && (
+          {viewsDia.length > 0 ? (
             <div>
-              <div className="flex items-end gap-1 h-16">
+              <div className="flex items-end gap-1 h-14">
                 {viewsDia.map((d) => (
                   <div key={d.dia} className="flex-1 flex flex-col justify-end">
                     <div className="w-full rounded-sm"
-                      style={{ height: `${Math.max((d.total_views / maxViews) * 100, 5)}%`, background: "#f59e0b", opacity: 0.8, minHeight: "3px" }} />
+                      style={{ height: `${Math.max((d.total_views / maxViews) * 100, 5)}%`, background: "#f59e0b", opacity: 0.8 }} />
                   </div>
                 ))}
               </div>
@@ -276,13 +528,10 @@ export default function AdminMetricasPage() {
                 <span className="text-[9px] text-muted">{viewsDia[viewsDia.length - 1]?.dia ? formatDate(viewsDia[viewsDia.length - 1].dia) : ""}</span>
               </div>
             </div>
-          )}
-          {viewsDia.length === 0 && (
-            <p className="text-xs text-muted text-center py-4">Nenhuma visualização no período</p>
-          )}
+          ) : <p className="text-xs text-muted text-center py-2">Nenhuma visualização no período</p>}
         </div>
 
-        {/* Leads */}
+        {/* ── LEADS ── */}
         <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
           <div className="flex items-center gap-2 mb-3">
             <MessageCircle size={14} style={{ color: "#22c55e" }} />
@@ -301,13 +550,13 @@ export default function AdminMetricasPage() {
               </div>
             ))}
           </div>
-          {leadsDia.length > 0 && (
+          {leadsDia.length > 0 ? (
             <div>
-              <div className="flex items-end gap-1 h-16">
+              <div className="flex items-end gap-1 h-14">
                 {leadsDia.map((d) => (
                   <div key={d.dia} className="flex-1 flex flex-col justify-end">
                     <div className="w-full rounded-sm"
-                      style={{ height: `${Math.max((d.total_leads / maxLeads) * 100, 5)}%`, background: "#22c55e", opacity: 0.8, minHeight: "3px" }} />
+                      style={{ height: `${Math.max((d.total_leads / maxLeads) * 100, 5)}%`, background: "#22c55e", opacity: 0.8 }} />
                   </div>
                 ))}
               </div>
@@ -316,43 +565,7 @@ export default function AdminMetricasPage() {
                 <span className="text-[9px] text-muted">{leadsDia[leadsDia.length - 1]?.dia ? formatDate(leadsDia[leadsDia.length - 1].dia) : ""}</span>
               </div>
             </div>
-          )}
-          {leadsDia.length === 0 && (
-            <p className="text-xs text-muted text-center py-4">Nenhum lead no período</p>
-          )}
-        </div>
-
-        {/* Tabela cadastros por dia */}
-        {cadastrosDia.length > 0 && (
-          <div>
-            <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#3B82F6" }}>CADASTROS POR DIA</p>
-            <div className="rounded-2xl overflow-hidden" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-              <div className="grid grid-cols-4 px-4 py-2 text-[10px] font-bold text-muted uppercase"
-                style={{ borderBottom: "1px solid #1F1F23" }}>
-                <span>Data</span>
-                <span className="text-center">Total</span>
-                <span className="text-center" style={{ color: "#a855f7" }}>Profs</span>
-                <span className="text-center" style={{ color: "#22c55e" }}>Clientes</span>
-              </div>
-              {[...cadastrosDia].reverse().slice(0, 15).map((d) => (
-                <div key={d.dia} className="grid grid-cols-4 px-4 py-2.5 text-xs"
-                  style={{ borderBottom: "1px solid #0f0f11" }}>
-                  <span className="text-muted">{formatDate(d.dia)}</span>
-                  <span className="text-center font-bold text-foreground">{d.cadastros}</span>
-                  <span className="text-center" style={{ color: "#a855f7" }}>{d.profissionais}</span>
-                  <span className="text-center" style={{ color: "#22c55e" }}>{d.clientes}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Aviso Google Analytics */}
-        <div className="p-4 rounded-2xl" style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.2)" }}>
-          <p className="text-xs font-bold mb-1" style={{ color: "#93c5fd" }}>💡 Quer ver acessos à home e busca?</p>
-          <p className="text-xs text-muted leading-relaxed">
-            Instale o Google Analytics para rastrear quantas pessoas acessam cada página. É gratuito e leva 15 minutos.
-          </p>
+          ) : <p className="text-xs text-muted text-center py-2">Nenhum lead no período</p>}
         </div>
 
       </div>
