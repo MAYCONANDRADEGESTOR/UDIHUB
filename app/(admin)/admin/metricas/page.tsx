@@ -51,140 +51,100 @@ export default function AdminMetricasPage() {
 
   async function loadMetrics() {
     setLoading(true);
-    const supabase = createClient();
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const monthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const periodoStart = new Date(now.getTime() - parseInt(periodo) * 24 * 60 * 60 * 1000).toISOString();
+    try {
+      const supabase = createClient();
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const monthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const periodoStart = new Date(now.getTime() - parseInt(periodo) * 24 * 60 * 60 * 1000).toISOString();
 
-    const [
-      totalUsers, totalProfs, totalClients,
-      totalViews, totalLeads, totalAvaliacoes,
-      cadastrosHoje, cadastrosSemana, cadastrosMes,
-      leadsHoje, leadsSemana, leadsMes,
-      viewsHoje, viewsSemana, viewsMes,
-      cadastrosDiaData, viewsDiaData, leadsDiaData,
-    ] = await Promise.all([
-      supabase.from("users").select("id", { count: "exact", head: true }),
-      supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "professional"),
-      supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "client"),
-      supabase.from("profile_views").select("id", { count: "exact", head: true }),
-      supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }),
-      supabase.from("reviews").select("id", { count: "exact", head: true }),
-      supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
-      supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
-      supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
-      supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
-      supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
-      supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
-      supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
-      supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
-      supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
-      // Dados por dia para gráficos
-      supabase.rpc("get_cadastros_por_dia", { dias: parseInt(periodo) }).catch(() => ({ data: null })),
-      supabase.rpc("get_views_por_dia", { dias: parseInt(periodo) }).catch(() => ({ data: null })),
-      supabase.rpc("get_leads_por_dia", { dias: parseInt(periodo) }).catch(() => ({ data: null })),
-    ]);
+      const [
+        totalUsers, totalProfs, totalClients,
+        totalViews, totalLeads, totalAvaliacoes,
+        cadastrosHoje, cadastrosSemana, cadastrosMes,
+        leadsHoje, leadsSemana, leadsMes,
+        viewsHoje, viewsSemana, viewsMes,
+        usersData, viewsData, leadsData,
+      ] = await Promise.all([
+        supabase.from("users").select("id", { count: "exact", head: true }),
+        supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "professional"),
+        supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "client"),
+        supabase.from("profile_views").select("id", { count: "exact", head: true }),
+        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }),
+        supabase.from("reviews").select("id", { count: "exact", head: true }),
+        supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
+        supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
+        supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
+        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
+        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
+        supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
+        supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
+        supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
+        supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
+        supabase.from("users").select("created_at, role").gte("created_at", periodoStart).order("created_at", { ascending: true }),
+        supabase.from("profile_views").select("created_at, viewer_id").gte("created_at", periodoStart).order("created_at", { ascending: true }),
+        supabase.from("whatsapp_clicks").select("created_at").gte("created_at", periodoStart).order("created_at", { ascending: true }),
+      ]);
 
-    setTotais({
-      totalUsuarios: totalUsers.count || 0,
-      totalProfissionais: totalProfs.count || 0,
-      totalClientes: totalClients.count || 0,
-      totalViews: totalViews.count || 0,
-      totalLeads: totalLeads.count || 0,
-      totalAvaliacoes: totalAvaliacoes.count || 0,
-      cadastrosHoje: cadastrosHoje.count || 0,
-      cadastrosSemana: cadastrosSemana.count || 0,
-      cadastrosMes: cadastrosMes.count || 0,
-      leadsHoje: leadsHoje.count || 0,
-      leadsSemana: leadsSemana.count || 0,
-      leadsMes: leadsMes.count || 0,
-      viewsHoje: viewsHoje.count || 0,
-      viewsSemana: viewsSemana.count || 0,
-      viewsMes: viewsMes.count || 0,
-    });
+      setTotais({
+        totalUsuarios: totalUsers.count || 0,
+        totalProfissionais: totalProfs.count || 0,
+        totalClientes: totalClients.count || 0,
+        totalViews: totalViews.count || 0,
+        totalLeads: totalLeads.count || 0,
+        totalAvaliacoes: totalAvaliacoes.count || 0,
+        cadastrosHoje: cadastrosHoje.count || 0,
+        cadastrosSemana: cadastrosSemana.count || 0,
+        cadastrosMes: cadastrosMes.count || 0,
+        leadsHoje: leadsHoje.count || 0,
+        leadsSemana: leadsSemana.count || 0,
+        leadsMes: leadsMes.count || 0,
+        viewsHoje: viewsHoje.count || 0,
+        viewsSemana: viewsSemana.count || 0,
+        viewsMes: viewsMes.count || 0,
+      });
 
-    // Fallback manual se RPC não existir
-    if (!cadastrosDiaData.data) {
-      const { data } = await supabase
-        .from("users")
-        .select("created_at, role")
-        .gte("created_at", periodoStart)
-        .order("created_at", { ascending: true });
-
-      if (data) {
-        const grouped: Record<string, DayData> = {};
-        data.forEach((u: any) => {
-          const dia = u.created_at.slice(0, 10);
-          if (!grouped[dia]) grouped[dia] = { dia, cadastros: 0, profissionais: 0, clientes: 0 };
-          grouped[dia].cadastros++;
-          if (u.role === "professional") grouped[dia].profissionais++;
-          if (u.role === "client") grouped[dia].clientes++;
-        });
-        setCadastrosDia(Object.values(grouped));
+      // Agrupar cadastros por dia
+      const cadastrosMap: Record<string, DayData> = {};
+      for (const u of usersData.data || []) {
+        const dia = u.created_at.slice(0, 10);
+        if (!cadastrosMap[dia]) cadastrosMap[dia] = { dia, cadastros: 0, profissionais: 0, clientes: 0 };
+        cadastrosMap[dia].cadastros++;
+        if (u.role === "professional") cadastrosMap[dia].profissionais++;
+        if (u.role === "client") cadastrosMap[dia].clientes++;
       }
-    } else {
-      setCadastrosDia(cadastrosDiaData.data || []);
-    }
+      setCadastrosDia(Object.values(cadastrosMap));
 
-    if (!viewsDiaData.data) {
-      const { data } = await supabase
-        .from("profile_views")
-        .select("created_at, viewer_id")
-        .gte("created_at", periodoStart)
-        .order("created_at", { ascending: true });
-
-      if (data) {
-        const grouped: Record<string, ViewData> = {};
-        data.forEach((v: any) => {
-          const dia = v.created_at.slice(0, 10);
-          if (!grouped[dia]) grouped[dia] = { dia, total_views: 0, visitantes_unicos: 0 };
-          grouped[dia].total_views++;
-          if (v.viewer_id) grouped[dia].visitantes_unicos++;
-        });
-        setViewsDia(Object.values(grouped));
+      // Agrupar views por dia
+      const viewsMap: Record<string, ViewData> = {};
+      for (const v of viewsData.data || []) {
+        const dia = v.created_at.slice(0, 10);
+        if (!viewsMap[dia]) viewsMap[dia] = { dia, total_views: 0, visitantes_unicos: 0 };
+        viewsMap[dia].total_views++;
+        if (v.viewer_id) viewsMap[dia].visitantes_unicos++;
       }
-    } else {
-      setViewsDia(viewsDiaData.data || []);
-    }
+      setViewsDia(Object.values(viewsMap));
 
-    if (!leadsDiaData.data) {
-      const { data } = await supabase
-        .from("whatsapp_clicks")
-        .select("created_at")
-        .gte("created_at", periodoStart)
-        .order("created_at", { ascending: true });
-
-      if (data) {
-        const grouped: Record<string, LeadData> = {};
-        data.forEach((l: any) => {
-          const dia = l.created_at.slice(0, 10);
-          if (!grouped[dia]) grouped[dia] = { dia, total_leads: 0 };
-          grouped[dia].total_leads++;
-        });
-        setLeadsDia(Object.values(grouped));
+      // Agrupar leads por dia
+      const leadsMap: Record<string, LeadData> = {};
+      for (const l of leadsData.data || []) {
+        const dia = l.created_at.slice(0, 10);
+        if (!leadsMap[dia]) leadsMap[dia] = { dia, total_leads: 0 };
+        leadsMap[dia].total_leads++;
       }
-    } else {
-      setLeadsDia(leadsDiaData.data || []);
-    }
+      setLeadsDia(Object.values(leadsMap));
 
-    setLoading(false);
+    } catch (err) {
+      console.error("Erro ao carregar métricas:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function formatDate(dateStr: string) {
-    const [year, month, day] = dateStr.split("-");
+    const [, month, day] = dateStr.split("-");
     return `${day}/${month}`;
-  }
-
-  function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
-    const pct = max > 0 ? (value / max) * 100 : 0;
-    return (
-      <div className="flex items-end gap-0.5 h-8">
-        <div className="w-full rounded-sm transition-all"
-          style={{ height: `${Math.max(pct, 5)}%`, background: color, opacity: 0.8 }} />
-      </div>
-    );
   }
 
   const maxCadastros = Math.max(...cadastrosDia.map(d => d.cadastros), 1);
@@ -242,9 +202,9 @@ export default function AdminMetricasPage() {
           </div>
         </div>
 
-        {/* Cadastros por período */}
+        {/* Cadastros */}
         <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-3">
             <Users size={14} style={{ color: "#3B82F6" }} />
             <p className="font-syne font-bold text-sm text-foreground">Novos cadastros</p>
           </div>
@@ -261,12 +221,11 @@ export default function AdminMetricasPage() {
               </div>
             ))}
           </div>
-          {/* Mini gráfico */}
           {cadastrosDia.length > 0 && (
             <div>
               <div className="flex items-end gap-1 h-16">
-                {cadastrosDia.slice(-parseInt(periodo)).map((d) => (
-                  <div key={d.dia} className="flex-1 flex flex-col items-center gap-0.5">
+                {cadastrosDia.map((d) => (
+                  <div key={d.dia} className="flex-1 flex flex-col justify-end">
                     <div className="w-full rounded-sm"
                       style={{ height: `${Math.max((d.cadastros / maxCadastros) * 100, 5)}%`, background: "#3B82F6", opacity: 0.8, minHeight: "3px" }} />
                   </div>
@@ -278,11 +237,14 @@ export default function AdminMetricasPage() {
               </div>
             </div>
           )}
+          {cadastrosDia.length === 0 && (
+            <p className="text-xs text-muted text-center py-4">Nenhum cadastro no período</p>
+          )}
         </div>
 
-        {/* Visualizações de perfil */}
+        {/* Visualizações */}
         <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-3">
             <Eye size={14} style={{ color: "#f59e0b" }} />
             <p className="font-syne font-bold text-sm text-foreground">Visualizações de perfil</p>
           </div>
@@ -302,8 +264,8 @@ export default function AdminMetricasPage() {
           {viewsDia.length > 0 && (
             <div>
               <div className="flex items-end gap-1 h-16">
-                {viewsDia.slice(-parseInt(periodo)).map((d) => (
-                  <div key={d.dia} className="flex-1">
+                {viewsDia.map((d) => (
+                  <div key={d.dia} className="flex-1 flex flex-col justify-end">
                     <div className="w-full rounded-sm"
                       style={{ height: `${Math.max((d.total_views / maxViews) * 100, 5)}%`, background: "#f59e0b", opacity: 0.8, minHeight: "3px" }} />
                   </div>
@@ -315,11 +277,14 @@ export default function AdminMetricasPage() {
               </div>
             </div>
           )}
+          {viewsDia.length === 0 && (
+            <p className="text-xs text-muted text-center py-4">Nenhuma visualização no período</p>
+          )}
         </div>
 
-        {/* Leads WhatsApp */}
+        {/* Leads */}
         <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-3">
             <MessageCircle size={14} style={{ color: "#22c55e" }} />
             <p className="font-syne font-bold text-sm text-foreground">Leads via WhatsApp</p>
           </div>
@@ -339,8 +304,8 @@ export default function AdminMetricasPage() {
           {leadsDia.length > 0 && (
             <div>
               <div className="flex items-end gap-1 h-16">
-                {leadsDia.slice(-parseInt(periodo)).map((d) => (
-                  <div key={d.dia} className="flex-1">
+                {leadsDia.map((d) => (
+                  <div key={d.dia} className="flex-1 flex flex-col justify-end">
                     <div className="w-full rounded-sm"
                       style={{ height: `${Math.max((d.total_leads / maxLeads) * 100, 5)}%`, background: "#22c55e", opacity: 0.8, minHeight: "3px" }} />
                   </div>
@@ -352,9 +317,12 @@ export default function AdminMetricasPage() {
               </div>
             </div>
           )}
+          {leadsDia.length === 0 && (
+            <p className="text-xs text-muted text-center py-4">Nenhum lead no período</p>
+          )}
         </div>
 
-        {/* Tabela de cadastros por dia */}
+        {/* Tabela cadastros por dia */}
         {cadastrosDia.length > 0 && (
           <div>
             <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#3B82F6" }}>CADASTROS POR DIA</p>
@@ -383,7 +351,7 @@ export default function AdminMetricasPage() {
         <div className="p-4 rounded-2xl" style={{ background: "rgba(59,130,246,0.05)", border: "1px solid rgba(59,130,246,0.2)" }}>
           <p className="text-xs font-bold mb-1" style={{ color: "#93c5fd" }}>💡 Quer ver acessos à home e busca?</p>
           <p className="text-xs text-muted leading-relaxed">
-            Instale o Google Analytics para rastrear quantas pessoas acessam cada página, de onde vêm e quanto tempo ficam. É gratuito e leva 15 minutos para configurar.
+            Instale o Google Analytics para rastrear quantas pessoas acessam cada página. É gratuito e leva 15 minutos.
           </p>
         </div>
 
