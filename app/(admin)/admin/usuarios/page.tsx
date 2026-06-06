@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search, Ban, CheckCircle, User, Briefcase, AlertTriangle, X, Loader2, Crown, Star } from "lucide-react";
+import { ArrowLeft, Search, Ban, CheckCircle, User, Briefcase, AlertTriangle, X, Loader2, Crown, Star, MessageCircle, Phone } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials, formatDate } from "@/lib/utils";
 
@@ -18,6 +18,7 @@ interface UserItem {
   prof_status?: string | null;
   category?: string | null;
   category_icon?: string | null;
+  whatsapp?: string | null;
 }
 
 export default function AdminUsuariosPage() {
@@ -25,6 +26,7 @@ export default function AdminUsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | "client" | "professional">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [categories, setCategories] = useState<{ name: string; icon: string }[]>([]);
   const [banModal, setBanModal] = useState<{ user: UserItem; action: "ban" | "unban" } | null>(null);
@@ -44,11 +46,12 @@ export default function AdminUsuariosPage() {
 
     const { data: profsData } = await supabase
       .from("professionals")
-      .select("user_id, plan, status, categories(name, icon)");
+      .select("user_id, plan, status, whatsapp, categories(name, icon)");
 
     const profMap = new Map(profsData?.map((p: any) => [p.user_id, {
       plan: p.plan,
       status: p.status,
+      whatsapp: p.whatsapp || null,
       category: p.categories?.name || null,
       category_icon: p.categories?.icon || null,
     }]) || []);
@@ -57,11 +60,11 @@ export default function AdminUsuariosPage() {
       ...u,
       plan: profMap.get(u.id)?.plan || null,
       prof_status: profMap.get(u.id)?.status || null,
+      whatsapp: profMap.get(u.id)?.whatsapp || null,
       category: profMap.get(u.id)?.category || null,
       category_icon: profMap.get(u.id)?.category_icon || null,
     }));
 
-    // Coletar categorias únicas para o filtro
     const uniqueCategories = [...new Set(
       enriched.filter((u) => u.category).map((u) => JSON.stringify({ name: u.category, icon: u.category_icon }))
     )].map((s) => JSON.parse(s));
@@ -102,13 +105,29 @@ export default function AdminUsuariosPage() {
     setProcessing(false);
   }
 
+  function formatWhatsApp(whatsapp: string) {
+    const n = whatsapp.replace(/\D/g, "");
+    if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+    if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+    return whatsapp;
+  }
+
   const filtered = users.filter((u) => {
     const matchQuery = u.name?.toLowerCase().includes(query.toLowerCase()) ||
-      u.email?.toLowerCase().includes(query.toLowerCase());
+      u.email?.toLowerCase().includes(query.toLowerCase()) ||
+      u.whatsapp?.includes(query);
     const matchRole = roleFilter === "all" || u.role === roleFilter;
     const matchCategory = categoryFilter === "all" || u.category === categoryFilter;
-    return matchQuery && matchRole && matchCategory;
+    const matchStatus = statusFilter === "all" ||
+      (statusFilter === "active" && u.prof_status === "active") ||
+      (statusFilter === "inactive" && u.prof_status === "inactive");
+    return matchQuery && matchRole && matchCategory && matchStatus;
   });
+
+  // Contadores
+  const totalProfs = users.filter(u => u.role === "professional").length;
+  const inactiveProfs = users.filter(u => u.role === "professional" && u.prof_status === "inactive").length;
+  const totalClients = users.filter(u => u.role === "client").length;
 
   function PlanBadge({ plan }: { plan?: string | null }) {
     if (!plan) return null;
@@ -151,16 +170,44 @@ export default function AdminUsuariosPage() {
       </div>
 
       <div className="px-4 py-4 space-y-3">
+
+        {/* Métricas rápidas */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>{totalProfs}</div>
+            <div className="text-[10px] text-muted">Profissionais</div>
+          </div>
+          <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid rgba(239,68,68,0.3)" }}>
+            <div className="font-syne font-bold text-lg" style={{ color: "#f87171" }}>{inactiveProfs}</div>
+            <div className="text-[10px] text-muted">Inativos</div>
+          </div>
+          <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="font-syne font-bold text-lg" style={{ color: "#a855f7" }}>{totalClients}</div>
+            <div className="text-[10px] text-muted">Clientes</div>
+          </div>
+        </div>
+
+        {/* Alerta inativos */}
+        {inactiveProfs > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-xl"
+            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+            <AlertTriangle size={14} style={{ color: "#f87171" }} />
+            <p className="text-xs" style={{ color: "#f87171" }}>
+              <strong>{inactiveProfs}</strong> profissional(is) inativo(s) — entre em contato para converter!
+            </p>
+          </div>
+        )}
+
         {/* Busca */}
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
           style={{ background: "#111113", border: "1px solid #1F1F23" }}>
           <Search size={16} className="text-muted" />
           <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por nome ou e-mail..."
+            placeholder="Buscar por nome, e-mail ou WhatsApp..."
             className="flex-1 bg-transparent text-sm text-foreground placeholder-muted outline-none" />
         </div>
 
-        {/* Filtro por role */}
+        {/* Filtros por role */}
         <div className="flex gap-2 flex-wrap">
           {(["all", "client", "professional"] as const).map((r) => (
             <button key={r} onClick={() => setRoleFilter(r)}
@@ -171,6 +218,18 @@ export default function AdminUsuariosPage() {
                 color: roleFilter === r ? "#3B82F6" : "#A1A1AA",
               }}>
               {r === "all" ? "Todos" : r === "client" ? "Clientes" : "Profissionais"}
+            </button>
+          ))}
+          {/* Filtro status */}
+          {(["all", "active", "inactive"] as const).map((s) => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={{
+                background: statusFilter === s ? s === "inactive" ? "rgba(239,68,68,0.2)" : "rgba(34,197,94,0.2)" : "#111113",
+                border: statusFilter === s ? s === "inactive" ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(34,197,94,0.4)" : "1px solid #1F1F23",
+                color: statusFilter === s ? s === "inactive" ? "#f87171" : "#22c55e" : "#A1A1AA",
+              }}>
+              {s === "all" ? "Todos status" : s === "active" ? "✅ Ativos" : "🔴 Inativos"}
             </button>
           ))}
         </div>
@@ -214,7 +273,7 @@ export default function AdminUsuariosPage() {
           <div className="space-y-2">
             {filtered.map((user) => (
               <div key={user.id} className="p-4 rounded-2xl"
-                style={{ background: "#111113", border: user.banned ? "1px solid rgba(239,68,68,0.3)" : "1px solid #1F1F23" }}>
+                style={{ background: "#111113", border: user.banned ? "1px solid rgba(239,68,68,0.3)" : user.prof_status === "inactive" ? "1px solid rgba(239,68,68,0.2)" : "1px solid #1F1F23" }}>
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
                     style={{ background: user.banned ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)", color: user.banned ? "#f87171" : "#93c5fd" }}>
@@ -236,11 +295,27 @@ export default function AdminUsuariosPage() {
                       )}
                     </div>
                     <p className="text-xs text-muted truncate">{user.email}</p>
-                    {/* Profissão */}
                     {user.category && (
                       <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>
                         {user.category_icon} {user.category}
                       </p>
+                    )}
+                    {/* WhatsApp */}
+                    {user.whatsapp && (
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <a href={`https://wa.me/55${user.whatsapp.replace(/\D/g, "")}?text=Oi ${user.name}! Tudo bem? Aqui é o Maycon do UDIHUB! Vi que você criou seu perfil mas ainda não ativou a assinatura. Posso te ajudar? 😊`}
+                          target="_blank" rel="noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold"
+                          style={{ background: "rgba(22,163,74,0.15)", border: "1px solid rgba(22,163,74,0.3)", color: "#22c55e" }}>
+                          <MessageCircle size={11} /> {formatWhatsApp(user.whatsapp)}
+                        </a>
+                        {user.prof_status === "inactive" && (
+                          <span className="text-[10px] px-2 py-1 rounded-lg font-bold animate-pulse"
+                            style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                            Converter!
+                          </span>
+                        )}
+                      </div>
                     )}
                     {user.ban_reason && <p className="text-xs mt-0.5" style={{ color: "#f87171" }}>Motivo: {user.ban_reason}</p>}
                     <p className="text-[10px] text-muted mt-0.5">Desde {formatDate(user.created_at)}</p>
