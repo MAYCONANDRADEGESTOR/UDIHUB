@@ -1,26 +1,26 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-// Rotas que nunca precisam de autenticação
+// Rotas públicas — sem autenticação necessária
 const PUBLIC_ROUTES = [
   "/", "/seja-profissional", "/servicos", "/profissional",
   "/como-funciona", "/privacidade", "/termos", "/banido",
-  "/excluir-conta",
+  "/excluir-conta", "/inicio",
 ];
 
 // Rotas que precisam de autenticação
-const PRIVATE_ROUTES = ["/painel", "/admin", "/inicio", "/favoritos", "/perfil"];
+const PRIVATE_ROUTES = ["/painel", "/admin", "/favoritos", "/perfil"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Rota pública → passa direto sem query ──
+  // Rota pública → passa direto sem nenhuma query
   const isPublic = PUBLIC_ROUTES.some((p) =>
     pathname === p || pathname.startsWith(p + "/")
   );
   if (isPublic) return NextResponse.next({ request: { headers: request.headers } });
 
-  // ── Só faz query se for rota privada ──
+  // Só faz query se for rota privada
   const isPrivate = PRIVATE_ROUTES.some((p) => pathname.startsWith(p));
   if (!isPrivate) return NextResponse.next({ request: { headers: request.headers } });
 
@@ -43,10 +43,10 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Pega sessão — usa cache do JWT quando possível
+  // Pega sessão
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Sem sessão → redireciona para login
+  // Sem sessão → login
   if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
@@ -70,7 +70,7 @@ export async function middleware(request: NextRequest) {
 
   // ── ADMIN ──
   if (role === "admin") {
-    if (pathname.startsWith("/painel") || pathname.startsWith("/inicio")) {
+    if (pathname.startsWith("/painel")) {
       return NextResponse.redirect(new URL("/admin", request.url));
     }
     return response;
@@ -81,33 +81,23 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/admin")) {
       return NextResponse.redirect(new URL("/painel", request.url));
     }
-
-    // Verifica status apenas quando necessário (acessando /painel)
     if (pathname.startsWith("/painel")) {
       const allowedPaths = ["/painel/assinatura", "/painel/perfil", "/painel/retorno"];
       const isAllowed = allowedPaths.some((p) => pathname.startsWith(p));
-
       if (!isAllowed) {
         const { data: prof } = await supabase
           .from("professionals")
           .select("status, coupon_code, trial_ends_at")
           .eq("user_id", user.id)
           .single();
-
         const isActive = prof?.status === "active";
         const hasCoupon = !!prof?.coupon_code;
         const inTrial = prof?.trial_ends_at && new Date(prof.trial_ends_at) > new Date();
-
         if (!isActive && !hasCoupon && !inTrial) {
           return NextResponse.redirect(new URL("/painel/assinatura", request.url));
         }
       }
     }
-
-    if (pathname === "/inicio") {
-      return NextResponse.redirect(new URL("/painel", request.url));
-    }
-
     return response;
   }
 
