@@ -14,8 +14,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/como-funciona`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/termos`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE_URL}/privacidade`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.3 },
+    { url: `${BASE_URL}/excluir-conta`, lastModified: new Date(), changeFrequency: "yearly", priority: 0.2 },
   ];
 
+  // 107 categorias — geradas automaticamente do constants.ts
   const categoryPages: MetadataRoute.Sitemap = CATEGORIES.map((cat) => ({
     url: `${BASE_URL}/servicos/${cat.slug}`,
     lastModified: new Date(),
@@ -25,7 +27,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let professionalPages: MetadataRoute.Sitemap = [];
   try {
-    // Usar cliente público direto — sem cookies de autenticação
     const supabase = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
