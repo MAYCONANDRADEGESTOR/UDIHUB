@@ -38,8 +38,8 @@ export default function BottomNav() {
     .some((p) => pathname.startsWith(p));
   if (hidden) return null;
 
-  const isHomeActive = pathname === "/inicio";
-  const isSearchActive = pathname === "/servicos" || pathname.startsWith("/servicos/");
+  const isHomeActive = pathname === "/";
+  const isSearchActive = pathname === "/inicio" || pathname === "/servicos" || pathname.startsWith("/servicos/");
   const isFavActive = pathname === "/favoritos";
   const isPainelActive = painelHref
     ? pathname === painelHref || pathname.startsWith(painelHref + "/")
@@ -60,23 +60,23 @@ export default function BottomNav() {
             height: "64px",
           }}>
 
-          {/* Home */}
-          <Link href="/inicio"
+          {/* Home → landing page */}
+          <Link href="/"
             className="flex items-center justify-center w-11 h-11 rounded-2xl transition-all duration-200 active:scale-90"
             style={{ background: isHomeActive ? "rgba(59,130,246,0.12)" : "transparent" }}>
             <Home size={24} strokeWidth={isHomeActive ? 2.5 : 1.8}
               style={{ color: isHomeActive ? "#3B82F6" : "rgba(255,255,255,0.5)", transition: "all 0.2s ease" }} />
           </Link>
 
-          {/* Buscar */}
-          <Link href="/servicos"
+          {/* Buscar → /inicio com profissionais */}
+          <Link href="/inicio"
             className="flex items-center justify-center w-11 h-11 rounded-2xl transition-all duration-200 active:scale-90"
             style={{ background: isSearchActive ? "rgba(59,130,246,0.12)" : "transparent" }}>
             <Search size={22} strokeWidth={isSearchActive ? 2.5 : 1.8}
               style={{ color: isSearchActive ? "#3B82F6" : "rgba(255,255,255,0.5)", transition: "all 0.2s ease" }} />
           </Link>
 
-          {/* Botão central — igual aos outros, sem elevação */}
+          {/* Botão central */}
           <Link href="/seja-profissional"
             className="flex items-center justify-center active:scale-90 transition-transform duration-150"
             style={{
