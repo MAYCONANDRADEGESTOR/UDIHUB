@@ -110,8 +110,7 @@ export default function HomePage() {
                       {profile.name?.split(" ")[0]}
                     </div>
                   </div>
-                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ background: "#22c55e" }} />
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#22c55e" }} />
                   <ChevronDown size={12} className="text-muted flex-shrink-0" />
                 </button>
 
@@ -177,19 +176,17 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* HERO — sem logo grande */}
+      {/* HERO */}
       <section className="relative pt-24 pb-12 px-4 overflow-hidden"
         style={{ background: "linear-gradient(160deg, #09090B 0%, #0c1220 50%, #09090B 100%)" }}>
         <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[400px] h-[200px] pointer-events-none rounded-full"
           style={{ background: "radial-gradient(ellipse, rgba(59,130,246,0.1) 0%, transparent 70%)", filter: "blur(60px)" }} />
         <div className="max-w-lg mx-auto text-center relative z-10">
-
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold mb-5 tracking-wide"
             style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#93c5fd" }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#3B82F6" }} />
             NOVO · Uberlandia · MG
           </div>
-
           <h1 className="font-syne font-bold text-2xl text-foreground leading-snug mb-4">
             O profissional certo,{" "}
             <span style={{
@@ -201,12 +198,10 @@ export default function HomePage() {
               perto de voce.
             </span>
           </h1>
-
           <p className="text-sm leading-relaxed mb-7 max-w-xs mx-auto" style={{ color: "#94a3b8" }}>
             Encontre profissionais no seu bairro. Para clientes.{" "}
             <span style={{ color: "#93c5fd" }}>Profissional? Receba clientes pelo WhatsApp.</span>
           </p>
-
           <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
             <Link href="/servicos"
               className="flex items-center justify-center px-6 py-3 rounded-xl font-bold text-sm text-white active:scale-95 transition-all"
@@ -245,17 +240,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FAQ — com "Como funciona" dentro */}
+      {/* FAQ com Como Funciona dentro */}
       <section className="px-4 py-12" style={{ background: "#080809" }}>
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
             <p className="text-[10px] font-bold tracking-widest mb-1.5" style={{ color: "#3B82F6" }}>DUVIDAS</p>
             <h2 className="font-syne font-bold text-xl text-foreground">Perguntas frequentes</h2>
           </div>
-
           <div className="flex flex-col gap-2">
 
-            {/* Como funciona — dentro do FAQ como accordion */}
+            {/* Como funciona */}
             <div className="rounded-2xl overflow-hidden"
               style={{ background: "#111113", border: "1px solid rgba(59,130,246,0.2)" }}>
               <button type="button"
@@ -263,11 +257,7 @@ export default function HomePage() {
                 className="w-full flex items-center justify-between px-4 py-3.5 text-left gap-4">
                 <span className="text-sm font-semibold text-foreground">Como funciona o UDIHUB?</span>
                 <span className="text-muted flex-shrink-0 text-base leading-none"
-                  style={{
-                    display: "inline-block",
-                    transform: showHowItWorks ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.2s ease",
-                  }}>
+                  style={{ display: "inline-block", transform: showHowItWorks ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }}>
                   ⌄
                 </span>
               </button>
@@ -293,7 +283,7 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* FAQs normais */}
+            {/* FAQs */}
             {FAQ.map(({ q, a }, i) => (
               <div key={q} className="rounded-2xl overflow-hidden"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -302,11 +292,7 @@ export default function HomePage() {
                   className="w-full flex items-center justify-between px-4 py-3.5 text-left gap-4">
                   <span className="text-sm font-semibold text-foreground">{q}</span>
                   <span className="text-muted flex-shrink-0 text-base leading-none"
-                    style={{
-                      display: "inline-block",
-                      transform: openFaq === i ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform 0.2s ease",
-                    }}>
+                    style={{ display: "inline-block", transform: openFaq === i ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }}>
                     ⌄
                   </span>
                 </button>
@@ -346,6 +332,8 @@ export default function HomePage() {
                 </Link>
               ))}
             </div>
+
+            {/* Icones sociais — Instagram + Email + WhatsApp */}
             <div className="flex items-center gap-3">
               <a href="https://www.instagram.com/udihub" target="_blank" rel="noopener noreferrer"
                 className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -357,7 +345,16 @@ export default function HomePage() {
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
                 <Mail size={15} className="text-muted" />
               </a>
+              <a href="https://wa.me/5519990177838?text=Ola!%20Vim%20pelo%20UDIHUB%20e%20preciso%20de%20ajuda."
+                target="_blank" rel="noopener noreferrer"
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" className="text-muted">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+              </a>
             </div>
+
             <div className="w-full h-px" style={{ background: "#1F1F23" }} />
             <p className="text-[10px] text-muted">
               © 2025 UDIHUB · Uberlandia, MG · Todos os direitos reservados
