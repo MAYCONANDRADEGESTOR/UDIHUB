@@ -27,13 +27,15 @@ function formatPhone(value: string) {
   return nums;
 }
 
+type CouponType = "free_forever" | "trial_30days" | "trial_90days" | null;
+
 export default function CadastroPage() {
   const router = useRouter();
   const [role, setRole] = useState<"client" | "professional" | null>(null);
   const [loading, setLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [couponValid, setCouponValid] = useState<null | "free_forever" | "trial_30days">(null);
+  const [couponValid, setCouponValid] = useState<CouponType>(null);
   const [couponChecking, setCouponChecking] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
@@ -50,12 +52,11 @@ export default function CadastroPage() {
 
   const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted";
   const inputStyle = { background: "#09090B", border: "1px solid #1F1F23", outline: "none" };
-  const inputReadOnly = { background: "#09090B", border: "1px solid #1F1F23", outline: "none", opacity: 0.5 };
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("Foto muito grande. Máximo 5MB."); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Foto muito grande. Maximo 5MB."); return; }
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
   }
@@ -72,22 +73,61 @@ export default function CadastroPage() {
 
   async function checkCoupon(code: string) {
     if (!code) { setCouponValid(null); return; }
+    if (!form.email) { toast.error("Preencha seu e-mail primeiro"); return; }
     setCouponChecking(true);
     const supabase = createClient();
-    const { data } = await supabase
+
+    // Buscar cupom
+    const { data: coupon } = await supabase
       .from("coupons")
-      .select("type, active")
+      .select("type, active, max_uses, uses_count, trial_days, expires_at")
       .eq("code", code.toUpperCase())
       .eq("active", true)
       .single();
-    if (data) {
-      setCouponValid(data.type as "free_forever" | "trial_30days");
-      if (data.type === "free_forever") toast.success("Cupom válido! Acesso permanente!");
-      if (data.type === "trial_30days") toast.success("Cupom válido! 30 dias!");
-    } else {
+
+    if (!coupon) {
       setCouponValid(null);
-      toast.error("Cupom inválido ou expirado");
+      toast.error("Cupom invalido ou expirado");
+      setCouponChecking(false);
+      return;
     }
+
+    // Verificar se expirou
+    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+      setCouponValid(null);
+      toast.error("Cupom expirado");
+      setCouponChecking(false);
+      return;
+    }
+
+    // Verificar limite de usos totais
+    if (coupon.max_uses && coupon.uses_count >= coupon.max_uses) {
+      setCouponValid(null);
+      toast.error("Cupom esgotado");
+      setCouponChecking(false);
+      return;
+    }
+
+    // Verificar se este email ja usou este cupom
+    const { data: prevUse } = await supabase
+      .from("coupon_uses")
+      .select("id, trial_ends_at")
+      .eq("coupon_code", code.toUpperCase())
+      .eq("email", form.email.toLowerCase())
+      .single();
+
+    if (prevUse) {
+      setCouponValid(null);
+      toast.error("Este e-mail ja utilizou este cupom!");
+      setCouponChecking(false);
+      return;
+    }
+
+    // Cupom valido!
+    setCouponValid(coupon.type as CouponType);
+    if (coupon.type === "free_forever") toast.success("Cupom valido! Acesso permanente!");
+    if (coupon.type === "trial_30days") toast.success("Cupom valido! 30 dias gratis!");
+    if (coupon.type === "trial_90days") toast.success("Cupom valido! 3 meses gratis!");
     setCouponChecking(false);
   }
 
@@ -99,6 +139,7 @@ export default function CadastroPage() {
     setLoading(true);
 
     const supabase = createClient();
+
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
@@ -106,7 +147,7 @@ export default function CadastroPage() {
     });
 
     if (error) {
-      toast.error(error.message === "User already registered" ? "Este email ja esta cadastrado" : error.message);
+      toast.error(error.message === "User already registered" ? "Este e-mail ja esta cadastrado" : error.message);
       setLoading(false);
       return;
     }
@@ -133,12 +174,18 @@ export default function CadastroPage() {
         .from("categories").select("id").eq("slug", form.category).single();
 
       if (cat) {
+        // Calcular status e trial baseado no cupom
         let profStatus = "inactive";
-        let trialEndsAt = null;
-        if (couponValid === "free_forever") profStatus = "active";
-        else if (couponValid === "trial_30days") {
+        let trialEndsAt: string | null = null;
+
+        if (couponValid === "free_forever") {
+          profStatus = "active";
+        } else if (couponValid === "trial_30days") {
           profStatus = "active";
           trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        } else if (couponValid === "trial_90days") {
+          profStatus = "active";
+          trialEndsAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
         }
 
         const { data: profData } = await supabase.from("professionals").upsert({
@@ -148,13 +195,14 @@ export default function CadastroPage() {
           whatsapp: phoneClean,
           instagram: form.instagram ? form.instagram.replace("@", "") : null,
           category_id: cat.id,
-          plan: form.plan,
+          plan: "basic", // cupom sempre ativa como basico
           status: profStatus,
           avatar: avatarUrl,
           coupon_code: form.coupon || null,
           trial_ends_at: trialEndsAt,
         }, { onConflict: "user_id" }).select("id").single();
 
+        // Adicionar categoria primaria
         if (profData?.id) {
           await supabase.from("professional_categories").insert({
             professional_id: profData.id,
@@ -163,18 +211,41 @@ export default function CadastroPage() {
           }).onConflict("professional_id, category_id").ignore();
         }
 
+        // Registrar uso do cupom (evita reutilizacao)
         if (form.coupon && couponValid) {
-          await supabase.rpc("increment_coupon_uses", { coupon_code: form.coupon.toUpperCase() }).catch(() => {});
+          // Incrementar contador de usos
+          const { data: couponData } = await supabase
+            .from("coupons")
+            .select("uses_count")
+            .eq("code", form.coupon.toUpperCase())
+            .single();
+
+          if (couponData) {
+            await supabase.from("coupons")
+              .update({ uses_count: (couponData.uses_count || 0) + 1 })
+              .eq("code", form.coupon.toUpperCase());
+          }
+
+          // Registrar uso por email — impede reuso mesmo com nova conta
+          await supabase.from("coupon_uses").insert({
+            coupon_code: form.coupon.toUpperCase(),
+            user_id: data.user.id,
+            email: form.email.toLowerCase(),
+            trial_ends_at: trialEndsAt,
+          }).onConflict("coupon_code, email").ignore();
         }
       }
 
       await sendEmail("welcome", form.email, form.name);
 
       if (couponValid === "free_forever") {
-        toast.success("Perfil ativo! Cupom aplicado!");
+        toast.success("Perfil ativo! Acesso permanente aplicado!");
         router.push("/painel");
       } else if (couponValid === "trial_30days") {
-        toast.success("30 dias ativados!");
+        toast.success("Perfil ativo por 30 dias!");
+        router.push("/painel");
+      } else if (couponValid === "trial_90days") {
+        toast.success("Perfil ativo por 3 meses! Aproveite!");
         router.push("/painel");
       } else {
         toast.success("Perfil criado! Ative sua assinatura para aparecer nas buscas.");
@@ -209,7 +280,7 @@ export default function CadastroPage() {
 
         <div>
           <h1 className="font-syne font-bold text-2xl text-foreground mb-1">Criar conta</h1>
-          <p className="text-sm text-muted mb-5">Preencha os dados abaixo para começar</p>
+          <p className="text-sm text-muted mb-5">Preencha os dados abaixo para comecar</p>
         </div>
 
         {/* Tipo de conta */}
@@ -237,7 +308,7 @@ export default function CadastroPage() {
           </div>
         </div>
 
-        {/* Foto — só para profissional */}
+        {/* Foto — so para profissional */}
         {role === "professional" && (
           <div>
             <label className="block text-xs font-medium text-muted mb-2">Foto do perfil</label>
@@ -273,14 +344,16 @@ export default function CadastroPage() {
         {/* Nome */}
         <div>
           <label className="block text-xs font-medium text-muted mb-1.5">Nome completo *</label>
-          <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+          <input type="text" value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
             placeholder="Seu nome completo" required className={inputClass} style={inputStyle} />
         </div>
 
         {/* Email */}
         <div>
           <label className="block text-xs font-medium text-muted mb-1.5">E-mail *</label>
-          <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+          <input type="email" value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
             placeholder="seu@email.com" required className={inputClass} style={inputStyle} />
         </div>
 
@@ -304,8 +377,10 @@ export default function CadastroPage() {
         {/* Senha */}
         <div>
           <label className="block text-xs font-medium text-muted mb-1.5">Senha *</label>
-          <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder="Minimo 6 caracteres" minLength={6} required className={inputClass} style={inputStyle} />
+          <input type="password" value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            placeholder="Minimo 6 caracteres" minLength={6} required
+            className={inputClass} style={inputStyle} />
         </div>
 
         {/* Campos exclusivos do profissional */}
@@ -314,7 +389,8 @@ export default function CadastroPage() {
             {/* Especialidade */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">Especialidade *</label>
-              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+              <select value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
                 required className={inputClass}
                 style={{ ...inputStyle, color: form.category ? "#FAFAFA" : "#A1A1AA" }}>
                 <option value="">Selecione sua especialidade</option>
@@ -342,14 +418,15 @@ export default function CadastroPage() {
             {/* Bio */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">Bio (opcional)</label>
-              <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
+              <textarea value={form.bio}
+                onChange={(e) => setForm({ ...form, bio: e.target.value })}
                 placeholder="Fale sobre sua experiencia e servicos..."
                 rows={3} maxLength={300}
                 className={inputClass} style={{ ...inputStyle, resize: "none" }} />
               <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
             </div>
 
-            {/* Plano */}
+            {/* Plano — so aparece sem cupom ativo */}
             {!couponValid && (
               <div>
                 <label className="block text-xs font-medium text-muted mb-2">Plano</label>
@@ -392,21 +469,36 @@ export default function CadastroPage() {
 
             {/* Cupom */}
             {couponValid ? (
-              <div className="p-4 rounded-2xl flex items-center gap-3"
+              <div className="p-4 rounded-2xl"
                 style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)" }}>
-                <Check size={16} style={{ color: "#22c55e" }} />
-                <div className="flex-1">
-                  <p className="text-sm font-bold" style={{ color: "#22c55e" }}>
-                    {couponValid === "free_forever" ? "Acesso permanente!" : "30 dias!"}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {couponValid === "free_forever"
-                      ? "Perfil ativo sem mensalidade."
-                      : "Perfil ativo por 30 dias. Apos, R$69/mes."}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <Check size={16} style={{ color: "#22c55e" }} />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold" style={{ color: "#22c55e" }}>
+                      {couponValid === "free_forever" && "Acesso permanente ativado!"}
+                      {couponValid === "trial_30days" && "30 dias gratis ativados!"}
+                      {couponValid === "trial_90days" && "3 meses gratis ativados!"}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {couponValid === "free_forever" && "Perfil ativo sem mensalidade."}
+                      {couponValid === "trial_30days" && "Perfil ativo por 30 dias. Apos isso, R$69/mes."}
+                      {couponValid === "trial_90days" && "Perfil ativo por 90 dias. Apos esse periodo, assine para continuar."}
+                    </p>
+                  </div>
+                  <button type="button"
+                    onClick={() => { setForm({ ...form, coupon: "" }); setCouponValid(null); }}
+                    className="text-muted flex-shrink-0">
+                    <X size={14} />
+                  </button>
                 </div>
-                <button type="button" onClick={() => { setForm({ ...form, coupon: "" }); setCouponValid(null); }}
-                  className="text-muted"><X size={14} /></button>
+                {couponValid === "trial_90days" && (
+                  <div className="mt-2 pt-2 flex items-center gap-2"
+                    style={{ borderTop: "1px solid rgba(34,197,94,0.2)" }}>
+                    <span className="text-[10px]" style={{ color: "#22c55e" }}>
+                      Plano Basico · Uso unico por e-mail
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div>
@@ -416,26 +508,31 @@ export default function CadastroPage() {
                 <div className="flex gap-2">
                   <input type="text" value={form.coupon}
                     onChange={(e) => { setForm({ ...form, coupon: e.target.value.toUpperCase() }); setCouponValid(null); }}
-                    placeholder="Digite seu cupom"
+                    placeholder="Ex: UDIHUB90"
                     className={inputClass} style={{ ...inputStyle, flex: 1 }} />
                   <button type="button" onClick={() => checkCoupon(form.coupon)}
-                    disabled={!form.coupon || couponChecking}
-                    className="px-4 py-3 rounded-xl text-xs font-bold"
+                    disabled={!form.coupon || couponChecking || !form.email}
+                    className="px-4 py-3 rounded-xl text-xs font-bold flex-shrink-0"
                     style={{
                       background: "rgba(59,130,246,0.15)",
                       border: "1px solid rgba(59,130,246,0.3)",
                       color: "#3B82F6",
-                      opacity: (!form.coupon || couponChecking) ? 0.5 : 1,
+                      opacity: (!form.coupon || couponChecking || !form.email) ? 0.5 : 1,
                     }}>
                     {couponChecking ? <Loader2 size={13} className="animate-spin" /> : "Aplicar"}
                   </button>
                 </div>
+                {!form.email && form.coupon && (
+                  <p className="text-[10px] mt-1" style={{ color: "#f87171" }}>
+                    Preencha o e-mail antes de aplicar o cupom
+                  </p>
+                )}
               </div>
             )}
           </>
         )}
 
-        {/* Botão submit */}
+        {/* Botao submit */}
         <button type="submit" disabled={loading || !role}
           className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 mt-2"
           style={{
