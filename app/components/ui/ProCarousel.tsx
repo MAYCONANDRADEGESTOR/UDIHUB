@@ -12,7 +12,6 @@ interface ProProf {
   whatsapp: string;
   avg_rating: number;
   available_now: boolean;
-  instagram?: string;
   users: { name: string; avatar: string | null };
   categories: { name: string; icon: string };
   professional_neighborhoods: { neighborhoods: { name: string } }[];
@@ -28,8 +27,6 @@ export default function ProCarousel() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-
-      // Verifica se carrossel está ativo
       const { data: setting } = await supabase
         .from("app_settings")
         .select("value")
@@ -39,10 +36,9 @@ export default function ProCarousel() {
       if (setting?.value !== "true") { setLoading(false); return; }
       setActive(true);
 
-      // Busca profissionais PRO ativos
       const { data } = await supabase
         .from("professionals")
-        .select(`id, slug, whatsapp, avg_rating, available_now, instagram,
+        .select(`id, slug, whatsapp, avg_rating, available_now,
           users(name, avatar),
           categories(name, icon),
           professional_neighborhoods(neighborhoods(name))`)
@@ -57,7 +53,6 @@ export default function ProCarousel() {
     load();
   }, []);
 
-  // Auto-play
   useEffect(() => {
     if (professionals.length <= 1) return;
     intervalRef.current = setInterval(() => {
@@ -88,9 +83,7 @@ export default function ProCarousel() {
           <Crown size={14} style={{ color: "#FBBF24" }} />
           <span className="text-xs font-bold tracking-widest text-muted">PROFISSIONAIS PRO</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-muted">{current + 1}/{professionals.length}</span>
-        </div>
+        <span className="text-[10px] text-muted">{current + 1}/{professionals.length}</span>
       </div>
 
       <div className="relative overflow-hidden rounded-2xl"
@@ -115,7 +108,6 @@ export default function ProCarousel() {
 
         <Link href={`/profissional/${prof.slug}`} className="block p-5 pt-10">
           <div className="flex items-center gap-4">
-            {/* Avatar */}
             <div className="relative flex-shrink-0">
               {(prof.users as any)?.avatar ? (
                 <img src={(prof.users as any).avatar} alt={(prof.users as any).name}
@@ -128,8 +120,6 @@ export default function ProCarousel() {
                 </div>
               )}
             </div>
-
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <h3 className="font-syne font-bold text-base text-white truncate mb-0.5">
                 {(prof.users as any)?.name}
@@ -152,8 +142,7 @@ export default function ProCarousel() {
           </div>
         </Link>
 
-        {/* Botão WhatsApp */}
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-4">
           <button onClick={() => window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${(prof.users as any)?.name}! Vi seu perfil em destaque no UDIHUB.`), "_blank")}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white"
             style={{ background: "linear-gradient(135deg, #16a34a, #15803d)", boxShadow: "0 0 16px rgba(22,163,74,0.3)" }}>
