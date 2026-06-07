@@ -4,7 +4,7 @@ import { Toaster } from "react-hot-toast";
 import Script from "next/script";
 import BottomNav from "@/app/components/layout/BottomNav";
 
-const GA_ID = "G-XXXXXXXXXX"; // ← substitui pelo seu ID do Google Analytics
+const GA_ID = "G-QK04EZWBTR";
 
 export const metadata: Metadata = {
   title: {
