@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Heart, ArrowRight, MapPin, Star, MessageCircle, Loader2, X, Eye } from "lucide-react";
+import { Heart, ArrowRight, MapPin, Star, MessageCircle, Loader2, X, Eye, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
+import BottomNav from "@/app/components/layout/BottomNav";
 import toast from "react-hot-toast";
 
 interface FavoriteProfessional {
@@ -74,7 +75,7 @@ export default function FavoritosPage() {
         body: JSON.stringify({ professional_id: prof.id }),
       });
     } catch {}
-    window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
+    window.open(buildWhatsAppUrl(prof.whatsapp, `Ola ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
 
   if (loading) return (
@@ -85,12 +86,25 @@ export default function FavoritosPage() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
+
+      {/* Header com botão voltar */}
       <div className="sticky top-0 z-40 px-4 pt-4 pb-3"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
-        <h1 className="font-syne font-bold text-xl text-foreground">Favoritos</h1>
-        {favorites.length > 0 && (
-          <p className="text-xs text-muted mt-0.5">{favorites.length} profissional{favorites.length !== 1 ? "is" : ""} salvo{favorites.length !== 1 ? "s" : ""}</p>
-        )}
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()}
+            className="w-9 h-9 flex items-center justify-center rounded-xl flex-shrink-0"
+            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <ArrowLeft size={18} className="text-muted" />
+          </button>
+          <div className="flex-1">
+            <h1 className="font-syne font-bold text-xl text-foreground">Favoritos</h1>
+            {favorites.length > 0 && (
+              <p className="text-xs text-muted">
+                {favorites.length} profissional{favorites.length !== 1 ? "is" : ""} salvo{favorites.length !== 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="px-4 py-4">
@@ -102,12 +116,12 @@ export default function FavoritosPage() {
             </div>
             <h2 className="font-syne font-bold text-lg text-foreground mb-2">Nenhum favorito ainda</h2>
             <p className="text-sm text-muted max-w-xs leading-relaxed mb-6">
-              Toque no coração nos perfis dos profissionais para salvar seus favoritos aqui.
+              Toque no coracao nos perfis dos profissionais para salvar seus favoritos aqui.
             </p>
             <Link href="/servicos"
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white"
               style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 16px rgba(59,130,246,0.3)" }}>
-              Explorar serviços <ArrowRight size={16} />
+              Explorar servicos <ArrowRight size={16} />
             </Link>
           </div>
         ) : (
@@ -122,16 +136,15 @@ export default function FavoritosPage() {
                   style={{ background: "#111113", border: "1px solid #1F1F23" }}>
                   <div className="p-4">
                     <div className="flex items-start gap-3">
-                      {/* Avatar com foto real */}
+
+                      {/* Avatar */}
                       <Link href={`/profissional/${prof?.slug}`} className="relative flex-shrink-0">
                         {avatarUrl ? (
                           <Image
                             src={avatarUrl}
                             alt={prof?.users?.name || "Profissional"}
-                            width={56}
-                            height={56}
-                            className="w-14 h-14 rounded-xl object-cover"
-                          />
+                            width={56} height={56}
+                            className="w-14 h-14 rounded-xl object-cover" />
                         ) : (
                           <div className="w-14 h-14 rounded-xl flex items-center justify-center font-syne font-bold text-lg"
                             style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
@@ -140,7 +153,7 @@ export default function FavoritosPage() {
                         )}
                         {prof?.available_now && (
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
-                            style={{ background: "#22c55e", borderColor: "#111113", boxShadow: "0 0 8px rgba(34,197,94,0.7)" }} />
+                            style={{ background: "#22c55e", borderColor: "#111113" }} />
                         )}
                       </Link>
 
@@ -154,7 +167,8 @@ export default function FavoritosPage() {
                             </div>
                             <p className="text-xs text-muted">{prof?.categories?.icon} {prof?.categories?.name}</p>
                           </Link>
-                          {/* Remove */}
+
+                          {/* Remover */}
                           <button onClick={() => removeFavorite(fav.id)} disabled={removing === fav.id}
                             className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center"
                             style={{ background: "rgba(239,68,68,0.1)" }}>
@@ -180,7 +194,7 @@ export default function FavoritosPage() {
                           {prof?.available_now && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
                               style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>
-                              Disponível
+                              Disponivel
                             </span>
                           )}
                         </div>
@@ -188,7 +202,7 @@ export default function FavoritosPage() {
                     </div>
                   </div>
 
-                  {/* Botões Ver perfil + WhatsApp */}
+                  {/* Botoes */}
                   <div className="px-4 pb-4 grid grid-cols-2 gap-2">
                     <Link href={`/profissional/${prof?.slug}`}
                       className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
@@ -207,6 +221,8 @@ export default function FavoritosPage() {
           </div>
         )}
       </div>
+
+      <BottomNav />
     </div>
   );
 }
