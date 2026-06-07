@@ -51,6 +51,8 @@ export const CATEGORIES = [
   { slug: "social-media", name: "Social Media / Marketing", icon: "📱" },
   { slug: "editor-video", name: "Editor de Vídeo", icon: "🎬" },
   { slug: "criador-sites", name: "Criador de Sites / Landing Page", icon: "🌐" },
+  { slug: "influenciador-digital", name: "Influenciador Digital", icon: "📲" },
+  { slug: "produtor-conteudo", name: "Produtor de Conteúdo", icon: "🎥" },
 
   // Veículos
   { slug: "mecanico", name: "Mecânico", icon: "🚗" },
@@ -117,7 +119,6 @@ export const CATEGORIES = [
   // Profissionais Liberais
   { slug: "advogado", name: "Advogado", icon: "⚖️" },
   { slug: "contador", name: "Contador", icon: "🧾" },
-  { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
   { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
 
   // Outros
