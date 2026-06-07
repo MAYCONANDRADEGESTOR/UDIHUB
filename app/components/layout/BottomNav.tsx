@@ -1,134 +1,91 @@
-import type { Metadata, Viewport } from "next";
-import "./globals.css";
-import { Toaster } from "react-hot-toast";
-import Script from "next/script";
-import BottomNav from "@/app/components/layout/BottomNav";
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Home, Search, Plus, Heart, LayoutDashboard } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
-const GA_ID = "G-QK04EZWBTR";
+export default function BottomNav() {
+  const pathname = usePathname();
+  const [painelHref, setPainelHref] = useState<string | null>(null);
 
-export const metadata: Metadata = {
-  title: {
-    default: "UDIHUB — Encontre o profissional certo, perto de você",
-    template: "%s | UDIHUB",
-  },
-  description: "UDIHUB é o marketplace de serviços locais do Triângulo Mineiro. Encontre encanadores, eletricistas, pintores, personal trainers e muito mais perto de você em Uberlândia, MG.",
-  keywords: [
-    "UDIHUB", "udihub", "marketplace serviços Uberlândia",
-    "profissionais Uberlândia", "encanador Uberlândia",
-    "eletricista Uberlândia", "pintor Uberlândia",
-    "serviços locais Triângulo Mineiro", "profissionais Uberaba",
-    "encontrar profissional MG",
-  ],
-  authors: [{ name: "UDIHUB", url: "https://udihub.com.br" }],
-  creator: "UDIHUB",
-  publisher: "UDIHUB",
-  metadataBase: new URL("https://udihub.com.br"),
-  alternates: { canonical: "https://udihub.com.br" },
-  openGraph: {
-    type: "website",
-    locale: "pt_BR",
-    url: "https://udihub.com.br",
-    siteName: "UDIHUB",
-    title: "UDIHUB — Encontre o profissional certo, perto de você",
-    description: "Marketplace de serviços locais do Triângulo Mineiro. Encontre profissionais em Uberlândia, MG.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "UDIHUB — Marketplace de serviços em Uberlândia MG" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "UDIHUB — Profissionais perto de você",
-    description: "Marketplace de serviços locais do Triângulo Mineiro.",
-    images: ["/og-image.png"],
-  },
-  robots: {
-    index: true, follow: true,
-    googleBot: { index: true, follow: true, "max-video-preview": -1, "max-image-preview": "large", "max-snippet": -1 },
-  },
-  manifest: "/manifest.json",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "UDIHUB" },
-  icons: { icon: "/logo.png", apple: "/logo.png", shortcut: "/logo.png" },
-  verification: { google: "cA4wo2-DPRYakeEmQw3Lj_tAQLV2R0CJyJrQN5Z2TDk" },
-};
+  useEffect(() => {
+    async function loadRole() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setPainelHref("/login"); return; }
+      const { data } = await supabase.from("users").select("role").eq("id", user.id).single();
+      if (data?.role === "admin") setPainelHref("/admin");
+      else if (data?.role === "professional") setPainelHref("/painel");
+      else setPainelHref("/perfil");
+    }
+    loadRole();
+  }, []);
 
-export const viewport: Viewport = {
-  themeColor: "#09090B",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-};
+  // Ocultar em páginas de auth e admin (admin tem nav própria)
+  const hidden = [
+    "/login",
+    "/cadastro",
+    "/recuperar-senha",
+    "/admin",
+  ].some((p) => pathname.startsWith(p));
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+  if (hidden) return null;
+
+  const navItems = [
+    { href: "/inicio", icon: Home, label: "Home" },
+    { href: "/servicos", icon: Search, label: "Buscar" },
+    { href: "/seja-profissional", icon: Plus, label: "Anunciar", cta: true },
+    { href: "/favoritos", icon: Heart, label: "Favoritos" },
+    { href: painelHref, icon: LayoutDashboard, label: "Painel" },
+  ];
+
   return (
-    <html lang="pt-BR" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-        <link rel="icon" href="/logo.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/logo.png" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              "name": "UDIHUB",
-              "url": "https://udihub.com.br",
-              "potentialAction": {
-                "@type": "SearchAction",
-                "target": { "@type": "EntryPoint", "urlTemplate": "https://udihub.com.br/servicos/{search_term_string}" },
-                "query-input": "required name=search_term_string"
-              }
-            })
-          }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "Organization",
-              "name": "UDIHUB",
-              "url": "https://udihub.com.br",
-              "logo": "https://udihub.com.br/logo.png",
-              "address": { "@type": "PostalAddress", "addressLocality": "Uberlândia", "addressRegion": "MG", "addressCountry": "BR" },
-              "sameAs": ["https://www.instagram.com/udihub"]
-            })
-          }}
-        />
-      </head>
-      <body className="font-sans bg-background text-foreground antialiased">
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_ID}', {
-              page_path: window.location.pathname,
-            });
-          `}
-        </Script>
-        {children}
-        <BottomNav />
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            style: {
-              background: "#111113",
-              color: "#FAFAFA",
-              border: "1px solid #1F1F23",
-              borderRadius: "12px",
-              fontFamily: "Inter, sans-serif",
-              fontSize: "14px",
-            },
-            success: { iconTheme: { primary: "#3B82F6", secondary: "#FAFAFA" } },
-          }}
-        />
-      </body>
-    </html>
+    <nav className="fixed bottom-0 left-0 right-0 z-50"
+      style={{ background: "rgba(9,9,11,0.97)", borderTop: "1px solid #1F1F23", willChange: "transform" }}>
+      <div className="absolute top-0 left-0 right-0 h-[2px]"
+        style={{ background: "linear-gradient(90deg, transparent 0%, #3B82F6 30%, #3B82F6 70%, transparent 100%)", boxShadow: "0 0 10px rgba(59,130,246,0.5)" }} />
+      <div className="flex items-center justify-around px-2 pt-2 pb-3">
+        {navItems.map(({ href, icon: Icon, label, cta }) => {
+          const resolvedHref = href || "/login";
+          const isActive = resolvedHref === "/inicio"
+            ? pathname === "/inicio"
+            : pathname === resolvedHref || pathname.startsWith(resolvedHref + "/");
+
+          if (cta) return (
+            <Link key={label} href={resolvedHref}
+              className="flex flex-col items-center gap-1 min-w-[56px] py-1">
+              <div className="relative flex items-center justify-center">
+                <span className="absolute w-10 h-10 rounded-xl animate-ping"
+                  style={{ background: "rgba(59,130,246,0.25)", animationDuration: "2s" }} />
+                <div className="relative w-10 h-10 rounded-xl flex items-center justify-center active:scale-95 transition-transform duration-150"
+                  style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 16px rgba(59,130,246,0.5)" }}>
+                  <Icon size={20} className="text-white" strokeWidth={2.5} />
+                </div>
+              </div>
+              <span className="text-[10px] font-semibold" style={{ color: "#3B82F6" }}>{label}</span>
+            </Link>
+          );
+
+          // Botão Painel — mostra spinner enquanto carrega o role
+          if (label === "Painel" && !painelHref) return (
+            <div key={label} className="flex flex-col items-center gap-1 min-w-[56px] py-1 opacity-50">
+              <Icon size={22} strokeWidth={1.8} style={{ color: "#A1A1AA" }} />
+              <span className="text-[10px] font-medium" style={{ color: "#A1A1AA" }}>{label}</span>
+            </div>
+          );
+
+          return (
+            <Link key={label} href={resolvedHref}
+              className="flex flex-col items-center gap-1 min-w-[56px] py-1 rounded-xl active:scale-95 transition-transform duration-150">
+              <Icon size={22} strokeWidth={isActive ? 2.5 : 1.8}
+                style={{ color: isActive ? "#3B82F6" : "#A1A1AA", filter: isActive ? "drop-shadow(0 0 5px rgba(59,130,246,0.5))" : "none" }} />
+              <span className="text-[10px] font-medium"
+                style={{ color: isActive ? "#3B82F6" : "#A1A1AA" }}>{label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
