@@ -7,7 +7,6 @@ import Image from "next/image";
 import { Heart, ArrowRight, MapPin, Star, MessageCircle, Loader2, X, Eye, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
-import BottomNav from "@/app/components/layout/BottomNav";
 import toast from "react-hot-toast";
 
 interface FavoriteProfessional {
@@ -40,7 +39,6 @@ export default function FavoritosPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setUserId(user.id);
-
       const { data } = await supabase
         .from("favorites")
         .select(`id, professional_id,
@@ -51,7 +49,6 @@ export default function FavoritosPage() {
           )`)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-
       setFavorites((data as any) || []);
       setLoading(false);
     }
@@ -87,7 +84,7 @@ export default function FavoritosPage() {
   return (
     <div className="min-h-screen bg-background pb-24">
 
-      {/* Header com botão voltar */}
+      {/* Header com botao voltar */}
       <div className="sticky top-0 z-40 px-4 pt-4 pb-3"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <div className="flex items-center gap-3">
@@ -130,21 +127,15 @@ export default function FavoritosPage() {
               const prof = fav.professionals as any;
               const neighborhood = prof?.professional_neighborhoods?.[0]?.neighborhoods?.name;
               const avatarUrl = prof?.avatar || prof?.users?.avatar || null;
-
               return (
                 <div key={fav.id} className="rounded-2xl overflow-hidden"
                   style={{ background: "#111113", border: "1px solid #1F1F23" }}>
                   <div className="p-4">
                     <div className="flex items-start gap-3">
-
-                      {/* Avatar */}
                       <Link href={`/profissional/${prof?.slug}`} className="relative flex-shrink-0">
                         {avatarUrl ? (
-                          <Image
-                            src={avatarUrl}
-                            alt={prof?.users?.name || "Profissional"}
-                            width={56} height={56}
-                            className="w-14 h-14 rounded-xl object-cover" />
+                          <Image src={avatarUrl} alt={prof?.users?.name || "Profissional"}
+                            width={56} height={56} className="w-14 h-14 rounded-xl object-cover" />
                         ) : (
                           <div className="w-14 h-14 rounded-xl flex items-center justify-center font-syne font-bold text-lg"
                             style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
@@ -156,8 +147,6 @@ export default function FavoritosPage() {
                             style={{ background: "#22c55e", borderColor: "#111113" }} />
                         )}
                       </Link>
-
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <Link href={`/profissional/${prof?.slug}`} className="min-w-0">
@@ -167,8 +156,6 @@ export default function FavoritosPage() {
                             </div>
                             <p className="text-xs text-muted">{prof?.categories?.icon} {prof?.categories?.name}</p>
                           </Link>
-
-                          {/* Remover */}
                           <button onClick={() => removeFavorite(fav.id)} disabled={removing === fav.id}
                             className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center"
                             style={{ background: "rgba(239,68,68,0.1)" }}>
@@ -177,7 +164,6 @@ export default function FavoritosPage() {
                               : <X size={12} style={{ color: "#f87171" }} />}
                           </button>
                         </div>
-
                         <div className="flex items-center gap-3 mt-1.5">
                           {neighborhood && (
                             <div className="flex items-center gap-1">
@@ -201,8 +187,6 @@ export default function FavoritosPage() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Botoes */}
                   <div className="px-4 pb-4 grid grid-cols-2 gap-2">
                     <Link href={`/profissional/${prof?.slug}`}
                       className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
@@ -211,7 +195,7 @@ export default function FavoritosPage() {
                     </Link>
                     <button onClick={() => handleWhatsApp(prof)}
                       className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
-                      style={{ background: "linear-gradient(135deg, #16a34a, #15803d)", boxShadow: "0 0 12px rgba(22,163,74,0.25)" }}>
+                      style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
                       <MessageCircle size={15} /> WhatsApp
                     </button>
                   </div>
@@ -222,7 +206,6 @@ export default function FavoritosPage() {
         )}
       </div>
 
-      <BottomNav />
     </div>
   );
 }
