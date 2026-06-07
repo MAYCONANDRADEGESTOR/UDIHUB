@@ -50,6 +50,7 @@ export default function CadastroPage() {
 
   const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted";
   const inputStyle = { background: "#09090B", border: "1px solid #1F1F23", outline: "none" };
+  const inputReadOnly = { background: "#09090B", border: "1px solid #1F1F23", outline: "none", opacity: 0.5 };
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -81,8 +82,8 @@ export default function CadastroPage() {
       .single();
     if (data) {
       setCouponValid(data.type as "free_forever" | "trial_30days");
-      if (data.type === "free_forever") toast.success("🎉 Cupom válido! Acesso permanente!");
-      if (data.type === "trial_30days") toast.success("🎉 Cupom válido! 30 dias!");
+      if (data.type === "free_forever") toast.success("Cupom válido! Acesso permanente!");
+      if (data.type === "trial_30days") toast.success("Cupom válido! 30 dias!");
     } else {
       setCouponValid(null);
       toast.error("Cupom inválido ou expirado");
@@ -98,7 +99,6 @@ export default function CadastroPage() {
     setLoading(true);
 
     const supabase = createClient();
-
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
@@ -106,7 +106,7 @@ export default function CadastroPage() {
     });
 
     if (error) {
-      toast.error(error.message === "User already registered" ? "Este email já está cadastrado" : error.message);
+      toast.error(error.message === "User already registered" ? "Este email ja esta cadastrado" : error.message);
       setLoading(false);
       return;
     }
@@ -122,7 +122,7 @@ export default function CadastroPage() {
       name: form.name,
       email: form.email,
       phone: phoneClean || null,
-      city: "Uberlândia",
+      city: "Uberlandia",
       role,
       avatar: avatarUrl,
       banned: false,
@@ -135,10 +135,8 @@ export default function CadastroPage() {
       if (cat) {
         let profStatus = "inactive";
         let trialEndsAt = null;
-
-        if (couponValid === "free_forever") {
-          profStatus = "active";
-        } else if (couponValid === "trial_30days") {
+        if (couponValid === "free_forever") profStatus = "active";
+        else if (couponValid === "trial_30days") {
           profStatus = "active";
           trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
         }
@@ -157,7 +155,6 @@ export default function CadastroPage() {
           trial_ends_at: trialEndsAt,
         }, { onConflict: "user_id" }).select("id").single();
 
-        // Adicionar na professional_categories
         if (profData?.id) {
           await supabase.from("professional_categories").insert({
             professional_id: profData.id,
@@ -174,13 +171,12 @@ export default function CadastroPage() {
       await sendEmail("welcome", form.email, form.name);
 
       if (couponValid === "free_forever") {
-        toast.success("🎉 Perfil ativo! Cupom aplicado!");
+        toast.success("Perfil ativo! Cupom aplicado!");
         router.push("/painel");
       } else if (couponValid === "trial_30days") {
-        toast.success("🎉 30 dias ativados!");
+        toast.success("30 dias ativados!");
         router.push("/painel");
       } else {
-        await sendEmail("professional_active", form.email, form.name);
         toast.success("Perfil criado! Ative sua assinatura para aparecer nas buscas.");
         router.push("/painel/assinatura");
       }
@@ -198,12 +194,13 @@ export default function CadastroPage() {
 
       <button onClick={() => router.push("/")}
         className="flex items-center gap-2 text-muted mb-8 w-fit">
-        <ArrowLeft size={18} /><span className="text-sm">Voltar</span>
+        <ArrowLeft size={18} />
+        <span className="text-sm">Voltar</span>
       </button>
 
       <div className="flex items-center gap-2.5 mb-8">
         <Image src="/logo.png" alt="UDIHUB" width={36} height={36} className="rounded-xl object-cover" />
-        <span className="font-syne font-black text-xl text-foreground">
+        <span className="font-syne font-bold text-xl text-foreground">
           UDI<span style={{ color: "#3B82F6" }}>HUB</span>
         </span>
       </div>
@@ -225,7 +222,7 @@ export default function CadastroPage() {
               <User size={18} style={{ color: "#3B82F6" }} className="flex-shrink-0" />
               <div>
                 <p className="font-syne font-bold text-sm text-foreground">Cliente</p>
-                <p className="text-[10px] text-muted">Busco serviços</p>
+                <p className="text-[10px] text-muted">Busco servicos</p>
               </div>
             </button>
             <button type="button" onClick={() => setRole("professional")}
@@ -267,7 +264,7 @@ export default function CadastroPage() {
                   onChange={handleAvatarChange} className="hidden" />
               </div>
               <p className="text-xs text-muted leading-relaxed flex-1">
-                Perfis com foto recebem <strong className="text-foreground">3x mais</strong> contatos de clientes.
+                Perfis com foto recebem <strong className="text-foreground">3x mais</strong> contatos.
               </p>
             </div>
           </div>
@@ -287,7 +284,7 @@ export default function CadastroPage() {
             placeholder="seu@email.com" required className={inputClass} style={inputStyle} />
         </div>
 
-        {/* Telefone/WhatsApp — 1 campo único */}
+        {/* WhatsApp */}
         <div>
           <label className="block text-xs font-medium text-muted mb-1.5">
             WhatsApp {role === "professional" ? "*" : "(opcional)"}
@@ -300,7 +297,7 @@ export default function CadastroPage() {
             maxLength={16}
             className={inputClass} style={inputStyle} />
           {role === "professional" && (
-            <p className="text-[10px] text-muted mt-1">Este número receberá os contatos dos clientes</p>
+            <p className="text-[10px] text-muted mt-1">Este numero recebera os contatos dos clientes</p>
           )}
         </div>
 
@@ -308,10 +305,10 @@ export default function CadastroPage() {
         <div>
           <label className="block text-xs font-medium text-muted mb-1.5">Senha *</label>
           <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder="Mínimo 6 caracteres" minLength={6} required className={inputClass} style={inputStyle} />
+            placeholder="Minimo 6 caracteres" minLength={6} required className={inputClass} style={inputStyle} />
         </div>
 
-        {/* Campos exclusivos de profissional */}
+        {/* Campos exclusivos do profissional */}
         {role === "professional" && (
           <>
             {/* Especialidade */}
@@ -330,7 +327,7 @@ export default function CadastroPage() {
             {/* Instagram */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">
-                Instagram (opcional)
+                <Instagram size={11} className="inline mr-1" />Instagram (opcional)
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted">@</span>
@@ -346,7 +343,7 @@ export default function CadastroPage() {
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">Bio (opcional)</label>
               <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                placeholder="Fale sobre sua experiência e serviços..."
+                placeholder="Fale sobre sua experiencia e servicos..."
                 rows={3} maxLength={300}
                 className={inputClass} style={{ ...inputStyle, resize: "none" }} />
               <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
@@ -363,7 +360,7 @@ export default function CadastroPage() {
                       style={{ background: "#111113", border: form.plan === plan ? "2px solid #3B82F6" : "1px solid #1F1F23" }}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-syne font-bold text-sm text-foreground">
-                          {plan === "basic" ? "⭐ Básico" : "👑 Pro"}
+                          {plan === "basic" ? "Basico" : "Pro"}
                         </span>
                         {form.plan === plan && <Check size={12} style={{ color: "#3B82F6" }} />}
                       </div>
@@ -379,7 +376,7 @@ export default function CadastroPage() {
                             <span className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>R$99</span>
                           </>
                         )}
-                        <span className="text-[10px] text-muted mb-0.5">/mês</span>
+                        <span className="text-[10px] text-muted mb-0.5">/mes</span>
                       </div>
                       <p className="text-[10px] text-muted">
                         {plan === "basic" ? "Aparece nas buscas" : "Aparece primeiro · Badge PRO"}
@@ -388,7 +385,7 @@ export default function CadastroPage() {
                   ))}
                 </div>
                 <p className="text-[10px] text-muted mt-2 text-center">
-                  Cobrança mensal · Cancele quando quiser
+                  Cobranca mensal · Cancele quando quiser
                 </p>
               </div>
             )}
@@ -405,7 +402,7 @@ export default function CadastroPage() {
                   <p className="text-xs text-muted">
                     {couponValid === "free_forever"
                       ? "Perfil ativo sem mensalidade."
-                      : "Perfil ativo por 30 dias. Após, R$69/mês."}
+                      : "Perfil ativo por 30 dias. Apos, R$69/mes."}
                   </p>
                 </div>
                 <button type="button" onClick={() => { setForm({ ...form, coupon: "" }); setCouponValid(null); }}
@@ -450,16 +447,16 @@ export default function CadastroPage() {
           {loading
             ? "Criando conta..."
             : role === "professional"
-              ? couponValid ? "Criar perfil →" : "Criar perfil e ir para pagamento →"
-              : "Criar conta →"}
+              ? couponValid ? "Criar perfil" : "Criar perfil e ir para pagamento"
+              : "Criar conta"}
         </button>
 
         {role === "professional" && !couponValid && (
-          <p className="text-center text-xs text-muted">Perfil ativo após o pagamento</p>
+          <p className="text-center text-xs text-muted">Perfil ativo apos o pagamento</p>
         )}
 
         <p className="text-center text-sm text-muted pt-2">
-          Já tem conta?{" "}
+          Ja tem conta?{" "}
           <Link href="/login" className="font-semibold" style={{ color: "#3B82F6" }}>Entrar</Link>
         </p>
       </form>
