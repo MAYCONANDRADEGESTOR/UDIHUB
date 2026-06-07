@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Power, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Power, Loader2, Users, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface CityItem {
@@ -11,7 +11,8 @@ interface CityItem {
   slug: string;
   state: string;
   enabled: boolean;
-  professionals_count?: number;
+  professionals_count: number;
+  neighborhoods_count: number;
 }
 
 export default function AdminCidadesPage() {
@@ -23,20 +24,34 @@ export default function AdminCidadesPage() {
 
   async function loadCities() {
     const supabase = createClient();
+
     const { data: citiesData } = await supabase
       .from("cities")
       .select("id, name, slug, state, enabled")
       .order("enabled", { ascending: false })
       .order("name");
 
-    // Count professionals per city
+    // Contar profissionais e bairros por cidade corretamente
     const citiesWithCount = await Promise.all(
       (citiesData || []).map(async (city) => {
-        const { count } = await supabase
-          .from("neighborhoods")
-          .select("professional_neighborhoods(professional_id)", { count: "exact", head: true })
-          .eq("city_id", city.id);
-        return { ...city, professionals_count: count || 0 };
+        const [{ count: neighborhoodsCount }, { count: profCount }] = await Promise.all([
+          supabase
+            .from("neighborhoods")
+            .select("id", { count: "exact", head: true })
+            .eq("city_id", city.id),
+          supabase
+            .from("professional_neighborhoods")
+            .select("professional_id", { count: "exact", head: true })
+            .in("neighborhood_id",
+              (await supabase.from("neighborhoods").select("id").eq("city_id", city.id))
+                .data?.map((n: any) => n.id) || []
+            ),
+        ]);
+        return {
+          ...city,
+          professionals_count: profCount || 0,
+          neighborhoods_count: neighborhoodsCount || 0,
+        };
       })
     );
 
@@ -45,6 +60,7 @@ export default function AdminCidadesPage() {
   }
 
   async function toggleCity(city: CityItem) {
+    if (city.slug === "uberlandia") return; // não desabilitar Uberlândia
     setToggling(city.id);
     const supabase = createClient();
     await supabase.from("cities").update({ enabled: !city.enabled }).eq("id", city.id);
@@ -63,16 +79,34 @@ export default function AdminCidadesPage() {
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <Link href="/admin" className="text-muted"><ArrowLeft size={20} /></Link>
         <h1 className="font-syne font-bold text-lg text-foreground flex-1">Cidades</h1>
-        <span className="text-xs text-muted">{enabled.length} ativas</span>
+        <span className="text-xs text-muted">{enabled.length} ativa{enabled.length !== 1 ? "s" : ""}</span>
       </div>
 
       <div className="px-4 py-4 space-y-4">
+
+        {/* Info */}
         <div className="flex items-start gap-3 p-3 rounded-xl"
           style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
           <MapPin size={14} style={{ color: "#3B82F6" }} className="mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted leading-relaxed">
-            Cidades desabilitadas não aparecem nos filtros do marketplace. Habilite quando estiver pronto para expandir.
+            Habilite novas cidades quando estiver pronto para expandir. Cidades desabilitadas não aparecem no marketplace.
           </p>
+        </div>
+
+        {/* Resumo */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="font-syne font-bold text-lg" style={{ color: "#22c55e" }}>{enabled.length}</div>
+            <div className="text-[10px] text-muted">Cidades ativas</div>
+          </div>
+          <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="font-syne font-bold text-lg" style={{ color: "#64748b" }}>{disabled.length}</div>
+            <div className="text-[10px] text-muted">Desabilitadas</div>
+          </div>
+          <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>{cities.length}</div>
+            <div className="text-[10px] text-muted">Total</div>
+          </div>
         </div>
 
         {loading ? (
@@ -81,6 +115,7 @@ export default function AdminCidadesPage() {
           </div>
         ) : (
           <>
+            {/* Ativas */}
             {enabled.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#22c55e" }}>
@@ -96,6 +131,7 @@ export default function AdminCidadesPage() {
               </div>
             )}
 
+            {/* Desabilitadas */}
             {disabled.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold tracking-widest mb-3 text-muted">
@@ -120,32 +156,55 @@ export default function AdminCidadesPage() {
 function CityRow({ city, onToggle, loading }: {
   city: CityItem; onToggle: () => void; loading: boolean;
 }) {
+  const isUberlandia = city.slug === "uberlandia";
   return (
-    <div className="flex items-center gap-3 p-4 rounded-2xl transition-all duration-200"
-      style={{ background: "#111113", border: city.enabled ? "1px solid rgba(34,197,94,0.2)" : "1px solid #1F1F23" }}>
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ background: city.enabled ? "rgba(34,197,94,0.1)" : "rgba(161,161,170,0.08)" }}>
-        <MapPin size={16} style={{ color: city.enabled ? "#22c55e" : "#A1A1AA" }} />
-      </div>
-      <div className="flex-1">
-        <div className="font-semibold text-sm text-foreground">{city.name}</div>
-        <div className="text-xs text-muted">
-          {city.state}
-          {city.professionals_count !== undefined && city.professionals_count > 0 && (
-            <> · {city.professionals_count} profissionais</>
-          )}
+    <div className="p-4 rounded-2xl transition-all duration-200"
+      style={{
+        background: "#111113",
+        border: city.enabled ? "1px solid rgba(34,197,94,0.2)" : "1px solid #1F1F23"
+      }}>
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: city.enabled ? "rgba(34,197,94,0.1)" : "rgba(161,161,170,0.08)" }}>
+          <MapPin size={16} style={{ color: city.enabled ? "#22c55e" : "#A1A1AA" }} />
         </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm text-foreground">{city.name}</span>
+            {isUberlandia && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
+                style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
+                Principal
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-0.5">
+            <span className="text-xs text-muted">{city.state}</span>
+            <span className="flex items-center gap-1 text-xs text-muted">
+              <Users size={9} /> {city.professionals_count} profissionais
+            </span>
+            <span className="flex items-center gap-1 text-xs text-muted">
+              <Building2 size={9} /> {city.neighborhoods_count} bairros
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={onToggle}
+          disabled={loading || isUberlandia}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 flex-shrink-0"
+          style={{
+            background: city.enabled ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)",
+            border: city.enabled ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(34,197,94,0.3)",
+            color: city.enabled ? "#f87171" : "#22c55e",
+            opacity: isUberlandia ? 0.4 : 1,
+            cursor: isUberlandia ? "not-allowed" : "pointer",
+          }}>
+          {loading
+            ? <Loader2 size={13} className="animate-spin" />
+            : <Power size={13} />}
+          {city.enabled ? "Desabilitar" : "Habilitar"}
+        </button>
       </div>
-      <button onClick={onToggle} disabled={loading}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200"
-        style={{
-          background: city.enabled ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)",
-          border: city.enabled ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(34,197,94,0.3)",
-          color: city.enabled ? "#f87171" : "#22c55e",
-        }}>
-        {loading ? <Loader2 size={13} className="animate-spin" /> : <Power size={13} />}
-        {city.enabled ? "Desabilitar" : "Habilitar"}
-      </button>
     </div>
   );
 }
