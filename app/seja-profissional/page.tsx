@@ -6,7 +6,6 @@ import {
   CheckCircle, MessageCircle, Shield, ArrowRight,
   Zap, Users, MapPin, Clock, TrendingUp, Star, Bell, Tag, Gift
 } from "lucide-react";
-import BottomNav from "@/app/components/layout/BottomNav";
 
 const NOTIFICACOES = [
   { nome: "Carlos S.", cidade: "Santa Monica", plano: "Basico", tempo: "2 min" },
@@ -41,29 +40,21 @@ export default function SejaProfissionalPage() {
       <section className="px-4 pt-10 pb-8"
         style={{ background: "linear-gradient(180deg, #0F172A 0%, #09090B 100%)" }}>
         <div className="max-w-lg mx-auto text-center">
-
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-5"
             style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#93c5fd" }}>
             Marketplace de servicos · Uberlandia, MG
           </div>
-
           <h1 className="font-syne font-bold text-2xl text-foreground leading-snug mb-3">
-            Clientes da sua cidade<br />
-            chegando no seu{" "}
+            Clientes da sua cidade<br />chegando no seu{" "}
             <span style={{ color: "#22c55e" }}>WhatsApp</span>
           </h1>
-
           <p className="text-sm text-muted leading-relaxed mb-5 max-w-xs mx-auto">
             Apareca nas buscas de quem precisa do seu servico. Sem intermediarios. Sem taxa por lead.
           </p>
-
-          {/* Notificacao animada */}
           <div className="flex justify-center mb-5">
-            <div
-              className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left"
+            <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-left"
               style={{
-                background: "#111113",
-                border: "1px solid #1F1F23",
+                background: "#111113", border: "1px solid #1F1F23",
                 opacity: showNotif ? 1 : 0,
                 transform: showNotif ? "translateY(0)" : "translateY(6px)",
                 transition: "opacity 0.3s ease, transform 0.3s ease",
@@ -73,39 +64,30 @@ export default function SejaProfissionalPage() {
                 <Bell size={13} style={{ color: "#22c55e" }} />
               </div>
               <div>
-                <p className="text-xs font-semibold text-foreground">
-                  {notif.nome} · {notif.cidade}
-                </p>
-                <p className="text-[10px] text-muted">
-                  assinou o Plano {notif.plano} · ha {notif.tempo}
-                </p>
+                <p className="text-xs font-semibold text-foreground">{notif.nome} · {notif.cidade}</p>
+                <p className="text-[10px] text-muted">assinou o Plano {notif.plano} · ha {notif.tempo}</p>
               </div>
-              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                style={{ background: "#22c55e" }} />
+              <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#22c55e" }} />
             </div>
           </div>
-
           <Link href="/cadastro"
             className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-2xl font-bold text-sm text-white"
             style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.3)" }}>
             Quero receber clientes <ArrowRight size={16} />
           </Link>
-
           <p className="text-xs text-muted mt-3">Sem fidelidade · Cancele quando quiser</p>
         </div>
       </section>
 
-      {/* PLANOS — 3 cards */}
+      {/* PLANOS */}
       <section className="px-4 py-8">
         <div className="max-w-lg mx-auto">
-
           <p className="text-xs font-bold tracking-widest text-muted text-center mb-1">PLANOS</p>
           <h2 className="font-syne font-bold text-xl text-foreground text-center mb-1">Escolha como comecar</h2>
           <p className="text-xs text-muted text-center mb-6">Oferta por tempo limitado</p>
-
           <div className="space-y-3">
 
-            {/* CARD 1 — CUPOM */}
+            {/* CUPOM */}
             <div className="rounded-2xl p-5"
               style={{ background: "#111113", border: "1px solid rgba(251,191,36,0.25)" }}>
               <div className="flex items-start gap-3 mb-3">
@@ -118,17 +100,10 @@ export default function SejaProfissionalPage() {
                   <p className="text-xs text-muted mt-0.5">3 meses no perfil Basico</p>
                 </div>
                 <span className="text-xs font-bold px-2 py-0.5 rounded-lg flex-shrink-0"
-                  style={{ background: "rgba(251,191,36,0.12)", color: "#FBBF24" }}>
-                  UDIHUB90
-                </span>
+                  style={{ background: "rgba(251,191,36,0.12)", color: "#FBBF24" }}>UDIHUB90</span>
               </div>
               <div className="space-y-1.5 mb-4">
-                {[
-                  "Perfil ativo por 90 dias",
-                  "Aparece nas buscas",
-                  "Leads direto no WhatsApp",
-                  "Apos 90 dias, assine para continuar",
-                ].map((f) => (
+                {["Perfil ativo por 90 dias", "Aparece nas buscas", "Leads direto no WhatsApp", "Apos 90 dias, assine para continuar"].map((f) => (
                   <div key={f} className="flex items-center gap-2">
                     <CheckCircle size={13} style={{ color: "#FBBF24" }} className="flex-shrink-0" />
                     <span className="text-xs text-muted">{f}</span>
@@ -142,14 +117,12 @@ export default function SejaProfissionalPage() {
               </Link>
             </div>
 
-            {/* CARD 2 — BASICO */}
+            {/* BASICO */}
             <div className="relative rounded-2xl p-5"
               style={{ background: "#111113", border: "1px solid #1F1F23" }}>
               <div className="absolute -top-3 left-4">
                 <span className="text-[10px] px-2.5 py-1 rounded-full font-bold text-white"
-                  style={{ background: "#22c55e" }}>
-                  OFERTA ESPECIAL
-                </span>
+                  style={{ background: "#22c55e" }}>OFERTA ESPECIAL</span>
               </div>
               <div className="flex items-start justify-between mb-3 mt-1">
                 <div>
@@ -169,13 +142,7 @@ export default function SejaProfissionalPage() {
                 </div>
               </div>
               <div className="space-y-1.5 mb-4">
-                {[
-                  "Perfil ativo e visivel nas buscas",
-                  "Aparece por categoria e bairro",
-                  "Ate 3 fotos no perfil",
-                  "Leads direto no WhatsApp",
-                  "Painel de metricas",
-                ].map((f) => (
+                {["Perfil ativo e visivel nas buscas", "Aparece por categoria e bairro", "Ate 3 fotos no perfil", "Leads direto no WhatsApp", "Painel de metricas"].map((f) => (
                   <div key={f} className="flex items-center gap-2">
                     <CheckCircle size={13} style={{ color: "#22c55e" }} className="flex-shrink-0" />
                     <span className="text-xs text-muted">{f}</span>
@@ -189,20 +156,16 @@ export default function SejaProfissionalPage() {
               </Link>
             </div>
 
-            {/* CARD 3 — PRO */}
+            {/* PRO */}
             <div className="relative rounded-2xl p-5"
-              style={{ background: "linear-gradient(135deg, #0F1729, #1a2f5a)", border: "2px solid #3B82F6", boxShadow: "0 0 28px rgba(59,130,246,0.1)" }}>
+              style={{ background: "linear-gradient(135deg, #0F1729, #1a2f5a)", border: "2px solid #3B82F6" }}>
               <div className="absolute -top-3 left-4">
                 <span className="text-[10px] px-2.5 py-1 rounded-full font-bold text-white"
-                  style={{ background: "#3B82F6" }}>
-                  MAIS POPULAR
-                </span>
+                  style={{ background: "#3B82F6" }}>MAIS POPULAR</span>
               </div>
               <div className="absolute top-4 right-4">
                 <span className="text-[10px] px-2 py-0.5 rounded font-bold"
-                  style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
-                  PRO
-                </span>
+                  style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>PRO</span>
               </div>
               <div className="flex items-start justify-between mb-3 mt-1">
                 <div>
@@ -222,14 +185,7 @@ export default function SejaProfissionalPage() {
                 </div>
               </div>
               <div className="space-y-1.5 mb-4">
-                {[
-                  "Aparece PRIMEIRO nas buscas",
-                  "Badge PRO em destaque azul",
-                  "Ate 10 fotos na galeria",
-                  "Leads direto no WhatsApp",
-                  "Painel de metricas avancado",
-                  "Prioridade no suporte",
-                ].map((f) => (
+                {["Aparece PRIMEIRO nas buscas", "Badge PRO em destaque azul", "Ate 10 fotos na galeria", "Leads direto no WhatsApp", "Painel de metricas avancado", "Prioridade no suporte"].map((f) => (
                   <div key={f} className="flex items-center gap-2">
                     <CheckCircle size={13} style={{ color: "#3B82F6" }} className="flex-shrink-0" />
                     <span className="text-xs text-white">{f}</span>
@@ -238,13 +194,12 @@ export default function SejaProfissionalPage() {
               </div>
               <Link href="/cadastro"
                 className="block text-center py-3 rounded-xl font-bold text-sm text-white"
-                style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 16px rgba(59,130,246,0.35)" }}>
+                style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
                 Assinar por R$99/mes
               </Link>
             </div>
 
           </div>
-
           <p className="text-[10px] text-muted text-center mt-4">
             Pagamento via PIX ou cartao · Sem fidelidade · Cancele quando quiser
           </p>
@@ -318,9 +273,9 @@ export default function SejaProfissionalPage() {
             {[
               { q: "Quando meu perfil fica visivel?", a: "Assim que o pagamento via PIX for confirmado, seu perfil ja aparece nas buscas. O processo leva menos de 5 minutos." },
               { q: "Pago alguma taxa por cliente que me contatar?", a: "Nao. Voce paga apenas a assinatura mensal. Nenhuma taxa sobre contatos, orcamentos ou servicos realizados." },
-              { q: "Posso cancelar quando quiser?", a: "Sim, sem fidelidade e sem multa. Cancele pelo painel a qualquer momento. Seu perfil fica ativo ate o final do periodo pago." },
-              { q: "Como funciona o cupom UDIHUB90?", a: "Com o cupom UDIHUB90 voce ativa seu perfil no plano Basico por 90 dias. Apos esse periodo, o perfil e desativado automaticamente e voce pode assinar normalmente para continuar." },
-              { q: "Qual a diferenca entre Basico e Pro?", a: "No Plano Pro voce aparece antes dos perfis Basico nas buscas, tem badge de destaque e pode adicionar ate 10 fotos. Mais visibilidade, mais clientes." },
+              { q: "Posso cancelar quando quiser?", a: "Sim, sem fidelidade e sem multa. Cancele pelo painel a qualquer momento." },
+              { q: "Como funciona o cupom UDIHUB90?", a: "Com o cupom UDIHUB90 voce ativa seu perfil no plano Basico por 90 dias. Apos esse periodo, o perfil e desativado e voce pode assinar normalmente para continuar." },
+              { q: "Qual a diferenca entre Basico e Pro?", a: "No Plano Pro voce aparece antes dos perfis Basico nas buscas, tem badge de destaque e pode adicionar ate 10 fotos." },
             ].map(({ q, a }, i) => (
               <div key={q} className="rounded-2xl overflow-hidden"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -329,11 +284,7 @@ export default function SejaProfissionalPage() {
                   className="w-full flex items-center justify-between px-4 py-3.5 text-left gap-4">
                   <span className="text-sm font-semibold text-foreground">{q}</span>
                   <span className="text-muted flex-shrink-0 text-base leading-none"
-                    style={{
-                      display: "inline-block",
-                      transform: openFaq === i ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform 0.2s ease",
-                    }}>
+                    style={{ display: "inline-block", transform: openFaq === i ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }}>
                     ⌄
                   </span>
                 </button>
@@ -366,13 +317,10 @@ export default function SejaProfissionalPage() {
             style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.3)" }}>
             Criar meu perfil agora <ArrowRight size={16} />
           </Link>
-          <p className="text-xs text-muted mt-3">
-            Sem fidelidade · Cancele quando quiser · PIX ou cartao
-          </p>
+          <p className="text-xs text-muted mt-3">Sem fidelidade · Cancele quando quiser · PIX ou cartao</p>
         </div>
       </section>
 
-      <BottomNav />
     </div>
   );
 }
