@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Users, MapPin, CreditCard, Flag, BarChart3,
   ArrowUpRight, MessageCircle, Loader2, TrendingUp,
-  Trash2, X, ArrowLeft, AlertCircle, UserCheck,
+  Trash2, X, ArrowLeft, AlertCircle, UserCheck, Crown,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
@@ -68,6 +68,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState<RecentUser | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [carouselActive, setCarouselActive] = useState(false);
+  const [carouselLoading, setCarouselLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -89,7 +91,7 @@ export default function AdminPage() {
         subscriptions, pendingReports,
         citiesActive, recentUsersData,
         newUsersToday, newUsersWeek,
-        recentReportsData,
+        recentReportsData, carouselSetting,
       ] = await Promise.all([
         supabase.from("professionals").select("id", { count: "exact", head: true }),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("status", "active"),
@@ -108,7 +110,10 @@ export default function AdminPage() {
         supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
         supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
         supabase.from("reports").select("id, reason, status, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(3),
+        supabase.from("app_settings").select("value").eq("key", "pro_carousel_active").single(),
       ]);
+
+      setCarouselActive(carouselSetting.data?.value === "true");
 
       let totalRevenue = 0;
       let totalFees = 0;
@@ -157,6 +162,18 @@ export default function AdminPage() {
     setDeleteModal(null);
     setDeleting(false);
     toast.success("Usuário deletado!");
+  }
+
+  async function toggleCarousel() {
+    setCarouselLoading(true);
+    const supabase = createClient();
+    const newValue = !carouselActive;
+    await supabase.from("app_settings")
+      .update({ value: String(newValue), updated_at: new Date().toISOString() })
+      .eq("key", "pro_carousel_active");
+    setCarouselActive(newValue);
+    toast.success(newValue ? "🎠 Carrossel PRO ativado!" : "Carrossel PRO desativado");
+    setCarouselLoading(false);
   }
 
   if (loading) return (
@@ -220,7 +237,6 @@ export default function AdminPage() {
 
         {/* Receita + Leads */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Card receita líquida — CORRIGIDO */}
           <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-1.5 mb-1.5">
               <CreditCard size={13} style={{ color: "#22c55e" }} />
@@ -239,7 +255,6 @@ export default function AdminPage() {
               {metrics?.activeProfessionals} assinantes
             </div>
           </div>
-
           <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-1.5 mb-1.5">
               <MessageCircle size={13} style={{ color: "#3B82F6" }} />
@@ -308,6 +323,41 @@ export default function AdminPage() {
           <div className="flex justify-between mt-1.5">
             <span className="text-[10px] text-muted">{metrics?.activeProfessionals} ativos</span>
             <span className="text-[10px] text-muted">275 meta · R$18.975/mês</span>
+          </div>
+        </div>
+
+        {/* Carrossel PRO — toggle */}
+        <div className="p-4 rounded-2xl"
+          style={{ background: "#111113", border: `1px solid ${carouselActive ? "rgba(251,191,36,0.3)" : "#1F1F23"}` }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: carouselActive ? "rgba(251,191,36,0.15)" : "rgba(161,161,170,0.08)" }}>
+                <Crown size={16} style={{ color: carouselActive ? "#FBBF24" : "#A1A1AA" }} />
+              </div>
+              <div>
+                <p className="font-syne font-bold text-sm text-foreground">Carrossel PRO</p>
+                <p className="text-[10px] text-muted">Destaque na home para profissionais PRO</p>
+              </div>
+            </div>
+            <button onClick={toggleCarousel} disabled={carouselLoading}
+              className="w-12 h-6 rounded-full transition-all duration-200 relative flex-shrink-0"
+              style={{ background: carouselActive ? "#FBBF24" : "#1F1F23" }}>
+              {carouselLoading ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <div className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200"
+                  style={{ left: carouselActive ? "calc(100% - 20px)" : 4 }} />
+              )}
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-1.5">
+            <div className={`w-1.5 h-1.5 rounded-full ${carouselActive ? "bg-yellow-400 animate-pulse" : "bg-gray-600"}`} />
+            <span className="text-[10px]" style={{ color: carouselActive ? "#FBBF24" : "#64748b" }}>
+              {carouselActive ? "Ativo — aparecendo na home para todos" : "Inativo — clique para ativar"}
+            </span>
           </div>
         </div>
 
