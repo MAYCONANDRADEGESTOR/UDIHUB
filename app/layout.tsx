@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import Script from "next/script";
+import BottomNav from "@/app/components/layout/BottomNav";
 
 const GA_ID = "G-QK04EZWBTR";
 
@@ -72,9 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "@context": "https://schema.org",
               "@type": "WebSite",
               "name": "UDIHUB",
-              "alternateName": "UDI HUB",
               "url": "https://udihub.com.br",
-              "description": "Marketplace de serviços locais do Triângulo Mineiro",
               "potentialAction": {
                 "@type": "SearchAction",
                 "target": { "@type": "EntryPoint", "urlTemplate": "https://udihub.com.br/servicos/{search_term_string}" },
@@ -92,7 +91,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "name": "UDIHUB",
               "url": "https://udihub.com.br",
               "logo": "https://udihub.com.br/logo.png",
-              "description": "Marketplace de serviços locais do Triângulo Mineiro",
               "address": { "@type": "PostalAddress", "addressLocality": "Uberlândia", "addressRegion": "MG", "addressCountry": "BR" },
               "sameAs": ["https://www.instagram.com/udihub"]
             })
@@ -115,6 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
         {children}
+        <BottomNav />
         <Toaster
           position="top-center"
           toastOptions={{
