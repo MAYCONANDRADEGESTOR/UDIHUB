@@ -1,13 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Users, MapPin, CreditCard, Flag, BarChart3,
   ArrowUpRight, MessageCircle, Loader2, TrendingUp,
   Trash2, X, ArrowLeft, AlertCircle, UserCheck, Crown,
+  Camera, Tag, Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getInitials } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 const ASAAS_PIX_FIXED = 0.99;
@@ -28,6 +30,7 @@ interface Metrics {
   inactiveProfessionals: number;
   proProfessionals: number;
   basicProfessionals: number;
+  couponProfessionals: number;
   totalClients: number;
   totalUsers: number;
   monthlyRevenue: number;
@@ -58,6 +61,18 @@ interface Report {
   created_at: string;
 }
 
+interface CouponProf {
+  id: string;
+  name: string;
+  email: string;
+  whatsapp: string;
+  categoria: string;
+  coupon_code: string;
+  trial_ends_at: string | null;
+  status: string;
+  created_at: string;
+}
+
 const ADMIN_EMAIL = "udihub@outlook.com";
 
 export default function AdminPage() {
@@ -65,11 +80,17 @@ export default function AdminPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [recentReports, setRecentReports] = useState<Report[]>([]);
+  const [couponProfs, setCouponProfs] = useState<CouponProf[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState<RecentUser | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [carouselActive, setCarouselActive] = useState(false);
   const [carouselLoading, setCarouselLoading] = useState(false);
+  const [adminAvatar, setAdminAvatar] = useState<string | null>(null);
+  const [adminName, setAdminName] = useState<string>("");
+  const [adminUserId, setAdminUserId] = useState<string>("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     async function load() {
@@ -79,6 +100,7 @@ export default function AdminPage() {
         router.push("/");
         return;
       }
+      setAdminUserId(user.id);
 
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -92,6 +114,7 @@ export default function AdminPage() {
         citiesActive, recentUsersData,
         newUsersToday, newUsersWeek,
         recentReportsData, carouselSetting,
+        adminData, couponData,
       ] = await Promise.all([
         supabase.from("professionals").select("id", { count: "exact", head: true }),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("status", "active"),
@@ -111,19 +134,42 @@ export default function AdminPage() {
         supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
         supabase.from("reports").select("id, reason, status, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(3),
         supabase.from("app_settings").select("value").eq("key", "pro_carousel_active").single(),
+        supabase.from("users").select("name, avatar").eq("id", user.id).single(),
+        // Profissionais com cupom
+        supabase.from("professionals")
+          .select("id, coupon_code, trial_ends_at, status, created_at, whatsapp, users(name, email), categories(name)")
+          .not("coupon_code", "is", null)
+          .order("created_at", { ascending: false }),
       ]);
 
+      setAdminAvatar(adminData.data?.avatar || null);
+      setAdminName(adminData.data?.name || "Admin");
       setCarouselActive(carouselSetting.data?.value === "true");
 
-      let totalRevenue = 0;
-      let totalFees = 0;
+      // Profissionais com cupom
+      const couponList: CouponProf[] = (couponData.data || []).map((p: any) => ({
+        id: p.id,
+        name: p.users?.name || "Sem nome",
+        email: p.users?.email || "",
+        whatsapp: p.whatsapp || "",
+        categoria: p.categories?.name || "",
+        coupon_code: p.coupon_code,
+        trial_ends_at: p.trial_ends_at,
+        status: p.status,
+        created_at: p.created_at,
+      }));
+      setCouponProfs(couponList);
+
+      // Contar cupons
+      const couponCount = couponData.data?.length || 0;
+
+      let totalRevenue = 0, totalFees = 0;
       for (const s of subscriptions.data || []) {
         const valor = s.plan === "pro" ? 99 : 69;
         const { net, fee } = calcNet(valor);
         totalRevenue += valor;
         totalFees += fee;
       }
-      const totalNet = totalRevenue - totalFees;
 
       setMetrics({
         totalProfessionals: totalProf.count || 0,
@@ -131,10 +177,11 @@ export default function AdminPage() {
         inactiveProfessionals: inactiveProf.count || 0,
         proProfessionals: proProf.count || 0,
         basicProfessionals: basicProf.count || 0,
+        couponProfessionals: couponCount,
         totalClients: totalClients.count || 0,
         totalUsers: totalUsers.count || 0,
         monthlyRevenue: totalRevenue,
-        netRevenue: Math.round(totalNet * 100) / 100,
+        netRevenue: Math.round((totalRevenue - totalFees) * 100) / 100,
         asaasFees: Math.round(totalFees * 100) / 100,
         totalLeads: totalLeads.count || 0,
         leadsToday: leadsToday.count || 0,
@@ -152,6 +199,24 @@ export default function AdminPage() {
     load();
   }, []);
 
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !adminUserId) return;
+    if (file.size > 5 * 1024 * 1024) { toast.error("Foto muito grande. Maximo 5MB."); return; }
+    setUploadingAvatar(true);
+    const supabase = createClient();
+    const ext = file.name.split(".").pop();
+    const path = `${adminUserId}/avatar.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (error) { toast.error("Erro ao fazer upload"); setUploadingAvatar(false); return; }
+    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+    const url = `${data.publicUrl}?t=${Date.now()}`;
+    await supabase.from("users").update({ avatar: url }).eq("id", adminUserId);
+    setAdminAvatar(url);
+    toast.success("Foto atualizada!");
+    setUploadingAvatar(false);
+  }
+
   async function handleDelete() {
     if (!deleteModal) return;
     setDeleting(true);
@@ -161,7 +226,7 @@ export default function AdminPage() {
     setRecentUsers((prev) => prev.filter((u) => u.id !== deleteModal.id));
     setDeleteModal(null);
     setDeleting(false);
-    toast.success("Usuário deletado!");
+    toast.success("Usuario deletado!");
   }
 
   async function toggleCarousel() {
@@ -172,8 +237,19 @@ export default function AdminPage() {
       .update({ value: String(newValue), updated_at: new Date().toISOString() })
       .eq("key", "pro_carousel_active");
     setCarouselActive(newValue);
-    toast.success(newValue ? "🎠 Carrossel PRO ativado!" : "Carrossel PRO desativado");
+    toast.success(newValue ? "Carrossel PRO ativado!" : "Carrossel PRO desativado");
     setCarouselLoading(false);
+  }
+
+  function formatDate(d: string) {
+    return new Date(d).toLocaleDateString("pt-BR");
+  }
+
+  function daysRemaining(date: string | null) {
+    if (!date) return null;
+    const diff = new Date(date).getTime() - Date.now();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return days;
   }
 
   if (loading) return (
@@ -188,19 +264,46 @@ export default function AdminPage() {
     : 0;
 
   const ADMIN_SECTIONS = [
-    { href: "/admin/usuarios", icon: Users, label: "Usuários", desc: "Gerenciar e banir", badge: null },
+    { href: "/admin/usuarios", icon: Users, label: "Usuarios", desc: "Gerenciar e banir", badge: null },
     { href: "/admin/cidades", icon: MapPin, label: "Cidades", desc: "Ativar novas cidades", badge: null },
-    { href: "/admin/denuncias", icon: Flag, label: "Denúncias", desc: "Resolver denúncias", badge: metrics?.pendingReports || 0 },
-    { href: "/admin/metricas", icon: BarChart3, label: "Métricas", desc: "Faturamento e dados", badge: null },
+    { href: "/admin/denuncias", icon: Flag, label: "Denuncias", desc: "Resolver denuncias", badge: metrics?.pendingReports || 0 },
+    { href: "/admin/metricas", icon: BarChart3, label: "Metricas", desc: "Faturamento e dados", badge: null },
   ];
 
   return (
     <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
+
+      {/* Header com foto de perfil do admin */}
       <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <div className="flex items-center gap-3">
           <Link href="/" className="text-muted"><ArrowLeft size={20} /></Link>
+
+          {/* Avatar clicável */}
+          <div className="relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+            {uploadingAvatar ? (
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                <Loader2 size={16} style={{ color: "#3B82F6" }} className="animate-spin" />
+              </div>
+            ) : adminAvatar ? (
+              <img src={adminAvatar} alt={adminName}
+                className="w-10 h-10 rounded-xl object-cover"
+                style={{ border: "2px solid #3B82F6" }} />
+            ) : (
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
+                style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
+                {getInitials(adminName)}
+              </div>
+            )}
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
+              style={{ background: "#3B82F6", boxShadow: "0 0 6px rgba(59,130,246,0.5)" }}>
+              <Camera size={8} className="text-white" />
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*"
+              onChange={handleAvatarChange} className="hidden" />
+          </div>
+
           <div className="flex-1">
             <h1 className="font-syne font-bold text-xl text-foreground">Admin</h1>
             <p className="text-xs text-muted">UDIHUB Dashboard</p>
@@ -220,7 +323,7 @@ export default function AdminPage() {
             <p className="text-xs" style={{ color: "#f87171" }}>
               <strong>{metrics?.inactiveProfessionals}</strong> profissional(is) com perfil inativo
             </p>
-            <Link href="/admin/usuarios" className="ml-auto text-[10px] font-bold" style={{ color: "#f87171" }}>Ver →</Link>
+            <Link href="/admin/usuarios" className="ml-auto text-[10px] font-bold" style={{ color: "#f87171" }}>Ver</Link>
           </div>
         )}
 
@@ -229,9 +332,9 @@ export default function AdminPage() {
             style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
             <Flag size={14} style={{ color: "#FBBF24" }} className="flex-shrink-0" />
             <p className="text-xs" style={{ color: "#FBBF24" }}>
-              <strong>{metrics?.pendingReports}</strong> denúncia(s) pendente(s)
+              <strong>{metrics?.pendingReports}</strong> denuncia(s) pendente(s)
             </p>
-            <Link href="/admin/denuncias" className="ml-auto text-[10px] font-bold" style={{ color: "#FBBF24" }}>Ver →</Link>
+            <Link href="/admin/denuncias" className="ml-auto text-[10px] font-bold" style={{ color: "#FBBF24" }}>Ver</Link>
           </div>
         )}
 
@@ -240,19 +343,16 @@ export default function AdminPage() {
           <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-1.5 mb-1.5">
               <CreditCard size={13} style={{ color: "#22c55e" }} />
-              <span className="text-[11px] text-muted">Receita líquida</span>
+              <span className="text-[11px] text-muted">Receita liquida</span>
             </div>
-            <div className="font-syne font-extrabold text-lg leading-tight" style={{ color: "#22c55e" }}>
+            <div className="font-syne font-extrabold text-lg" style={{ color: "#22c55e" }}>
               R${fmt2(metrics?.netRevenue || 0)}
             </div>
-            <div className="text-[9px] mt-1 truncate" style={{ color: "#64748b" }}>
+            <div className="text-[9px] mt-1" style={{ color: "#64748b" }}>
               Bruto: R${(metrics?.monthlyRevenue || 0).toLocaleString("pt-BR")}
             </div>
-            <div className="text-[9px] truncate" style={{ color: "#f87171" }}>
+            <div className="text-[9px]" style={{ color: "#f87171" }}>
               Taxa: -R${fmt2(metrics?.asaasFees || 0)}
-            </div>
-            <div className="text-[9px] text-muted mt-0.5 truncate">
-              {metrics?.activeProfessionals} assinantes
             </div>
           </div>
           <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -265,7 +365,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Novos usuários + conversão */}
+        {/* Novos + Conversao */}
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-1.5 mb-1.5">
@@ -280,23 +380,23 @@ export default function AdminPage() {
           <div className="p-3 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-1.5 mb-1.5">
               <TrendingUp size={13} style={{ color: "#f59e0b" }} />
-              <span className="text-[11px] text-muted">Conversão</span>
+              <span className="text-[11px] text-muted">Conversao</span>
             </div>
             <div className="font-syne font-extrabold text-lg" style={{ color: "#f59e0b" }}>
               {conversionRate}%
             </div>
-            <div className="text-[9px] text-muted mt-1">usuários → profissionais</div>
+            <div className="text-[9px] text-muted mt-1">usuarios profissionais</div>
           </div>
         </div>
 
-        {/* Grid métricas */}
+        {/* Grid metricas */}
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: "Profissionais", value: metrics?.totalProfessionals || 0, color: "#3B82F6" },
             { label: "Clientes", value: metrics?.totalClients || 0, color: "#a855f7" },
             { label: "Ativos", value: metrics?.activeProfessionals || 0, color: "#22c55e" },
             { label: "Inativos", value: metrics?.inactiveProfessionals || 0, color: "#f87171" },
-            { label: "Básico", value: metrics?.basicProfessionals || 0, color: "#3B82F6" },
+            { label: "Basico", value: metrics?.basicProfessionals || 0, color: "#3B82F6" },
             { label: "Pro", value: metrics?.proProfessionals || 0, color: "#f59e0b" },
           ].map(({ label, value, color }) => (
             <div key={label} className="p-2.5 rounded-2xl text-center"
@@ -305,6 +405,27 @@ export default function AdminPage() {
               <div className="text-[9px] text-muted">{label}</div>
             </div>
           ))}
+        </div>
+
+        {/* Cupom card destaque */}
+        <div className="p-4 rounded-2xl"
+          style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.25)" }}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "rgba(251,191,36,0.15)" }}>
+              <Tag size={16} style={{ color: "#FBBF24" }} />
+            </div>
+            <div className="flex-1">
+              <p className="font-syne font-bold text-sm text-foreground">Cupom UDIHUB90</p>
+              <p className="text-[10px] text-muted">3 meses gratis · Plano Basico</p>
+            </div>
+            <div className="text-right">
+              <div className="font-syne font-bold text-2xl" style={{ color: "#FBBF24" }}>
+                {metrics?.couponProfessionals || 0}
+              </div>
+              <div className="text-[10px] text-muted">cadastrados</div>
+            </div>
+          </div>
         </div>
 
         {/* Meta 275 */}
@@ -322,11 +443,11 @@ export default function AdminPage() {
           </div>
           <div className="flex justify-between mt-1.5">
             <span className="text-[10px] text-muted">{metrics?.activeProfessionals} ativos</span>
-            <span className="text-[10px] text-muted">275 meta · R$18.975/mês</span>
+            <span className="text-[10px] text-muted">275 meta · R$18.975/mes</span>
           </div>
         </div>
 
-        {/* Carrossel PRO — toggle */}
+        {/* Carrossel PRO */}
         <div className="p-4 rounded-2xl"
           style={{ background: "#111113", border: `1px solid ${carouselActive ? "rgba(251,191,36,0.3)" : "#1F1F23"}` }}>
           <div className="flex items-center justify-between">
@@ -361,7 +482,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Seções */}
+        {/* Secoes */}
         <div>
           <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#3B82F6" }}>GERENCIAR</p>
           <div className="grid grid-cols-2 gap-3">
@@ -388,11 +509,83 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Denúncias recentes */}
+        {/* Profissionais com cupom */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-bold tracking-widest" style={{ color: "#FBBF24" }}>
+              CUPOM UDIHUB90 ({couponProfs.length})
+            </p>
+          </div>
+          {couponProfs.length === 0 ? (
+            <div className="text-center py-6 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+              <Tag size={20} className="mx-auto text-muted mb-2" />
+              <p className="text-xs text-muted">Nenhum profissional cadastrado pelo cupom ainda</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {couponProfs.map((prof) => {
+                const days = daysRemaining(prof.trial_ends_at);
+                return (
+                  <div key={prof.id} className="p-4 rounded-2xl"
+                    style={{ background: "#111113", border: "1px solid rgba(251,191,36,0.15)" }}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-xs"
+                        style={{ background: "rgba(251,191,36,0.1)", color: "#FBBF24" }}>
+                        {getInitials(prof.name)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm text-foreground truncate">{prof.name}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
+                            style={{
+                              background: prof.status === "active" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                              color: prof.status === "active" ? "#22c55e" : "#f87171"
+                            }}>
+                            {prof.status === "active" ? "Ativo" : "Inativo"}
+                          </span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
+                            style={{ background: "rgba(251,191,36,0.1)", color: "#FBBF24" }}>
+                            {prof.coupon_code}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted truncate">{prof.email}</p>
+                        {prof.categoria && (
+                          <p className="text-[10px] text-muted mt-0.5">{prof.categoria}</p>
+                        )}
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[10px] text-muted">
+                            Cadastrou {formatDate(prof.created_at)}
+                          </span>
+                          {days !== null && (
+                            <span className="flex items-center gap-1 text-[10px]"
+                              style={{ color: days > 7 ? "#22c55e" : days > 0 ? "#FBBF24" : "#f87171" }}>
+                              <Clock size={9} />
+                              {days > 0 ? `${days} dias restantes` : "Trial expirado"}
+                            </span>
+                          )}
+                        </div>
+                        {prof.whatsapp && (
+                          <a href={`https://wa.me/55${prof.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`Oi ${prof.name}! Aqui e o Maycon do UDIHUB. Tudo certo com seu perfil?`)}`}
+                            target="_blank" rel="noreferrer"
+                            className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold px-2 py-1 rounded-lg"
+                            style={{ background: "rgba(22,163,74,0.1)", color: "#22c55e", border: "1px solid rgba(22,163,74,0.2)" }}>
+                            WhatsApp →
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Denuncias recentes */}
         {recentReports.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold tracking-widest" style={{ color: "#FBBF24" }}>DENÚNCIAS PENDENTES</p>
+              <p className="text-[10px] font-bold tracking-widest" style={{ color: "#FBBF24" }}>DENUNCIAS PENDENTES</p>
               <Link href="/admin/denuncias" className="text-xs font-semibold" style={{ color: "#FBBF24" }}>Ver todas</Link>
             </div>
             <div className="space-y-2">
@@ -402,7 +595,7 @@ export default function AdminPage() {
                   <Flag size={13} style={{ color: "#FBBF24" }} className="flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{report.reason || "Sem motivo"}</p>
-                    <p className="text-[10px] text-muted">{new Date(report.created_at).toLocaleDateString("pt-BR")}</p>
+                    <p className="text-[10px] text-muted">{formatDate(report.created_at)}</p>
                   </div>
                   <span className="text-[9px] px-2 py-0.5 rounded font-bold"
                     style={{ background: "rgba(251,191,36,0.1)", color: "#FBBF24" }}>PENDENTE</span>
@@ -412,52 +605,46 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Usuários recentes */}
+        {/* Usuarios recentes */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-bold tracking-widest" style={{ color: "#3B82F6" }}>USUÁRIOS RECENTES</p>
+            <p className="text-[10px] font-bold tracking-widest" style={{ color: "#3B82F6" }}>USUARIOS RECENTES</p>
             <Link href="/admin/usuarios" className="text-xs font-semibold" style={{ color: "#3B82F6" }}>Ver todos</Link>
           </div>
           <div className="space-y-2">
             {recentUsers.length === 0 ? (
               <div className="text-center py-8 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <p className="text-sm text-muted">Nenhum usuário ainda</p>
+                <p className="text-sm text-muted">Nenhum usuario ainda</p>
               </div>
-            ) : (
-              recentUsers.map((user) => (
-                <div key={user.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                  style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                  <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
-                    style={{ background: "rgba(59,130,246,0.1)", color: "#93c5fd" }}>
-                    {user.name?.charAt(0).toUpperCase() || "?"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-foreground truncate">{user.name || "Sem nome"}</span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded"
-                        style={{ background: user.role === "professional" ? "rgba(59,130,246,0.1)" : "rgba(161,161,170,0.1)", color: user.role === "professional" ? "#93c5fd" : "#A1A1AA" }}>
-                        {user.role === "professional" ? "Pro" : "Cliente"}
-                      </span>
-                      {user.banned && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
-                          style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>BANIDO</span>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-muted truncate">{user.email}</p>
-                  </div>
-                  <button onClick={() => setDeleteModal(user)}
-                    className="p-1.5 rounded-lg flex-shrink-0"
-                    style={{ background: "rgba(239,68,68,0.08)" }}>
-                    <Trash2 size={13} style={{ color: "#f87171" }} />
-                  </button>
+            ) : recentUsers.map((user) => (
+              <div key={user.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
+                  style={{ background: "rgba(59,130,246,0.1)", color: "#93c5fd" }}>
+                  {user.name?.charAt(0).toUpperCase() || "?"}
                 </div>
-              ))
-            )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground truncate">{user.name || "Sem nome"}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded"
+                      style={{ background: user.role === "professional" ? "rgba(59,130,246,0.1)" : "rgba(161,161,170,0.1)", color: user.role === "professional" ? "#93c5fd" : "#A1A1AA" }}>
+                      {user.role === "professional" ? "Prof" : "Cliente"}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted truncate">{user.email}</p>
+                </div>
+                <button onClick={() => setDeleteModal(user)}
+                  className="p-1.5 rounded-lg flex-shrink-0"
+                  style={{ background: "rgba(239,68,68,0.08)" }}>
+                  <Trash2 size={13} style={{ color: "#f87171" }} />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Delete modal */}
+      {/* Modal deletar */}
       {deleteModal && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.7)" }}
@@ -465,7 +652,7 @@ export default function AdminPage() {
           <div className="w-full max-w-lg rounded-t-3xl p-5 animate-slide-up"
             style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-syne font-bold text-foreground">Deletar usuário</h3>
+              <h3 className="font-syne font-bold text-foreground">Deletar usuario</h3>
               <button onClick={() => setDeleteModal(null)} className="text-muted"><X size={18} /></button>
             </div>
             <p className="text-sm text-muted mb-6">
