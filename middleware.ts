@@ -1,28 +1,40 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+// Rotas que nunca precisam de autenticação
+const PUBLIC_ROUTES = [
+  "/", "/seja-profissional", "/servicos", "/profissional",
+  "/como-funciona", "/privacidade", "/termos", "/banido",
+  "/excluir-conta",
+];
+
+// Rotas que precisam de autenticação
+const PRIVATE_ROUTES = ["/painel", "/admin", "/inicio", "/favoritos", "/perfil"];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  let response = NextResponse.next({
-    request: { headers: request.headers },
-  });
+  // ── Rota pública → passa direto sem query ──
+  const isPublic = PUBLIC_ROUTES.some((p) =>
+    pathname === p || pathname.startsWith(p + "/")
+  );
+  if (isPublic) return NextResponse.next({ request: { headers: request.headers } });
+
+  // ── Só faz query se for rota privada ──
+  const isPrivate = PRIVATE_ROUTES.some((p) => pathname.startsWith(p));
+  if (!isPrivate) return NextResponse.next({ request: { headers: request.headers } });
+
+  let response = NextResponse.next({ request: { headers: request.headers } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
+        getAll() { return request.cookies.getAll(); },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          });
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request: { headers: request.headers } });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
           );
@@ -31,88 +43,81 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Pega sessão — usa cache do JWT quando possível
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (user) {
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role, banned")
-      .eq("id", user.id)
-      .single();
+  // Sem sessão → redireciona para login
+  if (!user) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
-    // Usuário banido
-    if (userData?.banned) {
-      const res = NextResponse.redirect(new URL("/banido", request.url));
-      res.cookies.delete("sb-access-token");
-      res.cookies.delete("sb-refresh-token");
-      return res;
+  // Busca role — query única e leve
+  const { data: userData } = await supabase
+    .from("users")
+    .select("role, banned")
+    .eq("id", user.id)
+    .single();
+
+  // Banido → expulsa
+  if (userData?.banned) {
+    const res = NextResponse.redirect(new URL("/banido", request.url));
+    res.cookies.delete("sb-access-token");
+    res.cookies.delete("sb-refresh-token");
+    return res;
+  }
+
+  const role = userData?.role;
+
+  // ── ADMIN ──
+  if (role === "admin") {
+    if (pathname.startsWith("/painel") || pathname.startsWith("/inicio")) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+    return response;
+  }
+
+  // ── PROFISSIONAL ──
+  if (role === "professional") {
+    if (pathname.startsWith("/admin")) {
+      return NextResponse.redirect(new URL("/painel", request.url));
     }
 
-    const role = userData?.role;
-
-    // ── ADMIN ──
-    if (role === "admin") {
-      // Admin em qualquer rota privada de outro role → redireciona para /admin
-      if (pathname.startsWith("/painel") || pathname.startsWith("/inicio")) {
-        return NextResponse.redirect(new URL("/admin", request.url));
-      }
-    }
-
-    // ── PROFISSIONAL ──
-    if (role === "professional") {
-      const { data: prof } = await supabase
-        .from("professionals")
-        .select("status, coupon_code, trial_ends_at")
-        .eq("user_id", user.id)
-        .single();
-
-      const isActive = prof?.status === "active";
-      const hasCoupon = !!prof?.coupon_code;
-      const inTrial = prof?.trial_ends_at && new Date(prof.trial_ends_at) > new Date();
-      const liberado = isActive || hasCoupon || inTrial;
-
-      const allowedPaths = [
-        "/painel/assinatura",
-        "/painel/perfil",
-        "/painel/retorno",
-        "/api",
-        "/sair",
-        "/logout",
-      ];
+    // Verifica status apenas quando necessário (acessando /painel)
+    if (pathname.startsWith("/painel")) {
+      const allowedPaths = ["/painel/assinatura", "/painel/perfil", "/painel/retorno"];
       const isAllowed = allowedPaths.some((p) => pathname.startsWith(p));
 
-      if (!liberado && pathname.startsWith("/painel") && !isAllowed) {
-        return NextResponse.redirect(new URL("/painel/assinatura", request.url));
-      }
+      if (!isAllowed) {
+        const { data: prof } = await supabase
+          .from("professionals")
+          .select("status, coupon_code, trial_ends_at")
+          .eq("user_id", user.id)
+          .single();
 
-      // Profissional em /inicio → vai para /painel
-      if (pathname === "/inicio" && liberado) {
-        return NextResponse.redirect(new URL("/painel", request.url));
-      }
+        const isActive = prof?.status === "active";
+        const hasCoupon = !!prof?.coupon_code;
+        const inTrial = prof?.trial_ends_at && new Date(prof.trial_ends_at) > new Date();
 
-      // Profissional tentando acessar /admin → volta para /painel
-      if (pathname.startsWith("/admin")) {
-        return NextResponse.redirect(new URL("/painel", request.url));
+        if (!isActive && !hasCoupon && !inTrial) {
+          return NextResponse.redirect(new URL("/painel/assinatura", request.url));
+        }
       }
     }
 
-    // ── CLIENTE ──
-    if (role === "client") {
-      // Cliente tentando acessar /painel → vai para /perfil
-      if (pathname.startsWith("/painel")) {
-        return NextResponse.redirect(new URL("/perfil", request.url));
-      }
-      // Cliente tentando acessar /admin → vai para /inicio
-      if (pathname.startsWith("/admin")) {
-        return NextResponse.redirect(new URL("/inicio", request.url));
-      }
+    if (pathname === "/inicio") {
+      return NextResponse.redirect(new URL("/painel", request.url));
     }
 
-  } else {
-    // Sem sessão — proteger rotas privadas
-    const privateRoutes = ["/painel", "/admin", "/inicio", "/favoritos", "/perfil"];
-    if (privateRoutes.some((p) => pathname.startsWith(p))) {
-      return NextResponse.redirect(new URL("/login", request.url));
+    return response;
+  }
+
+  // ── CLIENTE ──
+  if (role === "client") {
+    if (pathname.startsWith("/painel")) {
+      return NextResponse.redirect(new URL("/perfil", request.url));
+    }
+    if (pathname.startsWith("/admin")) {
+      return NextResponse.redirect(new URL("/inicio", request.url));
     }
   }
 
