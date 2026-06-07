@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   LogOut, Heart, Settings,
   ChevronRight, Shield, HelpCircle,
-  Loader2, Camera, AlertCircle,
+  Loader2, Camera, AlertCircle, Trash2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/utils";
@@ -82,7 +82,6 @@ export default function PerfilPage() {
     router.refresh();
   }
 
-  // Apenas itens gerais — editar perfil e avaliações ficam dentro do painel
   const MENU_ITEMS = [
     { icon: Heart, label: "Favoritos", href: "/favoritos", desc: "Profissionais salvos" },
     { icon: Shield, label: "Privacidade", href: "/privacidade", desc: "Política de privacidade" },
@@ -104,7 +103,8 @@ export default function PerfilPage() {
       </div>
 
       <div className="px-4 py-6">
-        {/* Avatar + info — sem botão Editar solto */}
+
+        {/* Avatar + info */}
         <div className="flex items-center gap-4 mb-6">
           <div className="relative flex-shrink-0">
             {profile?.avatar ? (
@@ -194,7 +194,7 @@ export default function PerfilPage() {
           </Link>
         )}
 
-        {/* Profissional CTA — único acesso ao painel */}
+        {/* Profissional CTA */}
         {profile?.role === "professional" && (
           <Link href="/painel"
             className="flex items-center gap-3 p-4 rounded-2xl mb-4"
@@ -211,12 +211,15 @@ export default function PerfilPage() {
           </Link>
         )}
 
-        {/* Menu */}
-        <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #1F1F23" }}>
+        {/* Menu principal */}
+        <div className="rounded-2xl overflow-hidden mb-4" style={{ border: "1px solid #1F1F23" }}>
           {MENU_ITEMS.map(({ icon: Icon, label, href, desc }, i) => (
             <Link key={href} href={href}
-              className="flex items-center gap-4 px-4 py-3.5 transition-colors duration-150 hover:bg-white/[0.02]"
-              style={{ borderBottom: i < MENU_ITEMS.length - 1 ? "1px solid #1F1F23" : "none", background: "#111113" }}>
+              className="flex items-center gap-4 px-4 py-3.5 transition-colors duration-150"
+              style={{
+                borderBottom: i < MENU_ITEMS.length - 1 ? "1px solid #1F1F23" : "none",
+                background: "#111113"
+              }}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: "rgba(59,130,246,0.08)" }}>
                 <Icon size={15} style={{ color: "#3B82F6" }} />
@@ -230,19 +233,42 @@ export default function PerfilPage() {
           ))}
         </div>
 
-        <div className="mt-6 flex items-center justify-center gap-4">
+        {/* Zona de perigo */}
+        <div className="rounded-2xl overflow-hidden mb-6" style={{ border: "1px solid rgba(239,68,68,0.2)" }}>
+          <div className="px-4 py-2.5" style={{ background: "rgba(239,68,68,0.05)", borderBottom: "1px solid rgba(239,68,68,0.15)" }}>
+            <p className="text-[10px] font-bold tracking-widest" style={{ color: "#f87171" }}>ZONA DE PERIGO</p>
+          </div>
+          <Link href="/excluir-conta"
+            className="flex items-center gap-4 px-4 py-3.5"
+            style={{ background: "#111113" }}>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "rgba(239,68,68,0.08)" }}>
+              <Trash2 size={15} style={{ color: "#f87171" }} />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium" style={{ color: "#f87171" }}>Excluir conta</div>
+              <div className="text-xs text-muted">Remover todos os seus dados permanentemente</div>
+            </div>
+            <ChevronRight size={14} style={{ color: "#f87171" }} />
+          </Link>
+        </div>
+
+        {/* Instagram */}
+        <div className="flex items-center justify-center mb-4">
           <a href="https://www.instagram.com/udihub" target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-2 text-xs text-muted">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="3"/>
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <circle cx="12" cy="12" r="3"/>
               <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/>
             </svg>
             @udihub
           </a>
         </div>
 
+        {/* Sair */}
         <button onClick={handleLogout} disabled={loggingOut}
-          className="w-full mt-4 py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-medium"
+          className="w-full py-3 rounded-xl flex items-center justify-center gap-2 text-sm font-medium"
           style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}>
           {loggingOut ? <Loader2 size={15} className="animate-spin" /> : <LogOut size={15} />}
           {loggingOut ? "Saindo..." : "Sair da conta"}
