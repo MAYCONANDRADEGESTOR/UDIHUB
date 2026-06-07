@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Camera, Loader2, CheckCircle, X, Clock, Moon, Coffee } from "lucide-react";
+import { ArrowLeft, Camera, Loader2, CheckCircle, X, Clock, Moon, Coffee, Instagram } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { getInitials } from "@/lib/utils";
@@ -58,7 +58,7 @@ export default function EditarPerfilPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "", email: "", phone: "", whatsapp: "",
-    bio: "", available_now: false,
+    bio: "", available_now: false, instagram: "",
   });
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function EditarPerfilPage() {
 
       const [{ data: prof }, { data: userData }, { data: neighborhoods }, { data: profCats }] = await Promise.all([
         supabase.from("professionals")
-          .select("id, whatsapp, bio, available_now, work_hours, professional_neighborhoods(neighborhood_id)")
+          .select("id, whatsapp, bio, available_now, work_hours, instagram, professional_neighborhoods(neighborhood_id)")
           .eq("user_id", user.id).single(),
         supabase.from("users").select("name, email, phone, avatar").eq("id", user.id).single(),
         supabase.from("neighborhoods").select("id, name").eq("city_id", cityId).order("name"),
@@ -94,14 +94,6 @@ export default function EditarPerfilPage() {
       // Carregar categorias selecionadas (primária primeiro)
       if (profCats && profCats.length > 0) {
         const sorted = [...profCats].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
-        const catSlugs = sorted.map((pc: any) => {
-          const cat = CATEGORIES.find(c => {
-            return pc.category_id;
-          });
-          return pc.category_id;
-        });
-
-        // Buscar slugs das categorias
         const { data: catsData } = await supabase
           .from("categories").select("id, slug")
           .in("id", sorted.map((pc: any) => pc.category_id));
@@ -131,6 +123,7 @@ export default function EditarPerfilPage() {
         whatsapp: prof.whatsapp || "",
         bio: prof.bio || "",
         available_now: prof.available_now || false,
+        instagram: prof.instagram || "",
       });
       setLoading(false);
     }
@@ -187,7 +180,6 @@ export default function EditarPerfilPage() {
     setSaving(true);
     const supabase = createClient();
 
-    // Buscar IDs das categorias selecionadas
     const { data: catsData } = await supabase
       .from("categories").select("id, slug")
       .in("slug", selectedCategories);
@@ -202,6 +194,7 @@ export default function EditarPerfilPage() {
         available_now: form.available_now,
         work_hours: showHours ? workHours : null,
         category_id: primaryCat?.id || null,
+        instagram: form.instagram ? form.instagram.replace("@", "") : null,
       }).eq("id", professionalId),
     ]);
 
@@ -305,14 +298,28 @@ export default function EditarPerfilPage() {
             <p className="text-[10px] text-muted mt-1">Para alterar o e-mail entre em contato com o suporte</p>
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted mb-1.5">Telefone</label>
-            <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="(34) 99999-9999" className={inputClass} style={inputStyle} />
-          </div>
-          <div>
             <label className="block text-xs font-medium text-muted mb-1.5">WhatsApp (recebe leads)</label>
             <input type="tel" value={form.whatsapp} onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
               placeholder="(34) 99999-9999" required className={inputClass} style={inputStyle} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">
+              <Instagram size={11} className="inline mr-1" />Instagram (opcional)
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted">@</span>
+              <input type="text" value={form.instagram}
+                onChange={(e) => setForm({ ...form, instagram: e.target.value.replace("@", "") })}
+                placeholder="seuinstagram"
+                className={inputClass}
+                style={{ ...inputStyle, paddingLeft: "2rem" }} />
+            </div>
+            {form.instagram && (
+              <a href={`https://instagram.com/${form.instagram}`} target="_blank" rel="noreferrer"
+                className="text-[10px] mt-1 block" style={{ color: "#3B82F6" }}>
+                instagram.com/{form.instagram} →
+              </a>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Bio</label>
@@ -330,7 +337,6 @@ export default function EditarPerfilPage() {
             <span className="ml-1 text-[10px]" style={{ color: "#64748b" }}>— máximo 3</span>
           </label>
 
-          {/* Categorias selecionadas */}
           {selectedCategories.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
               {selectedCategories.map((slug, idx) => {
@@ -352,7 +358,6 @@ export default function EditarPerfilPage() {
             </div>
           )}
 
-          {/* Lista de categorias */}
           <div className="max-h-48 overflow-y-auto rounded-xl p-2 space-y-0.5"
             style={{ background: "#09090B", border: "1px solid #1F1F23" }}>
             {CATEGORIES.map((cat) => {
@@ -376,7 +381,7 @@ export default function EditarPerfilPage() {
               );
             })}
           </div>
-          <p className="text-[10px] text-muted mt-1">A primeira categoria selecionada é a principal que aparece no perfil</p>
+          <p className="text-[10px] text-muted mt-1">A primeira categoria selecionada é a principal</p>
         </div>
 
         {/* ── HORÁRIOS ── */}
