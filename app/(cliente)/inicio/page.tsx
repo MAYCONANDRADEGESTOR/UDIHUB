@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, ChevronDown, Search, Zap, MessageCircle, Star, Heart, Loader2, X, UserPlus, ArrowRight, Grid3X3 } from "lucide-react";
+import { MapPin, ChevronDown, Search, Zap, MessageCircle, Star, Heart, X, UserPlus, ArrowRight, Grid3X3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
 import { ProfessionalCardSkeleton } from "@/app/components/ui/Skeletons";
+import ProCarousel from "@/app/components/ui/ProCarousel";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/app/components/layout/BottomNav";
@@ -130,7 +131,7 @@ export default function InicioPage() {
   return (
     <div className="min-h-screen bg-background pb-24">
 
-      {/* ── HEADER ── */}
+      {/* Header */}
       <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <div className="flex items-center justify-between">
@@ -167,7 +168,7 @@ export default function InicioPage() {
 
       <div className="px-4 pt-5 pb-4 space-y-6">
 
-        {/* ── HERO ── */}
+        {/* Hero */}
         <div>
           <p className="text-xs text-muted mb-0.5">
             {userName ? `Olá, ${userName}! 👋` : "Bem-vindo ao UDIHUB 👋"}
@@ -175,8 +176,6 @@ export default function InicioPage() {
           <h1 className="font-syne font-extrabold text-2xl text-foreground leading-tight mb-4">
             Encontre o profissional<br />certo para você
           </h1>
-
-          {/* Stats rápidos */}
           <div className="grid grid-cols-3 gap-2">
             {[
               { value: "107+", label: "Categorias", color: "#3B82F6" },
@@ -192,7 +191,7 @@ export default function InicioPage() {
           </div>
         </div>
 
-        {/* ── BUSCA RÁPIDA ── */}
+        {/* Busca rápida */}
         <Link href="/servicos"
           className="flex items-center gap-3 px-4 py-3.5 rounded-2xl w-full"
           style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -201,7 +200,7 @@ export default function InicioPage() {
           <ArrowRight size={14} className="text-muted" />
         </Link>
 
-        {/* ── CATEGORIAS ── */}
+        {/* Categorias */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold tracking-widest text-muted">CATEGORIAS</span>
@@ -220,8 +219,6 @@ export default function InicioPage() {
               </Link>
             ))}
           </div>
-
-          {/* Ver todas as categorias */}
           <Link href="/servicos"
             className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold"
             style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)", color: "#93c5fd" }}>
@@ -229,7 +226,10 @@ export default function InicioPage() {
           </Link>
         </div>
 
-        {/* ── PROFISSIONAIS EM DESTAQUE ── */}
+        {/* ── CARROSSEL PRO ── */}
+        <ProCarousel />
+
+        {/* Profissionais em destaque */}
         <div>
           <div className="flex items-center gap-2 mb-3">
             <Zap size={14} style={{ color: "#3B82F6" }} />
@@ -265,7 +265,6 @@ export default function InicioPage() {
                     <Link href={`/profissional/${prof.slug}`}
                       className="block p-4" onClick={handleProfileClick}>
                       <div className="flex items-start gap-3">
-                        {/* Avatar */}
                         <div className="relative flex-shrink-0">
                           {avatarUrl ? (
                             <Image src={avatarUrl} alt={(prof.users as any)?.name || ""}
@@ -281,8 +280,6 @@ export default function InicioPage() {
                               style={{ background: "#22c55e", borderColor: "#111113" }} />
                           )}
                         </div>
-
-                        {/* Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between">
                             <div className="min-w-0">
@@ -303,7 +300,6 @@ export default function InicioPage() {
                                 className={isFav ? "text-red-500" : "text-muted"} />
                             </button>
                           </div>
-
                           <div className="flex items-center gap-3 mt-1.5">
                             {profNeighborhood && (
                               <div className="flex items-center gap-1">
@@ -327,8 +323,6 @@ export default function InicioPage() {
                         </div>
                       </div>
                     </Link>
-
-                    {/* Botões */}
                     <div className="px-4 pb-4 grid grid-cols-2 gap-2">
                       <Link href={`/profissional/${prof.slug}`}
                         onClick={handleProfileClick}
@@ -346,7 +340,6 @@ export default function InicioPage() {
                 );
               })}
 
-              {/* Ver todos os profissionais */}
               <Link href="/servicos"
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold"
                 style={{ background: "#111113", border: "1px solid #1F1F23", color: "#A1A1AA" }}>
@@ -356,7 +349,7 @@ export default function InicioPage() {
           )}
         </div>
 
-        {/* ── BANNER SEJA PROFISSIONAL ── */}
+        {/* Banner seja profissional */}
         <div className="relative p-5 rounded-2xl overflow-hidden"
           style={{ background: "linear-gradient(135deg, #0F1729, #1a2f5a)", border: "1px solid #3B82F6" }}>
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none"
@@ -377,7 +370,7 @@ export default function InicioPage() {
 
       </div>
 
-      {/* ── MODAL LOGIN ── */}
+      {/* Modal Login */}
       {showLoginModal && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.75)" }}
@@ -396,7 +389,7 @@ export default function InicioPage() {
               {pendingAction === "whatsapp" ? "Entre para falar com o profissional" : "Entre para ver o perfil completo"}
             </h3>
             <p className="text-sm text-muted text-center mb-6 leading-relaxed">
-              O UDIHUB é para clientes. Crie sua conta em menos de 1 minuto e encontre os melhores profissionais de Uberlândia.
+              O UDIHUB é para clientes. Crie sua conta em menos de 1 minuto.
             </p>
             <div className="flex flex-col gap-3">
               <Link href="/cadastro"
