@@ -11,7 +11,6 @@ import { ProfessionalCardSkeleton } from "@/app/components/ui/Skeletons";
 import ProCarousel from "@/app/components/ui/ProCarousel";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
-import BottomNav from "@/app/components/layout/BottomNav";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
@@ -87,13 +86,13 @@ export default function InicioPage() {
   }
 
   function saveLocation(n: string) {
-    localStorage.setItem("udihub_location", JSON.stringify({ city: "Uberlândia", neighborhood: n }));
+    localStorage.setItem("udihub_location", JSON.stringify({ city: "Uberlandia", neighborhood: n }));
     setNeighborhood(n);
     setShowLocationSelect(false);
   }
 
   async function toggleFavorite(profId: string) {
-    if (!userId) { toast.error("Faça login para favoritar"); return; }
+    if (!userId) { toast.error("Faca login para favoritar"); return; }
     const supabase = createClient();
     if (favorites.includes(profId)) {
       await supabase.from("favorites").delete().eq("user_id", userId).eq("professional_id", profId);
@@ -114,10 +113,10 @@ export default function InicioPage() {
       await fetch("/api/whatsapp-click", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ professional_id: prof.id, city: "Uberlândia", neighborhood }),
+        body: JSON.stringify({ professional_id: prof.id, city: "Uberlandia", neighborhood }),
       });
     } catch {}
-    window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
+    window.open(buildWhatsAppUrl(prof.whatsapp, `Ola ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
 
   function handleProfileClick(e: React.MouseEvent) {
@@ -139,9 +138,9 @@ export default function InicioPage() {
             className="flex items-center gap-1.5">
             <MapPin size={14} style={{ color: "#3B82F6" }} />
             <div className="text-left">
-              <div className="text-[10px] text-muted">Sua localização</div>
+              <div className="text-[10px] text-muted">Sua localizacao</div>
               <div className="text-sm font-semibold text-foreground flex items-center gap-1">
-                {neighborhood ? `${neighborhood}, ` : ""}Uberlândia
+                {neighborhood ? `${neighborhood}, ` : ""}Uberlandia
                 <ChevronDown size={12} className="text-muted" />
               </div>
             </div>
@@ -159,7 +158,7 @@ export default function InicioPage() {
             <select value={neighborhood} onChange={(e) => saveLocation(e.target.value)}
               className="w-full px-3 py-2 rounded-xl text-xs text-foreground"
               style={{ background: "#09090B", border: "1px solid #1F1F23", outline: "none" }}>
-              <option value="">Todos os bairros de Uberlândia</option>
+              <option value="">Todos os bairros de Uberlandia</option>
               {uberlandia.neighborhoods.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
@@ -171,16 +170,16 @@ export default function InicioPage() {
         {/* Hero */}
         <div>
           <p className="text-xs text-muted mb-0.5">
-            {userName ? `Olá, ${userName}! 👋` : "Bem-vindo ao UDIHUB 👋"}
+            {userName ? `Ola, ${userName}! 👋` : "Bem-vindo ao UDIHUB 👋"}
           </p>
           <h1 className="font-syne font-extrabold text-2xl text-foreground leading-tight mb-4">
-            Encontre o profissional<br />certo para você
+            Encontre o profissional<br />certo para voce
           </h1>
           <div className="grid grid-cols-3 gap-2">
             {[
               { value: "107+", label: "Categorias", color: "#3B82F6" },
               { value: "100%", label: "Via WhatsApp", color: "#22c55e" },
-              { value: "UDI", label: "Uberlândia", color: "#a855f7" },
+              { value: "UDI", label: "Uberlandia", color: "#a855f7" },
             ].map(({ value, label, color }) => (
               <div key={label} className="text-center p-2.5 rounded-xl"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -191,12 +190,12 @@ export default function InicioPage() {
           </div>
         </div>
 
-        {/* Busca rápida */}
+        {/* Busca rapida */}
         <Link href="/servicos"
           className="flex items-center gap-3 px-4 py-3.5 rounded-2xl w-full"
           style={{ background: "#111113", border: "1px solid #1F1F23" }}>
           <Search size={16} className="text-muted flex-shrink-0" />
-          <span className="text-sm text-muted flex-1">Buscar por serviço ou profissão...</span>
+          <span className="text-sm text-muted flex-1">Buscar por servico ou profissao...</span>
           <ArrowRight size={14} className="text-muted" />
         </Link>
 
@@ -226,7 +225,7 @@ export default function InicioPage() {
           </Link>
         </div>
 
-        {/* ── CARROSSEL PRO ── */}
+        {/* Carrossel PRO */}
         <ProCarousel />
 
         {/* Profissionais em destaque */}
@@ -245,11 +244,11 @@ export default function InicioPage() {
               style={{ background: "#111113", border: "1px solid #1F1F23" }}>
               <div className="text-4xl mb-3">🔍</div>
               <p className="font-syne font-bold text-foreground mb-1">Nenhum profissional ainda</p>
-              <p className="text-xs text-muted mb-4">Seja o primeiro a anunciar em Uberlândia!</p>
+              <p className="text-xs text-muted mb-4">Seja o primeiro a anunciar em Uberlandia!</p>
               <Link href="/seja-profissional"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white"
                 style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
-                Anunciar agora →
+                Anunciar agora
               </Link>
             </div>
           ) : (
@@ -258,7 +257,6 @@ export default function InicioPage() {
                 const profNeighborhood = (prof.professional_neighborhoods as any)?.[0]?.neighborhoods?.name;
                 const isFav = favorites.includes(prof.id);
                 const avatarUrl = (prof.users as any)?.avatar;
-
                 return (
                   <div key={prof.id} className="rounded-2xl overflow-hidden"
                     style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -316,7 +314,7 @@ export default function InicioPage() {
                             {prof.available_now && (
                               <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
                                 style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>
-                                Disponível
+                                Disponivel
                               </span>
                             )}
                           </div>
@@ -332,7 +330,7 @@ export default function InicioPage() {
                       </Link>
                       <button onClick={() => handleWhatsApp(prof)}
                         className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-white"
-                        style={{ background: "linear-gradient(135deg, #16a34a, #15803d)", boxShadow: "0 0 12px rgba(22,163,74,0.2)" }}>
+                        style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
                         <MessageCircle size={13} /> WhatsApp
                       </button>
                     </div>
@@ -354,12 +352,12 @@ export default function InicioPage() {
           style={{ background: "linear-gradient(135deg, #0F1729, #1a2f5a)", border: "1px solid #3B82F6" }}>
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none"
             style={{ background: "radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)", transform: "translate(20%, -20%)" }} />
-          <p className="text-xs font-bold mb-1" style={{ color: "#93c5fd" }}>É profissional autônomo?</p>
+          <p className="text-xs font-bold mb-1" style={{ color: "#93c5fd" }}>E profissional autonomo?</p>
           <h3 className="font-syne font-extrabold text-lg text-white mb-1">
             Receba clientes no seu WhatsApp
           </h3>
           <p className="text-xs text-muted mb-4 leading-relaxed">
-            Crie seu perfil e apareça nas buscas de clientes de Uberlândia por apenas R$69/mês.
+            Crie seu perfil e apareca nas buscas de clientes de Uberlandia por apenas R$69/mes.
           </p>
           <Link href="/seja-profissional"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white"
@@ -389,7 +387,7 @@ export default function InicioPage() {
               {pendingAction === "whatsapp" ? "Entre para falar com o profissional" : "Entre para ver o perfil completo"}
             </h3>
             <p className="text-sm text-muted text-center mb-6 leading-relaxed">
-              O UDIHUB é para clientes. Crie sua conta em menos de 1 minuto.
+              O UDIHUB e para clientes. Crie sua conta em menos de 1 minuto.
             </p>
             <div className="flex flex-col gap-3">
               <Link href="/cadastro"
@@ -400,7 +398,7 @@ export default function InicioPage() {
               <Link href="/login"
                 className="w-full py-3.5 rounded-2xl font-semibold text-sm text-center"
                 style={{ background: "#09090B", border: "1px solid #1F1F23", color: "#94a3b8" }}>
-                Já tenho conta — Entrar
+                Ja tenho conta — Entrar
               </Link>
             </div>
             <p className="text-center text-[10px] text-muted mt-4">
@@ -410,7 +408,6 @@ export default function InicioPage() {
         </div>
       )}
 
-      <BottomNav />
     </div>
   );
 }
