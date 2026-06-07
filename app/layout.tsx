@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import Script from "next/script";
-import BottomNav from "@/app/components/layout/BottomNav";
 
 const GA_ID = "G-QK04EZWBTR";
 
@@ -101,8 +100,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="font-sans bg-background text-foreground antialiased">
-
-        {/* Google Analytics */}
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
           strategy="afterInteractive"
@@ -117,9 +114,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             });
           `}
         </Script>
-
         {children}
-        <BottomNav />
         <Toaster
           position="top-center"
           toastOptions={{
