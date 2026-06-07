@@ -6,11 +6,10 @@ import { useRouter } from "next/navigation";
 import {
   Eye, MessageCircle, Star, TrendingUp, Settings,
   Crown, ChevronRight, Loader2, Heart, MapPin,
-  Clock, BarChart3, Bell, Zap, Lock,
+  Clock, BarChart3, Bell, Zap, Lock, Camera,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/utils";
-import BottomNav from "@/app/components/layout/BottomNav";
 
 export default function PainelPage() {
   const router = useRouter();
@@ -18,18 +17,9 @@ export default function PainelPage() {
   const [prof, setProf] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [metrics, setMetrics] = useState({
-    viewsHoje: 0,
-    viewsSemana: 0,
-    viewsMes: 0,
-    viewsTotal: 0,
-    leadsHoje: 0,
-    leadsSemana: 0,
-    leadsMes: 0,
-    leadsTotal: 0,
-    favoritosTotal: 0,
-    avaliacoes: 0,
-    avgRating: 0,
-    conversionRate: 0,
+    viewsHoje: 0, viewsSemana: 0, viewsMes: 0, viewsTotal: 0,
+    leadsHoje: 0, leadsSemana: 0, leadsMes: 0, leadsTotal: 0,
+    favoritosTotal: 0, avaliacoes: 0, avgRating: 0, conversionRate: 0,
   });
   const [periodo, setPeriodo] = useState<"7" | "30">("7");
 
@@ -84,20 +74,14 @@ export default function PainelPage() {
         : 0;
 
       setMetrics({
-        viewsHoje: viewsHoje.count || 0,
-        viewsSemana: viewsSemana.count || 0,
-        viewsMes: viewsMes.count || 0,
-        viewsTotal: viewsT,
-        leadsHoje: leadsHoje.count || 0,
-        leadsSemana: leadsSemana.count || 0,
-        leadsMes: leadsMes.count || 0,
-        leadsTotal: leadsT,
+        viewsHoje: viewsHoje.count || 0, viewsSemana: viewsSemana.count || 0,
+        viewsMes: viewsMes.count || 0, viewsTotal: viewsT,
+        leadsHoje: leadsHoje.count || 0, leadsSemana: leadsSemana.count || 0,
+        leadsMes: leadsMes.count || 0, leadsTotal: leadsT,
         favoritosTotal: favoritosTotal.count || 0,
         avaliacoes: reviewsData.data?.length || 0,
-        avgRating: avgRat,
-        conversionRate: conv,
+        avgRating: avgRat, conversionRate: conv,
       });
-
       setLoading(false);
     }
     load();
@@ -123,8 +107,7 @@ export default function PainelPage() {
     ? { views: metrics.viewsSemana, leads: metrics.leadsSemana }
     : { views: metrics.viewsMes, leads: metrics.leadsMes };
   const convPeriodo = currentPeriod.views > 0
-    ? Math.round((currentPeriod.leads / currentPeriod.views) * 100)
-    : 0;
+    ? Math.round((currentPeriod.leads / currentPeriod.views) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -165,12 +148,12 @@ export default function PainelPage() {
 
       <div className="px-4 py-4 space-y-4">
 
-        {/* Status do perfil */}
+        {/* Status inativo */}
         {!isActive && (
           <div className="p-4 rounded-2xl"
             style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
             <p className="font-syne font-bold text-sm mb-1" style={{ color: "#f87171" }}>
-              ⚠️ Perfil inativo — você não aparece nas buscas
+              Perfil inativo — voce nao aparece nas buscas
             </p>
             <p className="text-xs text-muted mb-3">Ative sua assinatura para receber clientes.</p>
             <Link href="/painel/assinatura"
@@ -181,7 +164,7 @@ export default function PainelPage() {
           </div>
         )}
 
-        {/* Disponível agora */}
+        {/* Disponivel */}
         {isActive && (
           <div className="flex items-center justify-between p-3.5 rounded-2xl"
             style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -189,7 +172,7 @@ export default function PainelPage() {
               <div className={`w-2 h-2 rounded-full ${prof.available_now ? "bg-green-500 animate-pulse" : "bg-gray-600"}`} />
               <div>
                 <p className="text-sm font-semibold text-foreground">
-                  {prof.available_now ? "Disponível agora" : "Indisponível"}
+                  {prof.available_now ? "Disponivel agora" : "Indisponivel"}
                 </p>
                 <p className="text-xs text-muted">Aparece badge verde no perfil</p>
               </div>
@@ -203,9 +186,9 @@ export default function PainelPage() {
           </div>
         )}
 
-        {/* Filtro período */}
+        {/* Filtro periodo */}
         <div className="flex items-center justify-between">
-          <p className="text-xs font-bold tracking-widest text-muted">MÉTRICAS</p>
+          <p className="text-xs font-bold tracking-widest text-muted">METRICAS</p>
           <div className="flex gap-1">
             {(["7", "30"] as const).map((p) => (
               <button key={p} onClick={() => setPeriodo(p)}
@@ -221,41 +204,34 @@ export default function PainelPage() {
           </div>
         </div>
 
-        {/* Cards principais de métricas */}
+        {/* Cards metricas */}
         <div className="grid grid-cols-2 gap-3">
-          {/* Visualizações */}
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-2 mb-3">
               <Eye size={14} style={{ color: "#f59e0b" }} />
-              <span className="text-xs text-muted">Visualizações</span>
+              <span className="text-xs text-muted">Visualizacoes</span>
             </div>
-            <div className="font-syne font-extrabold text-3xl text-foreground mb-1">
-              {currentPeriod.views}
-            </div>
+            <div className="font-syne font-extrabold text-3xl text-foreground mb-1">{currentPeriod.views}</div>
             <div className="text-[10px] text-muted">Hoje: {metrics.viewsHoje}</div>
             <div className="text-[10px] text-muted">Total: {metrics.viewsTotal}</div>
           </div>
-
-          {/* Leads */}
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center gap-2 mb-3">
               <MessageCircle size={14} style={{ color: "#22c55e" }} />
               <span className="text-xs text-muted">Leads WhatsApp</span>
             </div>
-            <div className="font-syne font-extrabold text-3xl text-foreground mb-1">
-              {currentPeriod.leads}
-            </div>
+            <div className="font-syne font-extrabold text-3xl text-foreground mb-1">{currentPeriod.leads}</div>
             <div className="text-[10px] text-muted">Hoje: {metrics.leadsHoje}</div>
             <div className="text-[10px] text-muted">Total: {metrics.leadsTotal}</div>
           </div>
         </div>
 
-        {/* Métricas secundárias */}
+        {/* Metricas secundarias */}
         <div className="grid grid-cols-3 gap-2">
           <div className="p-3 rounded-2xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <TrendingUp size={14} style={{ color: "#3B82F6" }} className="mx-auto mb-1.5" />
             <div className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>{convPeriodo}%</div>
-            <div className="text-[10px] text-muted">Conversão</div>
+            <div className="text-[10px] text-muted">Conversao</div>
           </div>
           <div className="p-3 rounded-2xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <Heart size={14} style={{ color: "#ef4444" }} className="mx-auto mb-1.5" />
@@ -267,15 +243,15 @@ export default function PainelPage() {
             <div className="font-syne font-bold text-lg" style={{ color: "#FBBF24" }}>
               {metrics.avgRating > 0 ? metrics.avgRating.toFixed(1) : "—"}
             </div>
-            <div className="text-[10px] text-muted">{metrics.avaliacoes} avaliações</div>
+            <div className="text-[10px] text-muted">{metrics.avaliacoes} avaliacoes</div>
           </div>
         </div>
 
-        {/* Funil de conversão */}
+        {/* Funil */}
         <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 size={14} style={{ color: "#3B82F6" }} />
-            <p className="font-syne font-bold text-sm text-foreground">Funil de conversão</p>
+            <p className="font-syne font-bold text-sm text-foreground">Funil de conversao</p>
           </div>
           <div className="space-y-2">
             {[
@@ -294,12 +270,10 @@ export default function PainelPage() {
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-muted mt-2 text-right">
-            Taxa de conversão: {convPeriodo}%
-          </p>
+          <p className="text-[10px] text-muted mt-2 text-right">Taxa de conversao: {convPeriodo}%</p>
         </div>
 
-        {/* Dica de melhoria baseada nos dados */}
+        {/* Dicas */}
         {isActive && currentPeriod.views > 0 && currentPeriod.leads === 0 && (
           <div className="p-4 rounded-2xl"
             style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)" }}>
@@ -308,11 +282,10 @@ export default function PainelPage() {
               <span className="text-xs font-bold" style={{ color: "#FBBF24" }}>Dica para melhorar</span>
             </div>
             <p className="text-xs text-muted leading-relaxed">
-              Seu perfil teve {currentPeriod.views} visualização(ões) mas nenhum lead. Adicione uma foto de perfil e complete a bio para aumentar as conversões.
+              Seu perfil teve {currentPeriod.views} visualizacao(oes) mas nenhum lead. Adicione foto e complete a bio.
             </p>
           </div>
         )}
-
         {isActive && currentPeriod.views === 0 && (
           <div className="p-4 rounded-2xl"
             style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)" }}>
@@ -321,7 +294,7 @@ export default function PainelPage() {
               <span className="text-xs font-bold" style={{ color: "#3B82F6" }}>Como atrair mais clientes</span>
             </div>
             <p className="text-xs text-muted leading-relaxed">
-              Complete seu perfil com foto, bio e bairros atendidos. Perfis completos aparecem melhor nas buscas e recebem até 3x mais visualizações.
+              Complete seu perfil com foto, bio e bairros atendidos. Perfis completos recebem ate 3x mais visualizacoes.
             </p>
           </div>
         )}
@@ -335,18 +308,15 @@ export default function PainelPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-syne font-bold text-sm text-foreground">
-                    {isPro ? "👑 Plano Pro" : "⭐ Plano Básico"}
+                    {isPro ? "Plano Pro" : "Plano Basico"}
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
-                    style={{
-                      background: isActive ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                      color: isActive ? "#22c55e" : "#f87171"
-                    }}>
+                    style={{ background: isActive ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: isActive ? "#22c55e" : "#f87171" }}>
                     {isActive ? "Ativo" : "Inativo"}
                   </span>
                 </div>
                 <p className="text-xs text-muted mt-0.5">
-                  {isPro ? "R$99/mês" : "R$69/mês"}
+                  {isPro ? "R$99/mes" : "R$69/mes"}
                   {subscription?.next_billing && ` · Renova ${new Date(subscription.next_billing).toLocaleDateString("pt-BR")}`}
                 </p>
               </div>
@@ -356,47 +326,43 @@ export default function PainelPage() {
                 Gerenciar
               </Link>
             </div>
-
-            {/* Benefícios do plano atual */}
             <div className="space-y-1.5">
               {isPro ? (
                 <>
                   <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Aparece PRIMEIRO nas buscas</div>
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Badge PRO em destaque azul</div>
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Até 10 fotos na galeria</div>
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Métricas avançadas</div>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Badge PRO em destaque</div>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Ate 10 fotos na galeria</div>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Metricas avancadas</div>
                 </>
               ) : (
                 <>
                   <div className="flex items-center gap-2 text-xs text-muted"><span>✓</span> Perfil ativo nas buscas</div>
                   <div className="flex items-center gap-2 text-xs text-muted"><span>✓</span> Leads direto no WhatsApp</div>
-                  <div className="flex items-center gap-2 text-xs text-muted"><span>✓</span> Até 3 fotos no perfil</div>
+                  <div className="flex items-center gap-2 text-xs text-muted"><span>✓</span> Ate 3 fotos no perfil</div>
                   <div className="flex items-center gap-2 text-xs" style={{ color: "#64748b" }}>
-                    <Lock size={10} /> Aparecer primeiro nas buscas — upgrade para Pro
+                    <Lock size={10} /> Aparecer primeiro — upgrade para Pro
                   </div>
                 </>
               )}
             </div>
-
-            {/* CTA upgrade só para básico */}
             {!isPro && isActive && (
               <Link href="/painel/assinatura"
                 className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white"
                 style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
-                <Crown size={12} /> Fazer upgrade para Pro — R$99/mês
+                <Crown size={12} /> Fazer upgrade para Pro — R$99/mes
               </Link>
             )}
           </div>
         </div>
 
-        {/* Ações rápidas */}
+        {/* Acoes rapidas */}
         <div>
-          <p className="text-xs font-bold tracking-widest text-muted mb-2">AÇÕES RÁPIDAS</p>
+          <p className="text-xs font-bold tracking-widest text-muted mb-2">ACOES RAPIDAS</p>
           <div className="grid grid-cols-2 gap-3">
             {[
               { href: "/painel/perfil", icon: Settings, label: "Editar perfil", desc: "Foto, bio, bairros", color: "#3B82F6" },
               { href: `/profissional/${prof?.slug}`, icon: Eye, label: "Ver meu perfil", desc: "Como clientes veem", color: "#a855f7" },
-              { href: "/painel/fotos", icon: BarChart3, label: "Minhas fotos", desc: "Galeria do perfil", color: "#f59e0b" },
+              { href: "/painel/fotos", icon: Camera, label: "Minhas fotos", desc: "Galeria do perfil", color: "#f59e0b" },
               { href: "/painel/assinatura", icon: Crown, label: "Assinatura", desc: "Plano e pagamento", color: "#22c55e" },
             ].map(({ href, icon: Icon, label, desc, color }) => (
               <Link key={href} href={href}
@@ -415,35 +381,35 @@ export default function PainelPage() {
           </div>
         </div>
 
-        {/* Métricas avançadas só para PRO */}
+        {/* Metricas avancadas PRO */}
         {isPro && (
           <div>
-            <p className="text-xs font-bold tracking-widest text-muted mb-2">MÉTRICAS AVANÇADAS <span className="text-[9px] px-1.5 py-0.5 rounded ml-1" style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24" }}>PRO</span></p>
+            <p className="text-xs font-bold tracking-widest text-muted mb-2">
+              METRICAS AVANCADAS{" "}
+              <span className="text-[9px] px-1.5 py-0.5 rounded ml-1"
+                style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24" }}>PRO</span>
+            </p>
             <div className="space-y-3">
-
-              {/* Comparativo 7d vs 30d */}
               <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
                 <p className="text-xs font-bold text-muted mb-3">Comparativo de desempenho</p>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <p className="text-[10px] text-muted mb-1">Período</p>
+                    <p className="text-[10px] text-muted mb-1">Periodo</p>
                     <p className="text-xs font-semibold text-foreground">7 dias</p>
                     <p className="text-xs font-semibold text-foreground">30 dias</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted mb-1">👁 Views</p>
+                    <p className="text-[10px] text-muted mb-1">Views</p>
                     <p className="text-sm font-bold" style={{ color: "#f59e0b" }}>{metrics.viewsSemana}</p>
                     <p className="text-sm font-bold" style={{ color: "#f59e0b" }}>{metrics.viewsMes}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted mb-1">💬 Leads</p>
+                    <p className="text-[10px] text-muted mb-1">Leads</p>
                     <p className="text-sm font-bold" style={{ color: "#22c55e" }}>{metrics.leadsSemana}</p>
                     <p className="text-sm font-bold" style={{ color: "#22c55e" }}>{metrics.leadsMes}</p>
                   </div>
                 </div>
               </div>
-
-              {/* Score do perfil */}
               <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
                 <p className="text-xs font-bold text-muted mb-3">Score do perfil</p>
                 {(() => {
@@ -452,7 +418,7 @@ export default function PainelPage() {
                     { label: "Bio preenchida", done: !!prof?.bio },
                     { label: "WhatsApp configurado", done: !!prof?.whatsapp },
                     { label: "Instagram adicionado", done: !!prof?.instagram },
-                    { label: "Tem avaliações", done: metrics.avaliacoes > 0 },
+                    { label: "Tem avaliacoes", done: metrics.avaliacoes > 0 },
                     { label: "Plano Pro ativo", done: isPro },
                   ];
                   const score = Math.round((checks.filter(c => c.done).length / checks.length) * 100);
@@ -470,7 +436,7 @@ export default function PainelPage() {
                         {checks.map(({ label, done }) => (
                           <div key={label} className="flex items-center gap-2 text-xs">
                             <span style={{ color: done ? "#22c55e" : "#374151" }}>{done ? "✓" : "○"}</span>
-                            <span style={{ color: done ? "#A1A1AA" : "#64748b", textDecoration: done ? "none" : "none" }}>{label}</span>
+                            <span style={{ color: done ? "#A1A1AA" : "#64748b" }}>{label}</span>
                           </div>
                         ))}
                       </div>
@@ -482,7 +448,7 @@ export default function PainelPage() {
           </div>
         )}
 
-        {/* Bloquear métricas avançadas para básico */}
+        {/* Bloquear basico */}
         {!isPro && (
           <div className="p-4 rounded-2xl relative overflow-hidden"
             style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -490,8 +456,8 @@ export default function PainelPage() {
               style={{ background: "rgba(9,9,11,0.85)", backdropFilter: "blur(4px)" }}>
               <div className="text-center px-4">
                 <Lock size={20} style={{ color: "#3B82F6" }} className="mx-auto mb-2" />
-                <p className="font-syne font-bold text-sm text-foreground mb-1">Métricas avançadas</p>
-                <p className="text-xs text-muted mb-3">Score do perfil, comparativos e mais. Disponível no Plano Pro.</p>
+                <p className="font-syne font-bold text-sm text-foreground mb-1">Metricas avancadas</p>
+                <p className="text-xs text-muted mb-3">Score do perfil, comparativos e mais. Disponivel no Plano Pro.</p>
                 <Link href="/painel/assinatura"
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-white"
                   style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
@@ -503,14 +469,13 @@ export default function PainelPage() {
               <p className="text-xs font-bold text-muted">Score do perfil</p>
               <div className="h-2 rounded-full" style={{ background: "#1F1F23" }} />
               <div className="grid grid-cols-3 gap-2">
-                {[1,2,3].map(i => <div key={i} className="h-8 rounded-xl" style={{ background: "#1F1F23" }} />)}
+                {[1, 2, 3].map(i => <div key={i} className="h-8 rounded-xl" style={{ background: "#1F1F23" }} />)}
               </div>
             </div>
           </div>
         )}
 
       </div>
-      <BottomNav />
     </div>
   );
 }
