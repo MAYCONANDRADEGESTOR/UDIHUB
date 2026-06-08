@@ -87,7 +87,7 @@ export default function SejaProfissionalPage() {
           <p className="text-xs text-muted text-center mb-6">Oferta por tempo limitado</p>
           <div className="space-y-3">
 
-            {/* CUPOM */}
+            {/* CUPOM — sem nome do cupom */}
             <div className="rounded-2xl p-5"
               style={{ background: "#111113", border: "1px solid rgba(251,191,36,0.25)" }}>
               <div className="flex items-start gap-3 mb-3">
@@ -99,8 +99,6 @@ export default function SejaProfissionalPage() {
                   <p className="font-syne font-bold text-sm text-foreground">Tenho um cupom</p>
                   <p className="text-xs text-muted mt-0.5">3 meses no perfil Basico</p>
                 </div>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-lg flex-shrink-0"
-                  style={{ background: "rgba(251,191,36,0.12)", color: "#FBBF24" }}>UDIHUB90</span>
               </div>
               <div className="space-y-1.5 mb-4">
                 {["Perfil ativo por 90 dias", "Aparece nas buscas", "Leads direto no WhatsApp", "Apos 90 dias, assine para continuar"].map((f) => (
@@ -117,7 +115,7 @@ export default function SejaProfissionalPage() {
               </Link>
             </div>
 
-            {/* BASICO */}
+            {/* BASICO — sem porcentagem */}
             <div className="relative rounded-2xl p-5"
               style={{ background: "#111113", border: "1px solid #1F1F23" }}>
               <div className="absolute -top-3 left-4">
@@ -130,11 +128,6 @@ export default function SejaProfissionalPage() {
                   <p className="text-xs text-muted">Ideal para comecar</p>
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center gap-1 justify-end mb-0.5">
-                    <span className="text-xs line-through" style={{ color: "#64748b" }}>R$99</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
-                      style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e" }}>-30%</span>
-                  </div>
                   <div className="flex items-end gap-0.5">
                     <span className="font-syne font-bold text-2xl text-foreground">R$69</span>
                     <span className="text-xs text-muted mb-0.5">/mes</span>
@@ -156,7 +149,7 @@ export default function SejaProfissionalPage() {
               </Link>
             </div>
 
-            {/* PRO */}
+            {/* PRO — sem porcentagem */}
             <div className="relative rounded-2xl p-5"
               style={{ background: "linear-gradient(135deg, #0F1729, #1a2f5a)", border: "2px solid #3B82F6" }}>
               <div className="absolute -top-3 left-4">
@@ -173,11 +166,6 @@ export default function SejaProfissionalPage() {
                   <p className="text-xs text-muted">Para quem quer mais clientes</p>
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center gap-1 justify-end mb-0.5">
-                    <span className="text-xs line-through" style={{ color: "#64748b" }}>R$169</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
-                      style={{ background: "rgba(59,130,246,0.2)", color: "#93c5fd" }}>-41%</span>
-                  </div>
                   <div className="flex items-end gap-0.5">
                     <span className="font-syne font-bold text-2xl text-white">R$99</span>
                     <span className="text-xs text-muted mb-0.5">/mes</span>
