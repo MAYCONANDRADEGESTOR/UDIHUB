@@ -3,13 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -28,7 +26,7 @@ export default function LoginPage() {
       return;
     }
 
-    // Busca o role para redirecionar para a página certa
+    // Busca o role
     const { data: userData } = await supabase
       .from("users")
       .select("role")
@@ -36,16 +34,18 @@ export default function LoginPage() {
       .single();
 
     const role = userData?.role;
-
     toast.success("Bem-vindo!");
 
-    // Usa router.replace — não cria histórico extra e mantém a sessão no localStorage
+    // Aguarda a sessão ser salva nos cookies antes de navegar
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Usa window.location para garantir reload completo com cookies
     if (role === "admin") {
-      router.replace("/admin");
+      window.location.replace("/admin");
     } else if (role === "professional") {
-      router.replace("/painel");
+      window.location.replace("/painel");
     } else {
-      router.replace("/inicio");
+      window.location.replace("/inicio");
     }
   }
 
