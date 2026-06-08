@@ -17,58 +17,26 @@ export default function BottomNav() {
   useEffect(() => {
     async function loadUser() {
       const supabase = createClient();
-
-      // Escuta mudanças de sessão em tempo real
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (!session) {
-            setPainelHref("/login");
-            setAvatar(null);
-            setUserName(null);
-            setLoaded(true);
-            return;
-          }
-
-          const { data } = await supabase
-            .from("users")
-            .select("role, avatar, name")
-            .eq("id", session.user.id)
-            .single();
-
-          setAvatar(data?.avatar || null);
-          setUserName(data?.name || null);
-
-          if (data?.role === "admin") setPainelHref("/admin");
-          else if (data?.role === "professional") setPainelHref("/painel");
-          else setPainelHref("/perfil");
-          setLoaded(true);
-        }
-      );
-
-      // Carrega sessão atual imediatamente
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data } = await supabase
-          .from("users")
-          .select("role, avatar, name")
-          .eq("id", session.user.id)
-          .single();
-
-        setAvatar(data?.avatar || null);
-        setUserName(data?.name || null);
-
-        if (data?.role === "admin") setPainelHref("/admin");
-        else if (data?.role === "professional") setPainelHref("/painel");
-        else setPainelHref("/perfil");
-      } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         setPainelHref("/login");
+        setLoaded(true);
+        return;
       }
+      const { data } = await supabase
+        .from("users")
+        .select("role, avatar, name")
+        .eq("id", user.id)
+        .single();
+      setAvatar(data?.avatar || null);
+      setUserName(data?.name || null);
+      if (data?.role === "admin") setPainelHref("/admin");
+      else if (data?.role === "professional") setPainelHref("/painel");
+      else setPainelHref("/perfil");
       setLoaded(true);
-
-      return () => subscription.unsubscribe();
     }
     loadUser();
-  }, []);
+  }, [pathname]);
 
   const hidden = ["/login", "/cadastro", "/recuperar-senha", "/admin"]
     .some((p) => pathname.startsWith(p));
@@ -151,20 +119,13 @@ export default function BottomNav() {
               }}>
               {avatar ? (
                 <img src={avatar} alt={userName || "Perfil"}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                  }} />
+                  style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
               ) : (
                 <div style={{
                   width: "100%",
                   height: "100%",
                   borderRadius: "50%",
-                  background: painelHref === "/login"
-                    ? "rgba(255,255,255,0.1)"
-                    : "linear-gradient(135deg, #1e3a5f, #1d4ed8)",
+                  background: painelHref === "/login" ? "rgba(255,255,255,0.1)" : "linear-gradient(135deg, #1e3a5f, #1d4ed8)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -177,7 +138,6 @@ export default function BottomNav() {
               )}
             </Link>
           )}
-
         </div>
       </div>
     </div>
