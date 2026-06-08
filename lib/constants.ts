@@ -8,7 +8,7 @@ export const CATEGORIES = [
   { slug: "marceneiro", name: "Marceneiro", icon: "🪵" },
   { slug: "serralheiro", name: "Serralheiro", icon: "🔩" },
   { slug: "vidraceiro", name: "Vidraceiro", icon: "🪟" },
-  { slug: "azulejista", name: "Azulejista / Revestimento", icon: "🪟" },
+  { slug: "azulejista", name: "Azulejista / Revestimento", icon: "🚧" },
   { slug: "impermeabilizacao", name: "Impermeabilização", icon: "💧" },
   { slug: "soldador", name: "Soldador", icon: "⚙️" },
   { slug: "arquiteto", name: "Arquiteto / Decorador de Interiores", icon: "🏠" },
@@ -46,7 +46,7 @@ export const CATEGORIES = [
   // Tecnologia
   { slug: "tecnico-informatica", name: "Técnico de Informática", icon: "💻" },
   { slug: "tecnico-celular", name: "Técnico de Celular", icon: "📱" },
-  { slug: "desenvolvedor", name: "Desenvolvedor / Programador", icon: "👨‍💻" },
+  { slug: "desenvolvedor", name: "Desenvolvedor / Programador", icon: "👨🏻‍💻" },
   { slug: "designer-grafico", name: "Designer Gráfico", icon: "🎭" },
   { slug: "social-media", name: "Social Media / Marketing", icon: "📱" },
   { slug: "editor-video", name: "Editor de Vídeo", icon: "🎬" },
@@ -72,33 +72,33 @@ export const CATEGORIES = [
   { slug: "guincho", name: "Guincho / Reboque", icon: "🚛" },
 
   // Saúde e Bem-Estar
-  { slug: "cuidador-idosos", name: "Cuidador de Idosos", icon: "👴" },
-  { slug: "baba", name: "Babá / Cuidador Infantil", icon: "👶" },
-  { slug: "personal-trainer", name: "Personal Trainer", icon: "💪" },
+  { slug: "cuidador-idosos", name: "Cuidador de Idosos", icon: "👴🏻" },
+  { slug: "baba", name: "Babá / Cuidador Infantil", icon: "👩🏻‍🍼" },
+  { slug: "personal-trainer", name: "Personal Trainer", icon: "🏋🏻" },
   { slug: "nutricionista", name: "Nutricionista", icon: "🥗" },
   { slug: "nutricionista-esportivo", name: "Nutricionista Esportivo", icon: "🥦" },
   { slug: "psicologo", name: "Psicólogo", icon: "🧠" },
-  { slug: "massagista", name: "Massagista", icon: "💆" },
+  { slug: "massagista", name: "Massagista", icon: "💆🏻" },
   { slug: "fisioterapeuta", name: "Fisioterapeuta", icon: "🏥" },
   { slug: "enfermeiro", name: "Enfermeiro(a) Domiciliar", icon: "💉" },
-  { slug: "terapeuta", name: "Terapeuta / Reiki", icon: "🧘" },
+  { slug: "terapeuta", name: "Terapeuta / Reiki", icon: "🧘🏻" },
   { slug: "dentista", name: "Dentista Domiciliar", icon: "🦷" },
   { slug: "acupuntura", name: "Acupunturista", icon: "📍" },
-  { slug: "podologo-domiciliar", name: "Podólogo Domiciliar", icon: "🦶" },
+  { slug: "podologo-domiciliar", name: "Podólogo Domiciliar", icon: "👣" },
 
   // Beleza
   { slug: "cabeleireiro", name: "Cabeleireiro / Barbeiro", icon: "✂️" },
-  { slug: "manicure", name: "Manicure / Pedicure", icon: "💅" },
+  { slug: "manicure", name: "Manicure / Pedicure", icon: "💅🏻" },
   { slug: "maquiadora", name: "Maquiadora", icon: "💄" },
   { slug: "esteticista", name: "Esteticista / Depilação", icon: "🌸" },
   { slug: "designer-sobrancelhas", name: "Designer de Sobrancelhas", icon: "👁️" },
   { slug: "micropigmentacao", name: "Micropigmentação", icon: "🖌️" },
   { slug: "tatuador", name: "Tatuador / Body Piercing", icon: "🖊️" },
-  { slug: "podologo", name: "Podólogo", icon: "🦶" },
+  { slug: "podologo", name: "Podólogo", icon: "🦶🏻" },
 
   // Alimentação
   { slug: "confeitaria", name: "Confeitaria / Doces", icon: "🎂" },
-  { slug: "cozinheiro", name: "Cozinheiro(a) / Chef", icon: "👨‍🍳" },
+  { slug: "cozinheiro", name: "Cozinheiro(a) / Chef", icon: "👨🏻‍🍳" },
   { slug: "marmitaria", name: "Marmitaria / Refeições", icon: "🍱" },
   { slug: "bartender", name: "Bartender / Coqueteleiro", icon: "🍹" },
 
@@ -110,20 +110,21 @@ export const CATEGORIES = [
   { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
 
   // Animais
-  { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐾" },
+  { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐕‍🦺" },
   { slug: "banho-tosa", name: "Banho e Tosa", icon: "🐩" },
   { slug: "veterinario", name: "Veterinário Domiciliar", icon: "🐕" },
-  { slug: "adestrador", name: "Adestrador de Cães", icon: "🐕" },
+  { slug: "adestrador", name: "Adestrador de Cães", icon: "🐶" },
   { slug: "hotel-pets", name: "Hotel para Pets", icon: "🐾" },
 
   // Profissionais Liberais
   { slug: "advogado", name: "Advogado", icon: "⚖️" },
   { slug: "contador", name: "Contador", icon: "🧾" },
   { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
+  { slug: "corretor-de-imoveis", name: "Corretor de Imóveis", icon: "🏠" },
 
   // Outros
   { slug: "costureira", name: "Costureira / Alfaiate", icon: "🧵" },
-  { slug: "carregador", name: "Carregador / Ajudante", icon: "💪" },
+  { slug: "carregador", name: "Carregador / Ajudante", icon: "🙋🏻‍♂️" },
   { slug: "seguranca-particular", name: "Segurança Particular", icon: "🛡️" },
   { slug: "tradutor", name: "Tradutor / Intérprete", icon: "🌍" },
   { slug: "assistente-virtual", name: "Assistente Virtual", icon: "💼" },
@@ -140,7 +141,7 @@ export const CITIES = [
       "Aurora", "Bom Jesus", "Brasil", "Buritis", "Carajás", "Cazeca", "Centro",
       "Chácara Machado", "Chácaras Tubalina", "Cidade Jardim", "Copacabana",
       "Custódio Pereira", "Daniel Fonseca", "Dona Zulmira", "Esperança",
-      "Fundinho", "Granada", "Granja Marileusa", "Guarani",
+      "Fundinho", "Granada", "Granja Marileuse", "Guarani",
       "Ipanema", "Itamarati", "Jaraguá", "Jardim América", "Jardim Brasília",
       "Jardim Canaã", "Jardim das Palmeiras", "Jardim Europa", "Jardim Holanda",
       "Jardim Inconfidência", "Jardim Ipanema", "Jardim Karaíba", "Jardim Patrícia",
