@@ -19,15 +19,35 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
     if (error) {
       toast.error("Email ou senha incorretos");
       setLoading(false);
       return;
     }
+
     toast.success("Bem-vindo!");
-    router.push("/inicio");
-    router.refresh();
+
+    // Busca o role para redirecionar corretamente
+    const { data: userData } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+
+    const role = userData?.role;
+
+    // Força reload completo da página — garante que os cookies de sessão
+    // sejam lidos pelo servidor e o middleware funcione corretamente
+    if (role === "admin") {
+      window.location.href = "/admin";
+    } else if (role === "professional") {
+      window.location.href = "/painel";
+    } else {
+      window.location.href = "/inicio";
+    }
   }
 
   const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted transition-all duration-200";
@@ -74,21 +94,20 @@ export default function LoginPage() {
           className="w-full py-3.5 rounded-xl font-bold text-sm text-white mt-2 flex items-center justify-center gap-2"
           style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.3)", opacity: loading ? 0.7 : 1 }}>
           {loading && <Loader2 size={16} className="animate-spin" />}
-          Entrar
+          {loading ? "Entrando..." : "Entrar"}
         </button>
       </form>
 
-      <div className="mt-6 text-center space-y-3">
-        <p className="text-sm text-muted">
-          Não tem conta?{" "}
-          <Link href="/cadastro" className="font-semibold" style={{ color: "#3B82F6" }}>
-            Criar conta grátis
-          </Link>
-        </p>
-        <Link href="/recuperar-senha" className="block text-xs text-muted">
-          Esqueceu a senha?
+      <p className="text-center text-sm text-muted mt-6">
+        Nao tem conta?{" "}
+        <Link href="/cadastro" className="font-semibold" style={{ color: "#3B82F6" }}>
+          Criar conta gratis
         </Link>
-      </div>
+      </p>
+      <Link href="/recuperar-senha"
+        className="text-center text-sm text-muted mt-2 block hover:text-foreground transition-colors">
+        Esqueceu a senha?
+      </Link>
     </div>
   );
 }
