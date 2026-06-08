@@ -26,7 +26,7 @@ export default function LoginPage() {
       return;
     }
 
-    // Busca o role
+    // Busca o role para redirecionar corretamente
     const { data: userData } = await supabase
       .from("users")
       .select("role")
@@ -34,19 +34,14 @@ export default function LoginPage() {
       .single();
 
     const role = userData?.role;
+    let dest = "/inicio";
+    if (role === "admin") dest = "/admin";
+    else if (role === "professional") dest = "/painel";
+
     toast.success("Bem-vindo!");
 
-    // Aguarda a sessão ser salva nos cookies antes de navegar
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // Usa window.location para garantir reload completo com cookies
-    if (role === "admin") {
-      window.location.replace("/admin");
-    } else if (role === "professional") {
-      window.location.replace("/painel");
-    } else {
-      window.location.replace("/inicio");
-    }
+    // Redireciona para a pagina de callback que cria os cookies no servidor
+    window.location.href = `/login/redirect?dest=${dest}`;
   }
 
   const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted transition-all duration-200";
