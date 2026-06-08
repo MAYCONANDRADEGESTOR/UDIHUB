@@ -17,19 +17,55 @@ export default function BottomNav() {
   useEffect(() => {
     async function loadUser() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setPainelHref("/login"); setLoaded(true); return; }
-      const { data } = await supabase
-        .from("users")
-        .select("role, avatar, name")
-        .eq("id", user.id)
-        .single();
-      setAvatar(data?.avatar || null);
-      setUserName(data?.name || null);
-      if (data?.role === "admin") setPainelHref("/admin");
-      else if (data?.role === "professional") setPainelHref("/painel");
-      else setPainelHref("/perfil");
+
+      // Escuta mudanças de sessão em tempo real
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (!session) {
+            setPainelHref("/login");
+            setAvatar(null);
+            setUserName(null);
+            setLoaded(true);
+            return;
+          }
+
+          const { data } = await supabase
+            .from("users")
+            .select("role, avatar, name")
+            .eq("id", session.user.id)
+            .single();
+
+          setAvatar(data?.avatar || null);
+          setUserName(data?.name || null);
+
+          if (data?.role === "admin") setPainelHref("/admin");
+          else if (data?.role === "professional") setPainelHref("/painel");
+          else setPainelHref("/perfil");
+          setLoaded(true);
+        }
+      );
+
+      // Carrega sessão atual imediatamente
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data } = await supabase
+          .from("users")
+          .select("role, avatar, name")
+          .eq("id", session.user.id)
+          .single();
+
+        setAvatar(data?.avatar || null);
+        setUserName(data?.name || null);
+
+        if (data?.role === "admin") setPainelHref("/admin");
+        else if (data?.role === "professional") setPainelHref("/painel");
+        else setPainelHref("/perfil");
+      } else {
+        setPainelHref("/login");
+      }
       setLoaded(true);
+
+      return () => subscription.unsubscribe();
     }
     loadUser();
   }, []);
@@ -60,7 +96,7 @@ export default function BottomNav() {
             height: "64px",
           }}>
 
-          {/* Home → landing page */}
+          {/* Home */}
           <Link href="/"
             className="flex items-center justify-center w-11 h-11 rounded-2xl transition-all duration-200 active:scale-90"
             style={{ background: isHomeActive ? "rgba(59,130,246,0.12)" : "transparent" }}>
@@ -68,7 +104,7 @@ export default function BottomNav() {
               style={{ color: isHomeActive ? "#3B82F6" : "rgba(255,255,255,0.5)", transition: "all 0.2s ease" }} />
           </Link>
 
-          {/* Buscar → /inicio com profissionais */}
+          {/* Buscar */}
           <Link href="/inicio"
             className="flex items-center justify-center w-11 h-11 rounded-2xl transition-all duration-200 active:scale-90"
             style={{ background: isSearchActive ? "rgba(59,130,246,0.12)" : "transparent" }}>
@@ -126,7 +162,9 @@ export default function BottomNav() {
                   width: "100%",
                   height: "100%",
                   borderRadius: "50%",
-                  background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)",
+                  background: painelHref === "/login"
+                    ? "rgba(255,255,255,0.1)"
+                    : "linear-gradient(135deg, #1e3a5f, #1d4ed8)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
