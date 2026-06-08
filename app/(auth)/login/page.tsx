@@ -28,9 +28,7 @@ export default function LoginPage() {
       return;
     }
 
-    toast.success("Bem-vindo!");
-
-    // Busca o role para redirecionar corretamente
+    // Busca o role para redirecionar para a página certa
     const { data: userData } = await supabase
       .from("users")
       .select("role")
@@ -39,14 +37,15 @@ export default function LoginPage() {
 
     const role = userData?.role;
 
-    // Força reload completo da página — garante que os cookies de sessão
-    // sejam lidos pelo servidor e o middleware funcione corretamente
+    toast.success("Bem-vindo!");
+
+    // Usa router.replace — não cria histórico extra e mantém a sessão no localStorage
     if (role === "admin") {
-      window.location.href = "/admin";
+      router.replace("/admin");
     } else if (role === "professional") {
-      window.location.href = "/painel";
+      router.replace("/painel");
     } else {
-      window.location.href = "/inicio";
+      router.replace("/inicio");
     }
   }
 
