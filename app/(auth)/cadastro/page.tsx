@@ -77,7 +77,6 @@ export default function CadastroPage() {
     setCouponChecking(true);
     const supabase = createClient();
 
-    // Buscar cupom
     const { data: coupon } = await supabase
       .from("coupons")
       .select("type, active, max_uses, uses_count, trial_days, expires_at")
@@ -92,7 +91,6 @@ export default function CadastroPage() {
       return;
     }
 
-    // Verificar se expirou
     if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
       setCouponValid(null);
       toast.error("Cupom expirado");
@@ -100,7 +98,6 @@ export default function CadastroPage() {
       return;
     }
 
-    // Verificar limite de usos totais
     if (coupon.max_uses && coupon.uses_count >= coupon.max_uses) {
       setCouponValid(null);
       toast.error("Cupom esgotado");
@@ -108,7 +105,6 @@ export default function CadastroPage() {
       return;
     }
 
-    // Verificar se este email ja usou este cupom
     const { data: prevUse } = await supabase
       .from("coupon_uses")
       .select("id, trial_ends_at")
@@ -123,7 +119,6 @@ export default function CadastroPage() {
       return;
     }
 
-    // Cupom valido!
     setCouponValid(coupon.type as CouponType);
     if (coupon.type === "free_forever") toast.success("Cupom valido! Acesso permanente!");
     if (coupon.type === "trial_30days") toast.success("Cupom valido! 30 dias gratis!");
@@ -174,7 +169,6 @@ export default function CadastroPage() {
         .from("categories").select("id").eq("slug", form.category).single();
 
       if (cat) {
-        // Calcular status e trial baseado no cupom
         let profStatus = "inactive";
         let trialEndsAt: string | null = null;
 
@@ -195,14 +189,13 @@ export default function CadastroPage() {
           whatsapp: phoneClean,
           instagram: form.instagram ? form.instagram.replace("@", "") : null,
           category_id: cat.id,
-          plan: "basic", // cupom sempre ativa como basico
+          plan: "basic",
           status: profStatus,
           avatar: avatarUrl,
           coupon_code: form.coupon || null,
           trial_ends_at: trialEndsAt,
         }, { onConflict: "user_id" }).select("id").single();
 
-        // Adicionar categoria primaria
         if (profData?.id) {
           await supabase.from("professional_categories").insert({
             professional_id: profData.id,
@@ -211,9 +204,7 @@ export default function CadastroPage() {
           }).onConflict("professional_id, category_id").ignore();
         }
 
-        // Registrar uso do cupom (evita reutilizacao)
         if (form.coupon && couponValid) {
-          // Incrementar contador de usos
           const { data: couponData } = await supabase
             .from("coupons")
             .select("uses_count")
@@ -226,7 +217,6 @@ export default function CadastroPage() {
               .eq("code", form.coupon.toUpperCase());
           }
 
-          // Registrar uso por email — impede reuso mesmo com nova conta
           await supabase.from("coupon_uses").insert({
             coupon_code: form.coupon.toUpperCase(),
             user_id: data.user.id,
@@ -308,7 +298,7 @@ export default function CadastroPage() {
           </div>
         </div>
 
-        {/* Foto — so para profissional */}
+        {/* Foto */}
         {role === "professional" && (
           <div>
             <label className="block text-xs font-medium text-muted mb-2">Foto do perfil</label>
@@ -426,7 +416,7 @@ export default function CadastroPage() {
               <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
             </div>
 
-            {/* Plano — so aparece sem cupom ativo */}
+            {/* Plano — sem porcentagens */}
             {!couponValid && (
               <div>
                 <label className="block text-xs font-medium text-muted mb-2">Plano</label>
@@ -442,17 +432,9 @@ export default function CadastroPage() {
                         {form.plan === plan && <Check size={12} style={{ color: "#3B82F6" }} />}
                       </div>
                       <div className="flex items-end gap-0.5 mb-1">
-                        {plan === "basic" ? (
-                          <>
-                            <span className="text-xs line-through text-muted">R$99</span>
-                            <span className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>R$69</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="text-xs line-through text-muted">R$169</span>
-                            <span className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>R$99</span>
-                          </>
-                        )}
+                        <span className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>
+                          {plan === "basic" ? "R$69" : "R$99"}
+                        </span>
                         <span className="text-[10px] text-muted mb-0.5">/mes</span>
                       </div>
                       <p className="text-[10px] text-muted">
@@ -467,7 +449,7 @@ export default function CadastroPage() {
               </div>
             )}
 
-            {/* Cupom */}
+            {/* Cupom — sem nome do cupom no placeholder */}
             {couponValid ? (
               <div className="p-4 rounded-2xl"
                 style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)" }}>
@@ -508,7 +490,7 @@ export default function CadastroPage() {
                 <div className="flex gap-2">
                   <input type="text" value={form.coupon}
                     onChange={(e) => { setForm({ ...form, coupon: e.target.value.toUpperCase() }); setCouponValid(null); }}
-                    placeholder="Ex: UDIHUB90"
+                    placeholder="Digite seu cupom"
                     className={inputClass} style={{ ...inputStyle, flex: 1 }} />
                   <button type="button" onClick={() => checkCoupon(form.coupon)}
                     disabled={!form.coupon || couponChecking || !form.email}
