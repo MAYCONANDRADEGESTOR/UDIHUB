@@ -4,7 +4,8 @@ import { createServerClient } from "@supabase/ssr";
 const PUBLIC_ROUTES = [
   "/", "/seja-profissional", "/servicos", "/profissional",
   "/como-funciona", "/privacidade", "/termos", "/banido",
-  "/excluir-conta", "/inicio",
+  "/excluir-conta", "/inicio", "/login", "/cadastro",
+  "/recuperar-senha", "/auth",
 ];
 
 const PRIVATE_ROUTES = ["/painel", "/admin", "/favoritos", "/perfil"];
@@ -12,15 +13,19 @@ const PRIVATE_ROUTES = ["/painel", "/admin", "/favoritos", "/perfil"];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Rota pública — passa direto sem nenhuma query
+  // Rotas públicas — passa direto
   const isPublic = PUBLIC_ROUTES.some((p) =>
     pathname === p || pathname.startsWith(p + "/")
   );
-  if (isPublic) return NextResponse.next({ request: { headers: request.headers } });
+  if (isPublic) {
+    return NextResponse.next({ request: { headers: request.headers } });
+  }
 
   // Só processa rotas privadas
   const isPrivate = PRIVATE_ROUTES.some((p) => pathname.startsWith(p));
-  if (!isPrivate) return NextResponse.next({ request: { headers: request.headers } });
+  if (!isPrivate) {
+    return NextResponse.next({ request: { headers: request.headers } });
+  }
 
   let response = NextResponse.next({ request: { headers: request.headers } });
 
@@ -29,7 +34,9 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return request.cookies.getAll(); },
+        getAll() {
+          return request.cookies.getAll();
+        },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
@@ -38,9 +45,9 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, {
               ...options,
-              maxAge: 60 * 60 * 24 * 365, // 1 ano — mantém sessão
+              maxAge: 60 * 60 * 24 * 365,
               sameSite: "lax",
-              secure: true,
+              secure: process.env.NODE_ENV === "production",
             })
           );
         },
@@ -48,46 +55,27 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Usa getSession() em vez de getUser() — lê JWT local sem query ao servidor
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // Lê o role do JWT sem query ao banco
-  const role = session.user?.user_metadata?.role
-    || session.user?.app_metadata?.role;
+  const { data: userData } = await supabase
+    .from("users")
+    .select("role, banned")
+    .eq("id", user.id)
+    .single();
 
-  // Se não tem role no JWT, faz 1 query ao banco (só quando necessário)
-  if (!role) {
-    const { data: userData } = await supabase
-      .from("users")
-      .select("role, banned")
-      .eq("id", session.user.id)
-      .single();
-
-    if (userData?.banned) {
-      const res = NextResponse.redirect(new URL("/banido", request.url));
-      res.cookies.delete("sb-access-token");
-      res.cookies.delete("sb-refresh-token");
-      return res;
-    }
-
-    return handleRouting(pathname, userData?.role, session.user.id, supabase, request, response);
+  if (userData?.banned) {
+    const res = NextResponse.redirect(new URL("/banido", request.url));
+    res.cookies.delete("sb-access-token");
+    res.cookies.delete("sb-refresh-token");
+    return res;
   }
 
-  return handleRouting(pathname, role, session.user.id, supabase, request, response);
-}
+  const role = userData?.role;
 
-async function handleRouting(
-  pathname: string,
-  role: string | undefined,
-  userId: string,
-  supabase: any,
-  request: NextRequest,
-  response: NextResponse
-) {
   if (role === "admin") {
     if (pathname.startsWith("/painel")) return NextResponse.redirect(new URL("/admin", request.url));
     return response;
@@ -101,8 +89,8 @@ async function handleRouting(
       if (!isAllowed) {
         const { data: prof } = await supabase
           .from("professionals")
-          .select("status, coupon_code, trial_ends_at")
-          .eq("user_id", userId)
+          .select("status, trial_ends_at")
+          .eq("user_id", user.id)
           .single();
         const isActive = prof?.status === "active";
         const inTrial = prof?.trial_ends_at && new Date(prof.trial_ends_at) > new Date();
