@@ -74,7 +74,7 @@ export default function AdminUsuariosPage() {
       setCategories(uniqueCategories);
       setUsers(enriched);
     } catch (err) {
-      console.error("Erro ao carregar usuários:", err);
+      console.error("Erro ao carregar usuarios:", err);
     } finally {
       setLoading(false);
     }
@@ -82,33 +82,58 @@ export default function AdminUsuariosPage() {
 
   async function handleBanAction() {
     if (!banModal) return;
+    if (banModal.action === "ban" && !banReason.trim()) return;
     setProcessing(true);
+
     const supabase = createClient();
     const isBanning = banModal.action === "ban";
 
-    await supabase.from("users").update({
-      banned: isBanning,
-      ban_reason: isBanning ? banReason : null,
-    }).eq("id", banModal.user.id);
+    try {
+      // 1. Atualiza banned na tabela users
+      await supabase.from("users").update({
+        banned: isBanning,
+        ban_reason: isBanning ? banReason : null,
+      }).eq("id", banModal.user.id);
 
-    if (banModal.user.role === "professional") {
-      const { data: prof } = await supabase
-        .from("professionals").select("id").eq("user_id", banModal.user.id).single();
-      if (prof) {
-        await supabase.from("professionals")
-          .update({ status: isBanning ? "suspended" : "active" })
-          .eq("id", prof.id);
+      // 2. Atualiza status do profissional — some das buscas e categorias
+      if (banModal.user.role === "professional") {
+        const { data: prof } = await supabase
+          .from("professionals").select("id").eq("user_id", banModal.user.id).single();
+        if (prof) {
+          await supabase.from("professionals")
+            .update({ status: isBanning ? "suspended" : "active" })
+            .eq("id", prof.id);
+        }
       }
-    }
 
-    setUsers((prev) => prev.map((u) =>
-      u.id === banModal.user.id
-        ? { ...u, banned: isBanning, ban_reason: isBanning ? banReason : undefined, prof_status: isBanning ? "suspended" : "active" }
-        : u
-    ));
-    setBanModal(null);
-    setBanReason("");
-    setProcessing(false);
+      // 3. Invalida sessão do usuário — força logout imediato
+      await fetch("/api/admin/ban", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: banModal.user.id, action: banModal.action }),
+      }).catch(() => {});
+
+      // 4. Atualiza UI
+      setUsers((prev) => prev.map((u) =>
+        u.id === banModal.user.id
+          ? {
+              ...u,
+              banned: isBanning,
+              ban_reason: isBanning ? banReason : undefined,
+              prof_status: banModal.user.role === "professional"
+                ? (isBanning ? "suspended" : "active")
+                : u.prof_status,
+            }
+          : u
+      ));
+
+      setBanModal(null);
+      setBanReason("");
+    } catch (err) {
+      console.error("Erro ao banir:", err);
+    } finally {
+      setProcessing(false);
+    }
   }
 
   function formatWhatsApp(w: string) {
@@ -129,12 +154,17 @@ export default function AdminUsuariosPage() {
     const matchStatus =
       statusFilter === "all" ||
       (statusFilter === "active" && u.prof_status === "active") ||
-      (statusFilter === "inactive" && (u.prof_status === "inactive" || u.prof_status === "pending" || (u.role === "professional" && !u.prof_status)));
+      (statusFilter === "inactive" && (
+        u.prof_status === "inactive" ||
+        u.prof_status === "pending" ||
+        u.prof_status === "suspended" ||
+        (u.role === "professional" && !u.prof_status)
+      ));
     return matchQuery && matchRole && matchCategory && matchStatus;
   });
 
   const totalProfs = users.filter(u => u.role === "professional").length;
-  const inactiveProfs = users.filter(u => u.role === "professional" && (u.prof_status === "inactive" || u.prof_status === "pending" || !u.prof_status)).length;
+  const inactiveProfs = users.filter(u => u.role === "professional" && (u.prof_status === "inactive" || u.prof_status === "pending" || u.prof_status === "suspended" || !u.prof_status)).length;
   const totalClients = users.filter(u => u.role === "client").length;
 
   function PlanBadge({ plan }: { plan?: string | null }) {
@@ -148,7 +178,7 @@ export default function AdminUsuariosPage() {
     return (
       <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
         style={{ background: "rgba(59,130,246,0.1)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.2)" }}>
-        <Star size={8} /> Básico
+        <Star size={8} /> Basico
       </span>
     );
   }
@@ -165,7 +195,7 @@ export default function AdminUsuariosPage() {
     );
     return (
       <span className="text-[10px] px-1.5 py-0.5 rounded font-bold animate-pulse"
-        style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>Não pagou</span>
+        style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>Nao pagou</span>
     );
   }
 
@@ -174,13 +204,13 @@ export default function AdminUsuariosPage() {
       <div className="sticky top-0 z-40 flex items-center gap-3 px-4 h-14"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <Link href="/admin" className="text-muted"><ArrowLeft size={20} /></Link>
-        <h1 className="font-syne font-bold text-lg text-foreground flex-1">Usuários</h1>
+        <h1 className="font-syne font-bold text-lg text-foreground flex-1">Usuarios</h1>
         <span className="text-xs text-muted">{users.length} total</span>
       </div>
 
       <div className="px-4 py-4 space-y-3">
 
-        {/* Métricas rápidas */}
+        {/* Metricas rapidas */}
         <div className="grid grid-cols-3 gap-2">
           <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>{totalProfs}</div>
@@ -188,7 +218,7 @@ export default function AdminUsuariosPage() {
           </div>
           <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid rgba(239,68,68,0.3)" }}>
             <div className="font-syne font-bold text-lg" style={{ color: "#f87171" }}>{inactiveProfs}</div>
-            <div className="text-[10px] text-muted">Não pagaram</div>
+            <div className="text-[10px] text-muted">Nao pagaram</div>
           </div>
           <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="font-syne font-bold text-lg" style={{ color: "#a855f7" }}>{totalClients}</div>
@@ -202,7 +232,7 @@ export default function AdminUsuariosPage() {
             style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
             <AlertTriangle size={14} style={{ color: "#f87171" }} className="flex-shrink-0" />
             <p className="text-xs flex-1" style={{ color: "#f87171" }}>
-              <strong>{inactiveProfs}</strong> profissional(is) ainda não pagaram — entre em contato!
+              <strong>{inactiveProfs}</strong> profissional(is) ainda nao pagaram
             </p>
             <button onClick={() => { setRoleFilter("professional"); setStatusFilter("inactive"); }}
               className="text-[10px] font-bold flex-shrink-0" style={{ color: "#f87171" }}>
@@ -233,12 +263,12 @@ export default function AdminUsuariosPage() {
                 border: roleFilter === r ? "1px solid rgba(59,130,246,0.4)" : "1px solid #1F1F23",
                 color: roleFilter === r ? "#3B82F6" : "#A1A1AA",
               }}>
-              {r === "all" ? "Todos" : r === "client" ? "👤 Clientes" : "💼 Profissionais"}
+              {r === "all" ? "Todos" : r === "client" ? "Clientes" : "Profissionais"}
             </button>
           ))}
         </div>
 
-        {/* Filtros status — só aparece se filtrou profissionais */}
+        {/* Filtros status */}
         {roleFilter !== "client" && (
           <div className="flex gap-2 overflow-x-auto pb-1">
             {(["all", "active", "inactive"] as const).map((s) => (
@@ -255,7 +285,7 @@ export default function AdminUsuariosPage() {
                     ? s === "inactive" ? "#f87171" : s === "active" ? "#22c55e" : "#3B82F6"
                     : "#A1A1AA",
                 }}>
-                {s === "all" ? "Todos status" : s === "active" ? "✅ Pagando" : "🔴 Não pagaram"}
+                {s === "all" ? "Todos" : s === "active" ? "Pagando" : "Nao pagaram"}
               </button>
             ))}
           </div>
@@ -287,7 +317,6 @@ export default function AdminUsuariosPage() {
           </div>
         )}
 
-        {/* Contagem filtrada */}
         <p className="text-[10px] text-muted">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</p>
 
         {/* Lista */}
@@ -298,7 +327,7 @@ export default function AdminUsuariosPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <User size={28} className="text-muted mx-auto mb-2" />
-            <p className="text-sm text-muted">Nenhum usuário encontrado</p>
+            <p className="text-sm text-muted">Nenhum usuario encontrado</p>
             {(roleFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" || query) && (
               <button onClick={() => { setRoleFilter("all"); setStatusFilter("all"); setCategoryFilter("all"); setQuery(""); }}
                 className="text-xs mt-2 font-semibold" style={{ color: "#3B82F6" }}>
@@ -319,7 +348,6 @@ export default function AdminUsuariosPage() {
                       : "1px solid #1F1F23"
                 }}>
                 <div className="flex items-start gap-3">
-                  {/* Avatar */}
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
                     style={{
                       background: user.banned ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)",
@@ -328,9 +356,7 @@ export default function AdminUsuariosPage() {
                     {getInitials(user.name || "?")}
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
-                    {/* Nome e badges */}
                     <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                       <span className="font-semibold text-sm text-foreground truncate">{user.name || "Sem nome"}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 flex-shrink-0"
@@ -349,23 +375,20 @@ export default function AdminUsuariosPage() {
                       )}
                     </div>
 
-                    {/* Email */}
                     <p className="text-xs text-muted truncate">{user.email}</p>
 
-                    {/* Categoria */}
                     {user.category && (
                       <p className="text-[11px] mt-0.5" style={{ color: "#64748b" }}>
                         {user.category_icon} {user.category}
                       </p>
                     )}
 
-                    {/* WhatsApp — botão para contato direto */}
                     {user.whatsapp && (
                       <div className="flex items-center gap-2 mt-2">
                         <a href={`https://wa.me/55${user.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
                           user.prof_status !== "active"
-                            ? `Oi ${user.name}! 👋 Aqui é o Maycon do UDIHUB. Vi que você criou seu perfil mas ainda não ativou a assinatura. Posso te ajudar a finalizar? 😊`
-                            : `Oi ${user.name}! 👋 Aqui é o Maycon do UDIHUB. Tudo certo com sua conta?`
+                            ? `Oi ${user.name}! Aqui e o Maycon do UDIHUB. Vi que voce criou seu perfil mas ainda nao ativou a assinatura. Posso te ajudar?`
+                            : `Oi ${user.name}! Aqui e o Maycon do UDIHUB. Tudo certo com sua conta?`
                         )}`}
                           target="_blank" rel="noreferrer"
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold"
@@ -381,18 +404,16 @@ export default function AdminUsuariosPage() {
                       </div>
                     )}
 
-                    {/* Motivo do ban */}
                     {user.ban_reason && (
                       <p className="text-xs mt-1" style={{ color: "#f87171" }}>
                         Motivo: {user.ban_reason}
                       </p>
                     )}
 
-                    {/* Data */}
                     <p className="text-[10px] text-muted mt-1">Cadastrou {formatDate(user.created_at)}</p>
                   </div>
 
-                  {/* Botão ban */}
+                  {/* Botao ban */}
                   <button onClick={() => setBanModal({ user, action: user.banned ? "unban" : "ban" })}
                     className="p-2 rounded-xl flex-shrink-0"
                     style={{
@@ -421,19 +442,19 @@ export default function AdminUsuariosPage() {
               <div className="flex items-center gap-2">
                 <AlertTriangle size={18} style={{ color: banModal.action === "ban" ? "#f87171" : "#22c55e" }} />
                 <h3 className="font-syne font-bold text-foreground">
-                  {banModal.action === "ban" ? "Banir usuário" : "Desbanir usuário"}
+                  {banModal.action === "ban" ? "Banir usuario" : "Desbanir usuario"}
                 </h3>
               </div>
               <button onClick={() => setBanModal(null)} className="text-muted"><X size={18} /></button>
             </div>
             <p className="text-sm text-muted mb-4">
               {banModal.action === "ban"
-                ? `Banir "${banModal.user.name}"? O perfil será removido do marketplace imediatamente.`
+                ? `Banir "${banModal.user.name}"? O perfil sera removido do marketplace imediatamente e a sessao sera encerrada.`
                 : `Restaurar acesso de "${banModal.user.name}"?`}
             </p>
             {banModal.action === "ban" && (
               <textarea value={banReason} onChange={(e) => setBanReason(e.target.value)}
-                placeholder="Motivo do banimento..." rows={3} required
+                placeholder="Motivo do banimento (obrigatorio)..." rows={3}
                 className="w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted mb-3"
                 style={{ background: "#09090B", border: "1px solid #1F1F23", outline: "none", resize: "none" }} />
             )}
