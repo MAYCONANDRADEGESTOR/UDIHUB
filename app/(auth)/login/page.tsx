@@ -3,11 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -18,7 +20,10 @@ export default function LoginPage() {
     setLoading(true);
     const supabase = createClient();
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
       toast.error("Email ou senha incorretos");
@@ -26,7 +31,6 @@ export default function LoginPage() {
       return;
     }
 
-    // Busca o role para redirecionar corretamente
     const { data: userData } = await supabase
       .from("users")
       .select("role")
@@ -34,14 +38,17 @@ export default function LoginPage() {
       .single();
 
     const role = userData?.role;
-    let dest = "/inicio";
-    if (role === "admin") dest = "/admin";
-    else if (role === "professional") dest = "/painel";
-
     toast.success("Bem-vindo!");
 
-    // Redireciona para a pagina de callback que cria os cookies no servidor
-    window.location.href = `/login/redirect?dest=${dest}`;
+    if (role === "admin") {
+      router.push("/admin");
+    } else if (role === "professional") {
+      router.push("/painel");
+    } else {
+      router.push("/inicio");
+    }
+
+    router.refresh();
   }
 
   const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted transition-all duration-200";
