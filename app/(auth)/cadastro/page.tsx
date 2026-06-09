@@ -107,7 +107,7 @@ export default function CadastroPage() {
 
     const { data: prevUse } = await supabase
       .from("coupon_uses")
-      .select("id, trial_ends_at")
+      .select("id")
       .eq("coupon_code", code.toUpperCase())
       .eq("email", form.email.toLowerCase())
       .single();
@@ -135,26 +135,60 @@ export default function CadastroPage() {
 
     const supabase = createClient();
 
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: { data: { full_name: form.name } },
-    });
+    // Timeout de 20 segundos para nao travar a tela
+    let signUpData: any = null;
+    let signUpError: any = null;
 
-    if (error) {
-      toast.error(error.message === "User already registered" ? "Este e-mail ja esta cadastrado" : error.message);
+    try {
+      const signUpPromise = supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: { data: { full_name: form.name } },
+      });
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("timeout")), 20000)
+      );
+
+      const result = await Promise.race([signUpPromise, timeoutPromise]) as any;
+      signUpData = result.data;
+      signUpError = result.error;
+    } catch (e: any) {
+      if (e.message === "timeout") {
+        // Mesmo com timeout a conta pode ter sido criada no servidor
+        // Manda para login para o usuario entrar normalmente
+        toast.success("Conta criada! Faca login para continuar.");
+        router.push("/login");
+        setLoading(false);
+        return;
+      }
+      toast.error("Erro ao criar conta. Tente novamente.");
       setLoading(false);
       return;
     }
-    if (!data.user) { toast.error("Erro ao criar conta"); setLoading(false); return; }
 
+    if (signUpError) {
+      toast.error(signUpError.message === "User already registered"
+        ? "Este e-mail ja esta cadastrado"
+        : signUpError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (!signUpData?.user) {
+      toast.error("Erro ao criar conta");
+      setLoading(false);
+      return;
+    }
+
+    const userId = signUpData.user.id;
     let avatarUrl: string | null = null;
-    if (avatarFile) avatarUrl = await uploadAvatar(data.user.id, avatarFile);
+    if (avatarFile) avatarUrl = await uploadAvatar(userId, avatarFile);
 
     const phoneClean = form.phone.replace(/\D/g, "");
 
     await supabase.from("users").upsert({
-      id: data.user.id,
+      id: userId,
       name: form.name,
       email: form.email,
       phone: phoneClean || null,
@@ -183,7 +217,7 @@ export default function CadastroPage() {
         }
 
         const { data: profData } = await supabase.from("professionals").upsert({
-          user_id: data.user.id,
+          user_id: userId,
           slug: `${slugify(form.name)}-${Date.now()}`,
           bio: form.bio || null,
           whatsapp: phoneClean,
@@ -219,7 +253,7 @@ export default function CadastroPage() {
 
           await supabase.from("coupon_uses").insert({
             coupon_code: form.coupon.toUpperCase(),
-            user_id: data.user.id,
+            user_id: userId,
             email: form.email.toLowerCase(),
             trial_ends_at: trialEndsAt,
           }).onConflict("coupon_code, email").ignore();
@@ -228,14 +262,11 @@ export default function CadastroPage() {
 
       await sendEmail("welcome", form.email, form.name);
 
-      if (couponValid === "free_forever") {
-        toast.success("Perfil ativo! Acesso permanente aplicado!");
-        router.push("/painel");
-      } else if (couponValid === "trial_30days") {
-        toast.success("Perfil ativo por 30 dias!");
-        router.push("/painel");
-      } else if (couponValid === "trial_90days") {
-        toast.success("Perfil ativo por 3 meses! Aproveite!");
+      router.refresh();
+      await new Promise((r) => setTimeout(r, 300));
+
+      if (couponValid) {
+        toast.success("Perfil ativo! Aproveite os 3 meses gratis!");
         router.push("/painel");
       } else {
         toast.success("Perfil criado! Ative sua assinatura para aparecer nas buscas.");
@@ -244,6 +275,8 @@ export default function CadastroPage() {
     } else {
       await sendEmail("welcome", form.email, form.name);
       toast.success("Conta criada!");
+      router.refresh();
+      await new Promise((r) => setTimeout(r, 300));
       router.push("/inicio");
     }
     setLoading(false);
@@ -267,7 +300,6 @@ export default function CadastroPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 max-w-lg w-full mx-auto">
-
         <div>
           <h1 className="font-syne font-bold text-2xl text-foreground mb-1">Criar conta</h1>
           <p className="text-sm text-muted mb-5">Preencha os dados abaixo para comecar</p>
@@ -373,10 +405,9 @@ export default function CadastroPage() {
             className={inputClass} style={inputStyle} />
         </div>
 
-        {/* Campos exclusivos do profissional */}
+        {/* Campos do profissional */}
         {role === "professional" && (
           <>
-            {/* Especialidade */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">Especialidade *</label>
               <select value={form.category}
@@ -390,7 +421,6 @@ export default function CadastroPage() {
               </select>
             </div>
 
-            {/* Instagram */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">
                 <Instagram size={11} className="inline mr-1" />Instagram (opcional)
@@ -405,7 +435,6 @@ export default function CadastroPage() {
               </div>
             </div>
 
-            {/* Bio */}
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">Bio (opcional)</label>
               <textarea value={form.bio}
@@ -416,7 +445,6 @@ export default function CadastroPage() {
               <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
             </div>
 
-            {/* Plano — sem porcentagens */}
             {!couponValid && (
               <div>
                 <label className="block text-xs font-medium text-muted mb-2">Plano</label>
@@ -449,7 +477,6 @@ export default function CadastroPage() {
               </div>
             )}
 
-            {/* Cupom — sem nome do cupom no placeholder */}
             {couponValid ? (
               <div className="p-4 rounded-2xl"
                 style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)" }}>
@@ -463,7 +490,7 @@ export default function CadastroPage() {
                     </p>
                     <p className="text-xs text-muted">
                       {couponValid === "free_forever" && "Perfil ativo sem mensalidade."}
-                      {couponValid === "trial_30days" && "Perfil ativo por 30 dias. Apos isso, R$69/mes."}
+                      {couponValid === "trial_30days" && "Perfil ativo por 30 dias."}
                       {couponValid === "trial_90days" && "Perfil ativo por 90 dias. Apos esse periodo, assine para continuar."}
                     </p>
                   </div>
@@ -514,7 +541,6 @@ export default function CadastroPage() {
           </>
         )}
 
-        {/* Botao submit */}
         <button type="submit" disabled={loading || !role}
           className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 mt-2"
           style={{
