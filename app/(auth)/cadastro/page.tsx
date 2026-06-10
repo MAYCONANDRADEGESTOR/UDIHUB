@@ -33,6 +33,7 @@ export default function CadastroPage() {
   const router = useRouter();
   const [role, setRole] = useState<"client" | "professional" | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState("Criando conta...");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [couponValid, setCouponValid] = useState<CouponType>(null);
@@ -132,12 +133,18 @@ export default function CadastroPage() {
     if (role === "professional" && !form.category) { toast.error("Selecione sua especialidade"); return; }
     if (role === "professional" && !form.phone) { toast.error("Informe seu WhatsApp"); return; }
     setLoading(true);
+    setLoadingMsg("Criando conta...");
 
     const supabase = createClient();
 
-    // Timeout de 20 segundos para nao travar a tela
+    // Timeout de 60 segundos — Supabase sa-east-1 pode demorar ate 60s
     let signUpData: any = null;
     let signUpError: any = null;
+
+    // Atualiza mensagem apos 10s para o usuario nao achar que travou
+    const msgTimer = setTimeout(() => {
+      setLoadingMsg("Aguarde, isso pode levar alguns segundos...");
+    }, 10000);
 
     try {
       const signUpPromise = supabase.auth.signUp({
@@ -147,16 +154,15 @@ export default function CadastroPage() {
       });
 
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 20000)
+        setTimeout(() => reject(new Error("timeout")), 60000)
       );
 
       const result = await Promise.race([signUpPromise, timeoutPromise]) as any;
       signUpData = result.data;
       signUpError = result.error;
     } catch (e: any) {
+      clearTimeout(msgTimer);
       if (e.message === "timeout") {
-        // Conta pode ter sido criada mesmo com timeout
-        // Manda para bem-vindo para o usuario continuar normalmente
         toast.success("Conta criada! Clique em continuar.");
         router.push("/bem-vindo");
         setLoading(false);
@@ -166,6 +172,8 @@ export default function CadastroPage() {
       setLoading(false);
       return;
     }
+
+    clearTimeout(msgTimer);
 
     if (signUpError) {
       toast.error(signUpError.message === "User already registered"
@@ -262,8 +270,6 @@ export default function CadastroPage() {
 
       await sendEmail("welcome", form.email, form.name);
 
-      // Redireciona para pagina de boas-vindas
-      // A sessao ja foi salva — usuario clica Continuar e vai para o painel
       toast.success(couponValid
         ? "Perfil ativo! Bem-vindo ao UDIHUB!"
         : "Conta criada com sucesso!");
@@ -537,6 +543,7 @@ export default function CadastroPage() {
           </>
         )}
 
+        {/* Botao submit */}
         <button type="submit" disabled={loading || !role}
           className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 mt-2"
           style={{
@@ -545,11 +552,9 @@ export default function CadastroPage() {
             opacity: (loading || !role) ? 0.7 : 1
           }}>
           {loading && <Loader2 size={16} className="animate-spin" />}
-          {loading
-            ? "Criando conta..."
-            : role === "professional"
-              ? couponValid ? "Criar perfil" : "Criar perfil e ir para pagamento"
-              : "Criar conta"}
+          {loading ? loadingMsg : role === "professional"
+            ? couponValid ? "Criar perfil" : "Criar perfil e ir para pagamento"
+            : "Criar conta"}
         </button>
 
         {role === "professional" && !couponValid && (
