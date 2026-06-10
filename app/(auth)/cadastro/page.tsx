@@ -155,10 +155,10 @@ export default function CadastroPage() {
       signUpError = result.error;
     } catch (e: any) {
       if (e.message === "timeout") {
-        // Mesmo com timeout a conta pode ter sido criada no servidor
-        // Manda para login para o usuario entrar normalmente
-        toast.success("Conta criada! Faca login para continuar.");
-        router.push("/login");
+        // Conta pode ter sido criada mesmo com timeout
+        // Manda para bem-vindo para o usuario continuar normalmente
+        toast.success("Conta criada! Clique em continuar.");
+        router.push("/bem-vindo");
         setLoading(false);
         return;
       }
@@ -262,23 +262,19 @@ export default function CadastroPage() {
 
       await sendEmail("welcome", form.email, form.name);
 
-      router.refresh();
-      await new Promise((r) => setTimeout(r, 300));
+      // Redireciona para pagina de boas-vindas
+      // A sessao ja foi salva — usuario clica Continuar e vai para o painel
+      toast.success(couponValid
+        ? "Perfil ativo! Bem-vindo ao UDIHUB!"
+        : "Conta criada com sucesso!");
+      router.push("/bem-vindo");
 
-      if (couponValid) {
-        toast.success("Perfil ativo! Aproveite os 3 meses gratis!");
-        router.push("/painel");
-      } else {
-        toast.success("Perfil criado! Ative sua assinatura para aparecer nas buscas.");
-        router.push("/painel/assinatura");
-      }
     } else {
       await sendEmail("welcome", form.email, form.name);
-      toast.success("Conta criada!");
-      router.refresh();
-      await new Promise((r) => setTimeout(r, 300));
-      router.push("/inicio");
+      toast.success("Conta criada com sucesso!");
+      router.push("/bem-vindo");
     }
+
     setLoading(false);
   }
 
