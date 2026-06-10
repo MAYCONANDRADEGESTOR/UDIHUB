@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, User, Briefcase, Loader2, Check, Camera, X, Tag, Instagram, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES } from "@/lib/constants";
-import { slugify } from "@/lib/utils";
 import toast from "react-hot-toast";
 
 async function sendEmail(type: string, to: string, name: string) {
@@ -34,24 +33,15 @@ export default function CadastroPage() {
   const [role, setRole] = useState<"client" | "professional" | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
-  const [signUpDone, setSignUpDone] = useState(false);
-  const [signUpUserId, setSignUpUserId] = useState<string | null>(null);
-  const [signUpInProgress, setSignUpInProgress] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [couponValid, setCouponValid] = useState<CouponType>(null);
   const [couponChecking, setCouponChecking] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    category: "",
-    bio: "",
-    instagram: "",
-    plan: "basic" as "basic" | "pro",
-    coupon: "",
+    name: "", email: "", phone: "", password: "",
+    category: "", bio: "", instagram: "",
+    plan: "basic" as "basic" | "pro", coupon: "",
   });
 
   const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted";
@@ -75,99 +65,21 @@ export default function CadastroPage() {
     return data.publicUrl;
   }
 
-  // ETAPA 1 — Continuar: salva dados básicos e dispara signUp em background
-  async function handleStep1(e: React.FormEvent) {
-    e.preventDefault();
-    if (!role) { toast.error("Selecione seu perfil"); return; }
-    if (!form.name || !form.email || !form.password) { toast.error("Preencha todos os campos"); return; }
-    if (role === "professional" && !form.phone) { toast.error("Informe seu WhatsApp"); return; }
-
-    setLoading(true);
-    const supabase = createClient();
-
-    // Para clientes — faz signUp completo direto
-    if (role === "client") {
-      try {
-        const { data, error } = await supabase.auth.signUp({
-          email: form.email,
-          password: form.password,
-          options: { data: { full_name: form.name } },
-        });
-        if (error) {
-          toast.error(error.message === "User already registered" ? "E-mail ja cadastrado" : error.message);
-          setLoading(false);
-          return;
-        }
-        if (data.user) {
-          await supabase.from("users").upsert({
-            id: data.user.id,
-            name: form.name,
-            email: form.email,
-            phone: form.phone.replace(/\D/g, "") || null,
-            city: "Uberlandia",
-            role: "client",
-            banned: false,
-          }, { onConflict: "id" });
-          await sendEmail("welcome", form.email, form.name);
-          toast.success("Conta criada com sucesso!");
-          router.push("/bem-vindo");
-        }
-      } catch {
-        toast.error("Erro ao criar conta. Tente novamente.");
-      }
-      setLoading(false);
-      return;
-    }
-
-    // Para profissionais — inicia signUp em background e vai para Etapa 2
-    setSignUpInProgress(true);
-    setStep(2);
-    setLoading(false);
-
-    // Dispara signUp em background enquanto usuário preenche Etapa 2
-    supabase.auth.signUp({
-      email: form.email,
-      password: form.password,
-      options: { data: { full_name: form.name } },
-    }).then(({ data, error }) => {
-      if (error) {
-        if (error.message !== "User already registered") {
-          toast.error("Erro no cadastro: " + error.message);
-        }
-        setSignUpInProgress(false);
-        return;
-      }
-      if (data.user) {
-        setSignUpUserId(data.user.id);
-        setSignUpDone(true);
-        setSignUpInProgress(false);
-      }
-    }).catch(() => {
-      setSignUpInProgress(false);
-    });
-  }
-
   async function checkCoupon(code: string) {
-    if (!code) { setCouponValid(null); return; }
-    if (!form.email) { toast.error("Preencha seu e-mail primeiro"); return; }
+    if (!code || !form.email) { toast.error("Preencha seu e-mail primeiro"); return; }
     setCouponChecking(true);
     const supabase = createClient();
 
     const { data: coupon } = await supabase
-      .from("coupons")
-      .select("type, active, max_uses, uses_count, expires_at")
-      .eq("code", code.toUpperCase())
-      .eq("active", true)
-      .single();
+      .from("coupons").select("type, active, max_uses, uses_count, expires_at")
+      .eq("code", code.toUpperCase()).eq("active", true).single();
 
-    if (!coupon) { setCouponValid(null); toast.error("Cupom invalido ou expirado"); setCouponChecking(false); return; }
+    if (!coupon) { setCouponValid(null); toast.error("Cupom invalido"); setCouponChecking(false); return; }
     if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) { setCouponValid(null); toast.error("Cupom expirado"); setCouponChecking(false); return; }
     if (coupon.max_uses && coupon.uses_count >= coupon.max_uses) { setCouponValid(null); toast.error("Cupom esgotado"); setCouponChecking(false); return; }
 
-    const { data: prevUse } = await supabase
-      .from("coupon_uses").select("id")
-      .eq("coupon_code", code.toUpperCase())
-      .eq("email", form.email.toLowerCase()).single();
+    const { data: prevUse } = await supabase.from("coupon_uses").select("id")
+      .eq("coupon_code", code.toUpperCase()).eq("email", form.email.toLowerCase()).single();
 
     if (prevUse) { setCouponValid(null); toast.error("Este e-mail ja utilizou este cupom!"); setCouponChecking(false); return; }
 
@@ -176,96 +88,87 @@ export default function CadastroPage() {
     setCouponChecking(false);
   }
 
-  // ETAPA 2 — Finalizar cadastro do profissional
-  async function handleStep2(e: React.FormEvent) {
+  // Etapa 1 — Validação básica, avança para etapa 2 (profissional) ou cadastra (cliente)
+  async function handleStep1(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.category) { toast.error("Selecione sua especialidade"); return; }
+    if (!role) { toast.error("Selecione seu perfil"); return; }
+    if (!form.name || !form.email || !form.password) { toast.error("Preencha todos os campos"); return; }
+    if (role === "professional" && !form.phone) { toast.error("Informe seu WhatsApp"); return; }
+
+    if (role === "client") {
+      await handleFinalSubmit();
+      return;
+    }
+
+    // Profissional vai para etapa 2
+    setStep(2);
+  }
+
+  // Submit final — chama Edge Function que cria tudo instantaneamente
+  async function handleFinalSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (role === "professional" && !form.category) { toast.error("Selecione sua especialidade"); return; }
     setLoading(true);
 
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    // Se o signUp ainda não terminou, aguarda até 60s
-    if (!signUpDone) {
-      toast("Aguardando criacao da conta...", { icon: "⏳" });
-      let waited = 0;
-      while (!signUpDone && waited < 60000) {
-        await new Promise((r) => setTimeout(r, 500));
-        waited += 500;
-      }
-      if (!signUpDone) {
-        toast.success("Conta criada! Faca login para continuar.");
-        router.push("/login");
+      // Chama a Edge Function — usa admin.createUser que é muito mais rápido
+      const { data, error } = await supabase.functions.invoke("create-user", {
+        body: {
+          email: form.email,
+          password: form.password,
+          name: form.name,
+          phone: form.phone,
+          role,
+          category_slug: form.category || null,
+          bio: form.bio || null,
+          instagram: form.instagram || null,
+          coupon: form.coupon || null,
+          plan: form.plan,
+        },
+      });
+
+      if (error || data?.error) {
+        const msg = data?.error || error?.message || "";
+        if (msg === "EMAIL_TAKEN") {
+          toast.error("Este e-mail ja esta cadastrado");
+        } else {
+          toast.error("Erro ao criar conta. Tente novamente.");
+        }
         setLoading(false);
         return;
       }
-    }
 
-    const userId = signUpUserId!;
-    let avatarUrl: string | null = null;
-    if (avatarFile) avatarUrl = await uploadAvatar(userId, avatarFile);
-    const phoneClean = form.phone.replace(/\D/g, "");
-
-    await supabase.from("users").upsert({
-      id: userId,
-      name: form.name,
-      email: form.email,
-      phone: phoneClean || null,
-      city: "Uberlandia",
-      role: "professional",
-      avatar: avatarUrl,
-      banned: false,
-    }, { onConflict: "id" });
-
-    const { data: cat } = await supabase
-      .from("categories").select("id").eq("slug", form.category).single();
-
-    if (cat) {
-      let profStatus = "inactive";
-      let trialEndsAt: string | null = null;
-
-      if (couponValid === "free_forever") { profStatus = "active"; }
-      else if (couponValid === "trial_30days") { profStatus = "active"; trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); }
-      else if (couponValid === "trial_90days") { profStatus = "active"; trialEndsAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(); }
-
-      const { data: profData } = await supabase.from("professionals").upsert({
-        user_id: userId,
-        slug: `${slugify(form.name)}-${Date.now()}`,
-        bio: form.bio || null,
-        whatsapp: phoneClean,
-        instagram: form.instagram ? form.instagram.replace("@", "") : null,
-        category_id: cat.id,
-        plan: "basic",
-        status: profStatus,
-        avatar: avatarUrl,
-        coupon_code: form.coupon || null,
-        trial_ends_at: trialEndsAt,
-      }, { onConflict: "user_id" }).select("id").single();
-
-      if (profData?.id) {
-        await supabase.from("professional_categories").insert({
-          professional_id: profData.id,
-          category_id: cat.id,
-          is_primary: true,
-        }).onConflict("professional_id, category_id").ignore();
-      }
-
-      if (form.coupon && couponValid) {
-        const { data: couponData } = await supabase.from("coupons").select("uses_count").eq("code", form.coupon.toUpperCase()).single();
-        if (couponData) {
-          await supabase.from("coupons").update({ uses_count: (couponData.uses_count || 0) + 1 }).eq("code", form.coupon.toUpperCase());
+      // Upload avatar se tiver
+      if (avatarFile && data?.userId) {
+        const avatarUrl = await uploadAvatar(data.userId, avatarFile);
+        if (avatarUrl) {
+          await supabase.from("users").update({ avatar: avatarUrl }).eq("id", data.userId);
+          await supabase.from("professionals").update({ avatar: avatarUrl }).eq("user_id", data.userId);
         }
-        await supabase.from("coupon_uses").insert({
-          coupon_code: form.coupon.toUpperCase(),
-          user_id: userId,
-          email: form.email.toLowerCase(),
-          trial_ends_at: trialEndsAt,
-        }).onConflict("coupon_code, email").ignore();
       }
+
+      // Faz login automaticamente
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: form.password,
+      });
+
+      await sendEmail("welcome", form.email, form.name);
+
+      if (loginError) {
+        toast.success("Conta criada! Faca login para continuar.");
+        router.push("/login");
+      } else {
+        toast.success(couponValid ? "Perfil ativo! Bem-vindo ao UDIHUB!" : "Conta criada com sucesso!");
+        router.push("/bem-vindo");
+      }
+
+    } catch (err) {
+      toast.error("Erro ao criar conta. Tente novamente.");
     }
 
-    await sendEmail("welcome", form.email, form.name);
-    toast.success(couponValid ? "Perfil ativo! Bem-vindo ao UDIHUB!" : "Conta criada com sucesso!");
-    router.push("/bem-vindo");
     setLoading(false);
   }
 
@@ -276,7 +179,7 @@ export default function CadastroPage() {
       <button onClick={() => step === 2 ? setStep(1) : router.push("/")}
         className="flex items-center gap-2 text-muted mb-8 w-fit">
         <ArrowLeft size={18} />
-        <span className="text-sm">{step === 2 ? "Voltar" : "Voltar"}</span>
+        <span className="text-sm">Voltar</span>
       </button>
 
       <div className="flex items-center gap-2.5 mb-6">
@@ -286,7 +189,7 @@ export default function CadastroPage() {
         </span>
       </div>
 
-      {/* Indicador de etapas — só para profissionais */}
+      {/* Indicador etapas */}
       {role === "professional" && step === 2 && (
         <div className="flex items-center gap-2 mb-6">
           <div className="flex items-center gap-1.5">
@@ -299,9 +202,7 @@ export default function CadastroPage() {
           <div className="flex-1 h-px" style={{ background: "#1F1F23" }} />
           <div className="flex items-center gap-1.5">
             <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
-              style={{ background: "rgba(59,130,246,0.2)", color: "#3B82F6" }}>
-              2
-            </div>
+              style={{ background: "rgba(59,130,246,0.2)", color: "#3B82F6" }}>2</div>
             <span className="text-[10px]" style={{ color: "#3B82F6" }}>Perfil profissional</span>
           </div>
         </div>
@@ -315,7 +216,6 @@ export default function CadastroPage() {
             <p className="text-sm text-muted mb-5">Preencha os dados abaixo para comecar</p>
           </div>
 
-          {/* Tipo de conta */}
           <div>
             <label className="block text-xs font-medium text-muted mb-2">Como vai usar o UDIHUB?</label>
             <div className="grid grid-cols-2 gap-2">
@@ -352,26 +252,20 @@ export default function CadastroPage() {
               placeholder="seu@email.com" required className={inputClass} style={inputStyle} />
           </div>
 
-          {role === "professional" && (
-            <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">WhatsApp *</label>
-              <input type="tel" value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
-                placeholder="(34) 99999-9999" required inputMode="numeric" maxLength={16}
-                className={inputClass} style={inputStyle} />
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">
+              WhatsApp {role === "professional" ? "*" : "(opcional)"}
+            </label>
+            <input type="tel" value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
+              placeholder="(34) 99999-9999"
+              required={role === "professional"}
+              inputMode="numeric" maxLength={16}
+              className={inputClass} style={inputStyle} />
+            {role === "professional" && (
               <p className="text-[10px] text-muted mt-1">Este numero recebera os contatos dos clientes</p>
-            </div>
-          )}
-
-          {role === "client" && (
-            <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">WhatsApp (opcional)</label>
-              <input type="tel" value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
-                placeholder="(34) 99999-9999" inputMode="numeric" maxLength={16}
-                className={inputClass} style={inputStyle} />
-            </div>
-          )}
+            )}
+          </div>
 
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Senha *</label>
@@ -390,7 +284,7 @@ export default function CadastroPage() {
               ? <><Loader2 size={16} className="animate-spin" /> Processando...</>
               : role === "professional"
                 ? <> Continuar <ArrowRight size={16} /></>
-                : "Criar conta"}
+                : <><Loader2 size={0} /> Criar conta</>}
           </button>
 
           <p className="text-center text-sm text-muted pt-2">
@@ -402,27 +296,11 @@ export default function CadastroPage() {
 
       {/* ===== ETAPA 2 — Profissional ===== */}
       {step === 2 && (
-        <form onSubmit={handleStep2} className="space-y-4 max-w-lg w-full mx-auto">
+        <form onSubmit={handleFinalSubmit} className="space-y-4 max-w-lg w-full mx-auto">
           <div>
             <h1 className="font-syne font-bold text-2xl text-foreground mb-1">Seu perfil</h1>
             <p className="text-sm text-muted mb-5">Complete seu perfil para aparecer nas buscas</p>
           </div>
-
-          {/* Status do signUp em background */}
-          {signUpInProgress && (
-            <div className="flex items-center gap-3 p-3 rounded-xl"
-              style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
-              <Loader2 size={13} style={{ color: "#3B82F6" }} className="animate-spin flex-shrink-0" />
-              <p className="text-xs" style={{ color: "#93c5fd" }}>Preparando sua conta...</p>
-            </div>
-          )}
-          {signUpDone && (
-            <div className="flex items-center gap-3 p-3 rounded-xl"
-              style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
-              <Check size={13} style={{ color: "#22c55e" }} className="flex-shrink-0" />
-              <p className="text-xs" style={{ color: "#22c55e" }}>Conta preparada! Complete seu perfil.</p>
-            </div>
-          )}
 
           {/* Foto */}
           <div>
@@ -530,9 +408,9 @@ export default function CadastroPage() {
                 <Check size={16} style={{ color: "#22c55e" }} />
                 <div className="flex-1">
                   <p className="text-sm font-bold" style={{ color: "#22c55e" }}>
-                    {couponValid === "free_forever" && "Acesso permanente ativado!"}
-                    {couponValid === "trial_30days" && "30 dias gratis ativados!"}
                     {couponValid === "trial_90days" && "3 meses gratis ativados!"}
+                    {couponValid === "trial_30days" && "30 dias gratis ativados!"}
+                    {couponValid === "free_forever" && "Acesso permanente ativado!"}
                   </p>
                   <p className="text-xs text-muted">
                     {couponValid === "trial_90days" && "Perfil ativo por 90 dias. Apos esse periodo, assine para continuar."}
@@ -560,11 +438,11 @@ export default function CadastroPage() {
                   placeholder="Digite seu cupom"
                   className={inputClass} style={{ ...inputStyle, flex: 1 }} />
                 <button type="button" onClick={() => checkCoupon(form.coupon)}
-                  disabled={!form.coupon || couponChecking || !form.email}
+                  disabled={!form.coupon || couponChecking}
                   className="px-4 py-3 rounded-xl text-xs font-bold flex-shrink-0"
                   style={{
                     background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)",
-                    color: "#3B82F6", opacity: (!form.coupon || couponChecking || !form.email) ? 0.5 : 1,
+                    color: "#3B82F6", opacity: (!form.coupon || couponChecking) ? 0.5 : 1,
                   }}>
                   {couponChecking ? <Loader2 size={13} className="animate-spin" /> : "Aplicar"}
                 </button>
@@ -580,7 +458,7 @@ export default function CadastroPage() {
               opacity: loading ? 0.7 : 1
             }}>
             {loading
-              ? <><Loader2 size={16} className="animate-spin" /> Finalizando...</>
+              ? <><Loader2 size={16} className="animate-spin" /> Criando perfil...</>
               : couponValid ? "Criar perfil" : "Criar perfil e ir para pagamento"}
           </button>
 
