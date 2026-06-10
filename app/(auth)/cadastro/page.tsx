@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, User, Briefcase, Loader2, Check, Camera, X, Tag, Instagram } from "lucide-react";
+import { ArrowLeft, User, Briefcase, Loader2, Check, Camera, X, Tag, Instagram, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES } from "@/lib/constants";
 import { slugify } from "@/lib/utils";
@@ -32,8 +32,11 @@ type CouponType = "free_forever" | "trial_30days" | "trial_90days" | null;
 export default function CadastroPage() {
   const router = useRouter();
   const [role, setRole] = useState<"client" | "professional" | null>(null);
+  const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState("Criando conta...");
+  const [signUpDone, setSignUpDone] = useState(false);
+  const [signUpUserId, setSignUpUserId] = useState<string | null>(null);
+  const [signUpInProgress, setSignUpInProgress] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [couponValid, setCouponValid] = useState<CouponType>(null);
@@ -72,6 +75,78 @@ export default function CadastroPage() {
     return data.publicUrl;
   }
 
+  // ETAPA 1 — Continuar: salva dados básicos e dispara signUp em background
+  async function handleStep1(e: React.FormEvent) {
+    e.preventDefault();
+    if (!role) { toast.error("Selecione seu perfil"); return; }
+    if (!form.name || !form.email || !form.password) { toast.error("Preencha todos os campos"); return; }
+    if (role === "professional" && !form.phone) { toast.error("Informe seu WhatsApp"); return; }
+
+    setLoading(true);
+    const supabase = createClient();
+
+    // Para clientes — faz signUp completo direto
+    if (role === "client") {
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: { data: { full_name: form.name } },
+        });
+        if (error) {
+          toast.error(error.message === "User already registered" ? "E-mail ja cadastrado" : error.message);
+          setLoading(false);
+          return;
+        }
+        if (data.user) {
+          await supabase.from("users").upsert({
+            id: data.user.id,
+            name: form.name,
+            email: form.email,
+            phone: form.phone.replace(/\D/g, "") || null,
+            city: "Uberlandia",
+            role: "client",
+            banned: false,
+          }, { onConflict: "id" });
+          await sendEmail("welcome", form.email, form.name);
+          toast.success("Conta criada com sucesso!");
+          router.push("/bem-vindo");
+        }
+      } catch {
+        toast.error("Erro ao criar conta. Tente novamente.");
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Para profissionais — inicia signUp em background e vai para Etapa 2
+    setSignUpInProgress(true);
+    setStep(2);
+    setLoading(false);
+
+    // Dispara signUp em background enquanto usuário preenche Etapa 2
+    supabase.auth.signUp({
+      email: form.email,
+      password: form.password,
+      options: { data: { full_name: form.name } },
+    }).then(({ data, error }) => {
+      if (error) {
+        if (error.message !== "User already registered") {
+          toast.error("Erro no cadastro: " + error.message);
+        }
+        setSignUpInProgress(false);
+        return;
+      }
+      if (data.user) {
+        setSignUpUserId(data.user.id);
+        setSignUpDone(true);
+        setSignUpInProgress(false);
+      }
+    }).catch(() => {
+      setSignUpInProgress(false);
+    });
+  }
+
   async function checkCoupon(code: string) {
     if (!code) { setCouponValid(null); return; }
     if (!form.email) { toast.error("Preencha seu e-mail primeiro"); return; }
@@ -80,119 +155,54 @@ export default function CadastroPage() {
 
     const { data: coupon } = await supabase
       .from("coupons")
-      .select("type, active, max_uses, uses_count, trial_days, expires_at")
+      .select("type, active, max_uses, uses_count, expires_at")
       .eq("code", code.toUpperCase())
       .eq("active", true)
       .single();
 
-    if (!coupon) {
-      setCouponValid(null);
-      toast.error("Cupom invalido ou expirado");
-      setCouponChecking(false);
-      return;
-    }
-
-    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-      setCouponValid(null);
-      toast.error("Cupom expirado");
-      setCouponChecking(false);
-      return;
-    }
-
-    if (coupon.max_uses && coupon.uses_count >= coupon.max_uses) {
-      setCouponValid(null);
-      toast.error("Cupom esgotado");
-      setCouponChecking(false);
-      return;
-    }
+    if (!coupon) { setCouponValid(null); toast.error("Cupom invalido ou expirado"); setCouponChecking(false); return; }
+    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) { setCouponValid(null); toast.error("Cupom expirado"); setCouponChecking(false); return; }
+    if (coupon.max_uses && coupon.uses_count >= coupon.max_uses) { setCouponValid(null); toast.error("Cupom esgotado"); setCouponChecking(false); return; }
 
     const { data: prevUse } = await supabase
-      .from("coupon_uses")
-      .select("id")
+      .from("coupon_uses").select("id")
       .eq("coupon_code", code.toUpperCase())
-      .eq("email", form.email.toLowerCase())
-      .single();
+      .eq("email", form.email.toLowerCase()).single();
 
-    if (prevUse) {
-      setCouponValid(null);
-      toast.error("Este e-mail ja utilizou este cupom!");
-      setCouponChecking(false);
-      return;
-    }
+    if (prevUse) { setCouponValid(null); toast.error("Este e-mail ja utilizou este cupom!"); setCouponChecking(false); return; }
 
     setCouponValid(coupon.type as CouponType);
-    if (coupon.type === "free_forever") toast.success("Cupom valido! Acesso permanente!");
-    if (coupon.type === "trial_30days") toast.success("Cupom valido! 30 dias gratis!");
-    if (coupon.type === "trial_90days") toast.success("Cupom valido! 3 meses gratis!");
+    toast.success(coupon.type === "trial_90days" ? "Cupom valido! 3 meses gratis!" : "Cupom valido!");
     setCouponChecking(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  // ETAPA 2 — Finalizar cadastro do profissional
+  async function handleStep2(e: React.FormEvent) {
     e.preventDefault();
-    if (!role) { toast.error("Selecione seu perfil"); return; }
-    if (role === "professional" && !form.category) { toast.error("Selecione sua especialidade"); return; }
-    if (role === "professional" && !form.phone) { toast.error("Informe seu WhatsApp"); return; }
+    if (!form.category) { toast.error("Selecione sua especialidade"); return; }
     setLoading(true);
-    setLoadingMsg("Criando conta...");
 
     const supabase = createClient();
 
-    // Timeout de 60 segundos — Supabase sa-east-1 pode demorar ate 60s
-    let signUpData: any = null;
-    let signUpError: any = null;
-
-    // Atualiza mensagem apos 10s para o usuario nao achar que travou
-    const msgTimer = setTimeout(() => {
-      setLoadingMsg("Aguarde, isso pode levar alguns segundos...");
-    }, 10000);
-
-    try {
-      const signUpPromise = supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: { data: { full_name: form.name } },
-      });
-
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("timeout")), 60000)
-      );
-
-      const result = await Promise.race([signUpPromise, timeoutPromise]) as any;
-      signUpData = result.data;
-      signUpError = result.error;
-    } catch (e: any) {
-      clearTimeout(msgTimer);
-      if (e.message === "timeout") {
-        toast.success("Conta criada! Clique em continuar.");
-        router.push("/bem-vindo");
+    // Se o signUp ainda não terminou, aguarda até 60s
+    if (!signUpDone) {
+      toast("Aguardando criacao da conta...", { icon: "⏳" });
+      let waited = 0;
+      while (!signUpDone && waited < 60000) {
+        await new Promise((r) => setTimeout(r, 500));
+        waited += 500;
+      }
+      if (!signUpDone) {
+        toast.success("Conta criada! Faca login para continuar.");
+        router.push("/login");
         setLoading(false);
         return;
       }
-      toast.error("Erro ao criar conta. Tente novamente.");
-      setLoading(false);
-      return;
     }
 
-    clearTimeout(msgTimer);
-
-    if (signUpError) {
-      toast.error(signUpError.message === "User already registered"
-        ? "Este e-mail ja esta cadastrado"
-        : signUpError.message);
-      setLoading(false);
-      return;
-    }
-
-    if (!signUpData?.user) {
-      toast.error("Erro ao criar conta");
-      setLoading(false);
-      return;
-    }
-
-    const userId = signUpData.user.id;
+    const userId = signUpUserId!;
     let avatarUrl: string | null = null;
     if (avatarFile) avatarUrl = await uploadAvatar(userId, avatarFile);
-
     const phoneClean = form.phone.replace(/\D/g, "");
 
     await supabase.from("users").upsert({
@@ -201,86 +211,61 @@ export default function CadastroPage() {
       email: form.email,
       phone: phoneClean || null,
       city: "Uberlandia",
-      role,
+      role: "professional",
       avatar: avatarUrl,
       banned: false,
     }, { onConflict: "id" });
 
-    if (role === "professional") {
-      const { data: cat } = await supabase
-        .from("categories").select("id").eq("slug", form.category).single();
+    const { data: cat } = await supabase
+      .from("categories").select("id").eq("slug", form.category).single();
 
-      if (cat) {
-        let profStatus = "inactive";
-        let trialEndsAt: string | null = null;
+    if (cat) {
+      let profStatus = "inactive";
+      let trialEndsAt: string | null = null;
 
-        if (couponValid === "free_forever") {
-          profStatus = "active";
-        } else if (couponValid === "trial_30days") {
-          profStatus = "active";
-          trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        } else if (couponValid === "trial_90days") {
-          profStatus = "active";
-          trialEndsAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-        }
+      if (couponValid === "free_forever") { profStatus = "active"; }
+      else if (couponValid === "trial_30days") { profStatus = "active"; trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); }
+      else if (couponValid === "trial_90days") { profStatus = "active"; trialEndsAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(); }
 
-        const { data: profData } = await supabase.from("professionals").upsert({
-          user_id: userId,
-          slug: `${slugify(form.name)}-${Date.now()}`,
-          bio: form.bio || null,
-          whatsapp: phoneClean,
-          instagram: form.instagram ? form.instagram.replace("@", "") : null,
+      const { data: profData } = await supabase.from("professionals").upsert({
+        user_id: userId,
+        slug: `${slugify(form.name)}-${Date.now()}`,
+        bio: form.bio || null,
+        whatsapp: phoneClean,
+        instagram: form.instagram ? form.instagram.replace("@", "") : null,
+        category_id: cat.id,
+        plan: "basic",
+        status: profStatus,
+        avatar: avatarUrl,
+        coupon_code: form.coupon || null,
+        trial_ends_at: trialEndsAt,
+      }, { onConflict: "user_id" }).select("id").single();
+
+      if (profData?.id) {
+        await supabase.from("professional_categories").insert({
+          professional_id: profData.id,
           category_id: cat.id,
-          plan: "basic",
-          status: profStatus,
-          avatar: avatarUrl,
-          coupon_code: form.coupon || null,
-          trial_ends_at: trialEndsAt,
-        }, { onConflict: "user_id" }).select("id").single();
-
-        if (profData?.id) {
-          await supabase.from("professional_categories").insert({
-            professional_id: profData.id,
-            category_id: cat.id,
-            is_primary: true,
-          }).onConflict("professional_id, category_id").ignore();
-        }
-
-        if (form.coupon && couponValid) {
-          const { data: couponData } = await supabase
-            .from("coupons")
-            .select("uses_count")
-            .eq("code", form.coupon.toUpperCase())
-            .single();
-
-          if (couponData) {
-            await supabase.from("coupons")
-              .update({ uses_count: (couponData.uses_count || 0) + 1 })
-              .eq("code", form.coupon.toUpperCase());
-          }
-
-          await supabase.from("coupon_uses").insert({
-            coupon_code: form.coupon.toUpperCase(),
-            user_id: userId,
-            email: form.email.toLowerCase(),
-            trial_ends_at: trialEndsAt,
-          }).onConflict("coupon_code, email").ignore();
-        }
+          is_primary: true,
+        }).onConflict("professional_id, category_id").ignore();
       }
 
-      await sendEmail("welcome", form.email, form.name);
-
-      toast.success(couponValid
-        ? "Perfil ativo! Bem-vindo ao UDIHUB!"
-        : "Conta criada com sucesso!");
-      router.push("/bem-vindo");
-
-    } else {
-      await sendEmail("welcome", form.email, form.name);
-      toast.success("Conta criada com sucesso!");
-      router.push("/bem-vindo");
+      if (form.coupon && couponValid) {
+        const { data: couponData } = await supabase.from("coupons").select("uses_count").eq("code", form.coupon.toUpperCase()).single();
+        if (couponData) {
+          await supabase.from("coupons").update({ uses_count: (couponData.uses_count || 0) + 1 }).eq("code", form.coupon.toUpperCase());
+        }
+        await supabase.from("coupon_uses").insert({
+          coupon_code: form.coupon.toUpperCase(),
+          user_id: userId,
+          email: form.email.toLowerCase(),
+          trial_ends_at: trialEndsAt,
+        }).onConflict("coupon_code, email").ignore();
+      }
     }
 
+    await sendEmail("welcome", form.email, form.name);
+    toast.success(couponValid ? "Perfil ativo! Bem-vindo ao UDIHUB!" : "Conta criada com sucesso!");
+    router.push("/bem-vindo");
     setLoading(false);
   }
 
@@ -288,52 +273,158 @@ export default function CadastroPage() {
     <div className="min-h-screen flex flex-col px-4 py-8"
       style={{ background: "linear-gradient(135deg, #09090B 0%, #0F172A 100%)" }}>
 
-      <button onClick={() => router.push("/")}
+      <button onClick={() => step === 2 ? setStep(1) : router.push("/")}
         className="flex items-center gap-2 text-muted mb-8 w-fit">
         <ArrowLeft size={18} />
-        <span className="text-sm">Voltar</span>
+        <span className="text-sm">{step === 2 ? "Voltar" : "Voltar"}</span>
       </button>
 
-      <div className="flex items-center gap-2.5 mb-8">
+      <div className="flex items-center gap-2.5 mb-6">
         <Image src="/logo.png" alt="UDIHUB" width={36} height={36} className="rounded-xl object-cover" />
         <span className="font-syne font-bold text-xl text-foreground">
           UDI<span style={{ color: "#3B82F6" }}>HUB</span>
         </span>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4 max-w-lg w-full mx-auto">
-        <div>
-          <h1 className="font-syne font-bold text-2xl text-foreground mb-1">Criar conta</h1>
-          <p className="text-sm text-muted mb-5">Preencha os dados abaixo para comecar</p>
-        </div>
-
-        {/* Tipo de conta */}
-        <div>
-          <label className="block text-xs font-medium text-muted mb-2">Como vai usar o UDIHUB?</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => setRole("client")}
-              className="flex items-center gap-3 p-3.5 rounded-xl text-left"
-              style={{ background: "#111113", border: role === "client" ? "2px solid #3B82F6" : "1px solid #1F1F23" }}>
-              <User size={18} style={{ color: "#3B82F6" }} className="flex-shrink-0" />
-              <div>
-                <p className="font-syne font-bold text-sm text-foreground">Cliente</p>
-                <p className="text-[10px] text-muted">Busco servicos</p>
-              </div>
-            </button>
-            <button type="button" onClick={() => setRole("professional")}
-              className="flex items-center gap-3 p-3.5 rounded-xl text-left"
-              style={{ background: "#111113", border: role === "professional" ? "2px solid #3B82F6" : "1px solid #1F1F23" }}>
-              <Briefcase size={18} style={{ color: "#3B82F6" }} className="flex-shrink-0" />
-              <div>
-                <p className="font-syne font-bold text-sm text-foreground">Profissional</p>
-                <p className="text-[10px] text-muted">Recebo clientes</p>
-              </div>
-            </button>
+      {/* Indicador de etapas — só para profissionais */}
+      {role === "professional" && step === 2 && (
+        <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-1.5">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+              style={{ background: "rgba(34,197,94,0.2)", color: "#22c55e" }}>
+              <Check size={12} />
+            </div>
+            <span className="text-[10px] text-muted">Dados basicos</span>
+          </div>
+          <div className="flex-1 h-px" style={{ background: "#1F1F23" }} />
+          <div className="flex items-center gap-1.5">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold"
+              style={{ background: "rgba(59,130,246,0.2)", color: "#3B82F6" }}>
+              2
+            </div>
+            <span className="text-[10px]" style={{ color: "#3B82F6" }}>Perfil profissional</span>
           </div>
         </div>
+      )}
 
-        {/* Foto */}
-        {role === "professional" && (
+      {/* ===== ETAPA 1 ===== */}
+      {step === 1 && (
+        <form onSubmit={handleStep1} className="space-y-4 max-w-lg w-full mx-auto">
+          <div>
+            <h1 className="font-syne font-bold text-2xl text-foreground mb-1">Criar conta</h1>
+            <p className="text-sm text-muted mb-5">Preencha os dados abaixo para comecar</p>
+          </div>
+
+          {/* Tipo de conta */}
+          <div>
+            <label className="block text-xs font-medium text-muted mb-2">Como vai usar o UDIHUB?</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setRole("client")}
+                className="flex items-center gap-3 p-3.5 rounded-xl text-left"
+                style={{ background: "#111113", border: role === "client" ? "2px solid #3B82F6" : "1px solid #1F1F23" }}>
+                <User size={18} style={{ color: "#3B82F6" }} className="flex-shrink-0" />
+                <div>
+                  <p className="font-syne font-bold text-sm text-foreground">Cliente</p>
+                  <p className="text-[10px] text-muted">Busco servicos</p>
+                </div>
+              </button>
+              <button type="button" onClick={() => setRole("professional")}
+                className="flex items-center gap-3 p-3.5 rounded-xl text-left"
+                style={{ background: "#111113", border: role === "professional" ? "2px solid #3B82F6" : "1px solid #1F1F23" }}>
+                <Briefcase size={18} style={{ color: "#3B82F6" }} className="flex-shrink-0" />
+                <div>
+                  <p className="font-syne font-bold text-sm text-foreground">Profissional</p>
+                  <p className="text-[10px] text-muted">Recebo clientes</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">Nome completo *</label>
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Seu nome completo" required className={inputClass} style={inputStyle} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">E-mail *</label>
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="seu@email.com" required className={inputClass} style={inputStyle} />
+          </div>
+
+          {role === "professional" && (
+            <div>
+              <label className="block text-xs font-medium text-muted mb-1.5">WhatsApp *</label>
+              <input type="tel" value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
+                placeholder="(34) 99999-9999" required inputMode="numeric" maxLength={16}
+                className={inputClass} style={inputStyle} />
+              <p className="text-[10px] text-muted mt-1">Este numero recebera os contatos dos clientes</p>
+            </div>
+          )}
+
+          {role === "client" && (
+            <div>
+              <label className="block text-xs font-medium text-muted mb-1.5">WhatsApp (opcional)</label>
+              <input type="tel" value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
+                placeholder="(34) 99999-9999" inputMode="numeric" maxLength={16}
+                className={inputClass} style={inputStyle} />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">Senha *</label>
+            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder="Minimo 6 caracteres" minLength={6} required className={inputClass} style={inputStyle} />
+          </div>
+
+          <button type="submit" disabled={loading || !role}
+            className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 mt-2"
+            style={{
+              background: "linear-gradient(135deg, #3B82F6, #1d4ed8)",
+              boxShadow: "0 0 20px rgba(59,130,246,0.3)",
+              opacity: (loading || !role) ? 0.7 : 1
+            }}>
+            {loading
+              ? <><Loader2 size={16} className="animate-spin" /> Processando...</>
+              : role === "professional"
+                ? <> Continuar <ArrowRight size={16} /></>
+                : "Criar conta"}
+          </button>
+
+          <p className="text-center text-sm text-muted pt-2">
+            Ja tem conta?{" "}
+            <Link href="/login" className="font-semibold" style={{ color: "#3B82F6" }}>Entrar</Link>
+          </p>
+        </form>
+      )}
+
+      {/* ===== ETAPA 2 — Profissional ===== */}
+      {step === 2 && (
+        <form onSubmit={handleStep2} className="space-y-4 max-w-lg w-full mx-auto">
+          <div>
+            <h1 className="font-syne font-bold text-2xl text-foreground mb-1">Seu perfil</h1>
+            <p className="text-sm text-muted mb-5">Complete seu perfil para aparecer nas buscas</p>
+          </div>
+
+          {/* Status do signUp em background */}
+          {signUpInProgress && (
+            <div className="flex items-center gap-3 p-3 rounded-xl"
+              style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
+              <Loader2 size={13} style={{ color: "#3B82F6" }} className="animate-spin flex-shrink-0" />
+              <p className="text-xs" style={{ color: "#93c5fd" }}>Preparando sua conta...</p>
+            </div>
+          )}
+          {signUpDone && (
+            <div className="flex items-center gap-3 p-3 rounded-xl"
+              style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+              <Check size={13} style={{ color: "#22c55e" }} className="flex-shrink-0" />
+              <p className="text-xs" style={{ color: "#22c55e" }}>Conta preparada! Complete seu perfil.</p>
+            </div>
+          )}
+
+          {/* Foto */}
           <div>
             <label className="block text-xs font-medium text-muted mb-2">Foto do perfil</label>
             <div className="flex items-center gap-4">
@@ -355,217 +446,149 @@ export default function CadastroPage() {
                     <span className="text-[9px] text-muted">Adicionar</span>
                   </button>
                 )}
-                <input ref={fileInputRef} type="file" accept="image/*"
-                  onChange={handleAvatarChange} className="hidden" />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
               </div>
               <p className="text-xs text-muted leading-relaxed flex-1">
                 Perfis com foto recebem <strong className="text-foreground">3x mais</strong> contatos.
               </p>
             </div>
           </div>
-        )}
 
-        {/* Nome */}
-        <div>
-          <label className="block text-xs font-medium text-muted mb-1.5">Nome completo *</label>
-          <input type="text" value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Seu nome completo" required className={inputClass} style={inputStyle} />
-        </div>
+          {/* Especialidade */}
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">Especialidade *</label>
+            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+              required className={inputClass}
+              style={{ ...inputStyle, color: form.category ? "#FAFAFA" : "#A1A1AA" }}>
+              <option value="">Selecione sua especialidade</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat.slug} value={cat.slug}>{cat.icon} {cat.name}</option>
+              ))}
+            </select>
+          </div>
 
-        {/* Email */}
-        <div>
-          <label className="block text-xs font-medium text-muted mb-1.5">E-mail *</label>
-          <input type="email" value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            placeholder="seu@email.com" required className={inputClass} style={inputStyle} />
-        </div>
-
-        {/* WhatsApp */}
-        <div>
-          <label className="block text-xs font-medium text-muted mb-1.5">
-            WhatsApp {role === "professional" ? "*" : "(opcional)"}
-          </label>
-          <input type="tel" value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: formatPhone(e.target.value) })}
-            placeholder="(34) 99999-9999"
-            required={role === "professional"}
-            inputMode="numeric"
-            maxLength={16}
-            className={inputClass} style={inputStyle} />
-          {role === "professional" && (
-            <p className="text-[10px] text-muted mt-1">Este numero recebera os contatos dos clientes</p>
-          )}
-        </div>
-
-        {/* Senha */}
-        <div>
-          <label className="block text-xs font-medium text-muted mb-1.5">Senha *</label>
-          <input type="password" value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder="Minimo 6 caracteres" minLength={6} required
-            className={inputClass} style={inputStyle} />
-        </div>
-
-        {/* Campos do profissional */}
-        {role === "professional" && (
-          <>
-            <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">Especialidade *</label>
-              <select value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                required className={inputClass}
-                style={{ ...inputStyle, color: form.category ? "#FAFAFA" : "#A1A1AA" }}>
-                <option value="">Selecione sua especialidade</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat.slug} value={cat.slug}>{cat.icon} {cat.name}</option>
-                ))}
-              </select>
+          {/* Instagram */}
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">
+              <Instagram size={11} className="inline mr-1" />Instagram (opcional)
+            </label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted">@</span>
+              <input type="text" value={form.instagram}
+                onChange={(e) => setForm({ ...form, instagram: e.target.value.replace("@", "") })}
+                placeholder="seuinstagram" className={inputClass}
+                style={{ ...inputStyle, paddingLeft: "2rem" }} />
             </div>
+          </div>
 
+          {/* Bio */}
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">Bio (opcional)</label>
+            <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
+              placeholder="Fale sobre sua experiencia e servicos..."
+              rows={3} maxLength={300}
+              className={inputClass} style={{ ...inputStyle, resize: "none" }} />
+            <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
+          </div>
+
+          {/* Plano */}
+          {!couponValid && (
+            <div>
+              <label className="block text-xs font-medium text-muted mb-2">Plano</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["basic", "pro"] as const).map((plan) => (
+                  <button key={plan} type="button" onClick={() => setForm({ ...form, plan })}
+                    className="p-3.5 rounded-xl text-left"
+                    style={{ background: "#111113", border: form.plan === plan ? "2px solid #3B82F6" : "1px solid #1F1F23" }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-syne font-bold text-sm text-foreground">
+                        {plan === "basic" ? "Basico" : "Pro"}
+                      </span>
+                      {form.plan === plan && <Check size={12} style={{ color: "#3B82F6" }} />}
+                    </div>
+                    <div className="flex items-end gap-0.5 mb-1">
+                      <span className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>
+                        {plan === "basic" ? "R$69" : "R$99"}
+                      </span>
+                      <span className="text-[10px] text-muted mb-0.5">/mes</span>
+                    </div>
+                    <p className="text-[10px] text-muted">
+                      {plan === "basic" ? "Aparece nas buscas" : "Aparece primeiro · Badge PRO"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted mt-2 text-center">Cobranca mensal · Cancele quando quiser</p>
+            </div>
+          )}
+
+          {/* Cupom */}
+          {couponValid ? (
+            <div className="p-4 rounded-2xl"
+              style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)" }}>
+              <div className="flex items-center gap-3">
+                <Check size={16} style={{ color: "#22c55e" }} />
+                <div className="flex-1">
+                  <p className="text-sm font-bold" style={{ color: "#22c55e" }}>
+                    {couponValid === "free_forever" && "Acesso permanente ativado!"}
+                    {couponValid === "trial_30days" && "30 dias gratis ativados!"}
+                    {couponValid === "trial_90days" && "3 meses gratis ativados!"}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {couponValid === "trial_90days" && "Perfil ativo por 90 dias. Apos esse periodo, assine para continuar."}
+                    {couponValid === "trial_30days" && "Perfil ativo por 30 dias."}
+                    {couponValid === "free_forever" && "Perfil ativo sem mensalidade."}
+                  </p>
+                </div>
+                <button type="button" onClick={() => { setForm({ ...form, coupon: "" }); setCouponValid(null); }}
+                  className="text-muted flex-shrink-0"><X size={14} /></button>
+              </div>
+              {couponValid === "trial_90days" && (
+                <div className="mt-2 pt-2" style={{ borderTop: "1px solid rgba(34,197,94,0.2)" }}>
+                  <span className="text-[10px]" style={{ color: "#22c55e" }}>Plano Basico · Uso unico por e-mail</span>
+                </div>
+              )}
+            </div>
+          ) : (
             <div>
               <label className="block text-xs font-medium text-muted mb-1.5">
-                <Instagram size={11} className="inline mr-1" />Instagram (opcional)
+                <Tag size={11} className="inline mr-1" />Cupom (opcional)
               </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted">@</span>
-                <input type="text" value={form.instagram}
-                  onChange={(e) => setForm({ ...form, instagram: e.target.value.replace("@", "") })}
-                  placeholder="seuinstagram"
-                  className={inputClass}
-                  style={{ ...inputStyle, paddingLeft: "2rem" }} />
+              <div className="flex gap-2">
+                <input type="text" value={form.coupon}
+                  onChange={(e) => { setForm({ ...form, coupon: e.target.value.toUpperCase() }); setCouponValid(null); }}
+                  placeholder="Digite seu cupom"
+                  className={inputClass} style={{ ...inputStyle, flex: 1 }} />
+                <button type="button" onClick={() => checkCoupon(form.coupon)}
+                  disabled={!form.coupon || couponChecking || !form.email}
+                  className="px-4 py-3 rounded-xl text-xs font-bold flex-shrink-0"
+                  style={{
+                    background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)",
+                    color: "#3B82F6", opacity: (!form.coupon || couponChecking || !form.email) ? 0.5 : 1,
+                  }}>
+                  {couponChecking ? <Loader2 size={13} className="animate-spin" /> : "Aplicar"}
+                </button>
               </div>
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">Bio (opcional)</label>
-              <textarea value={form.bio}
-                onChange={(e) => setForm({ ...form, bio: e.target.value })}
-                placeholder="Fale sobre sua experiencia e servicos..."
-                rows={3} maxLength={300}
-                className={inputClass} style={{ ...inputStyle, resize: "none" }} />
-              <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
-            </div>
+          <button type="submit" disabled={loading}
+            className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 mt-2"
+            style={{
+              background: "linear-gradient(135deg, #3B82F6, #1d4ed8)",
+              boxShadow: "0 0 20px rgba(59,130,246,0.3)",
+              opacity: loading ? 0.7 : 1
+            }}>
+            {loading
+              ? <><Loader2 size={16} className="animate-spin" /> Finalizando...</>
+              : couponValid ? "Criar perfil" : "Criar perfil e ir para pagamento"}
+          </button>
 
-            {!couponValid && (
-              <div>
-                <label className="block text-xs font-medium text-muted mb-2">Plano</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["basic", "pro"] as const).map((plan) => (
-                    <button key={plan} type="button" onClick={() => setForm({ ...form, plan })}
-                      className="p-3.5 rounded-xl text-left"
-                      style={{ background: "#111113", border: form.plan === plan ? "2px solid #3B82F6" : "1px solid #1F1F23" }}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-syne font-bold text-sm text-foreground">
-                          {plan === "basic" ? "Basico" : "Pro"}
-                        </span>
-                        {form.plan === plan && <Check size={12} style={{ color: "#3B82F6" }} />}
-                      </div>
-                      <div className="flex items-end gap-0.5 mb-1">
-                        <span className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>
-                          {plan === "basic" ? "R$69" : "R$99"}
-                        </span>
-                        <span className="text-[10px] text-muted mb-0.5">/mes</span>
-                      </div>
-                      <p className="text-[10px] text-muted">
-                        {plan === "basic" ? "Aparece nas buscas" : "Aparece primeiro · Badge PRO"}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[10px] text-muted mt-2 text-center">
-                  Cobranca mensal · Cancele quando quiser
-                </p>
-              </div>
-            )}
-
-            {couponValid ? (
-              <div className="p-4 rounded-2xl"
-                style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)" }}>
-                <div className="flex items-center gap-3">
-                  <Check size={16} style={{ color: "#22c55e" }} />
-                  <div className="flex-1">
-                    <p className="text-sm font-bold" style={{ color: "#22c55e" }}>
-                      {couponValid === "free_forever" && "Acesso permanente ativado!"}
-                      {couponValid === "trial_30days" && "30 dias gratis ativados!"}
-                      {couponValid === "trial_90days" && "3 meses gratis ativados!"}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {couponValid === "free_forever" && "Perfil ativo sem mensalidade."}
-                      {couponValid === "trial_30days" && "Perfil ativo por 30 dias."}
-                      {couponValid === "trial_90days" && "Perfil ativo por 90 dias. Apos esse periodo, assine para continuar."}
-                    </p>
-                  </div>
-                  <button type="button"
-                    onClick={() => { setForm({ ...form, coupon: "" }); setCouponValid(null); }}
-                    className="text-muted flex-shrink-0">
-                    <X size={14} />
-                  </button>
-                </div>
-                {couponValid === "trial_90days" && (
-                  <div className="mt-2 pt-2 flex items-center gap-2"
-                    style={{ borderTop: "1px solid rgba(34,197,94,0.2)" }}>
-                    <span className="text-[10px]" style={{ color: "#22c55e" }}>
-                      Plano Basico · Uso unico por e-mail
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1.5">
-                  <Tag size={11} className="inline mr-1" />Cupom (opcional)
-                </label>
-                <div className="flex gap-2">
-                  <input type="text" value={form.coupon}
-                    onChange={(e) => { setForm({ ...form, coupon: e.target.value.toUpperCase() }); setCouponValid(null); }}
-                    placeholder="Digite seu cupom"
-                    className={inputClass} style={{ ...inputStyle, flex: 1 }} />
-                  <button type="button" onClick={() => checkCoupon(form.coupon)}
-                    disabled={!form.coupon || couponChecking || !form.email}
-                    className="px-4 py-3 rounded-xl text-xs font-bold flex-shrink-0"
-                    style={{
-                      background: "rgba(59,130,246,0.15)",
-                      border: "1px solid rgba(59,130,246,0.3)",
-                      color: "#3B82F6",
-                      opacity: (!form.coupon || couponChecking || !form.email) ? 0.5 : 1,
-                    }}>
-                    {couponChecking ? <Loader2 size={13} className="animate-spin" /> : "Aplicar"}
-                  </button>
-                </div>
-                {!form.email && form.coupon && (
-                  <p className="text-[10px] mt-1" style={{ color: "#f87171" }}>
-                    Preencha o e-mail antes de aplicar o cupom
-                  </p>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Botao submit */}
-        <button type="submit" disabled={loading || !role}
-          className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 mt-2"
-          style={{
-            background: "linear-gradient(135deg, #3B82F6, #1d4ed8)",
-            boxShadow: "0 0 20px rgba(59,130,246,0.3)",
-            opacity: (loading || !role) ? 0.7 : 1
-          }}>
-          {loading && <Loader2 size={16} className="animate-spin" />}
-          {loading ? loadingMsg : role === "professional"
-            ? couponValid ? "Criar perfil" : "Criar perfil e ir para pagamento"
-            : "Criar conta"}
-        </button>
-
-        {role === "professional" && !couponValid && (
-          <p className="text-center text-xs text-muted">Perfil ativo apos o pagamento</p>
-        )}
-
-        <p className="text-center text-sm text-muted pt-2">
-          Ja tem conta?{" "}
-          <Link href="/login" className="font-semibold" style={{ color: "#3B82F6" }}>Entrar</Link>
-        </p>
-      </form>
+          {!couponValid && (
+            <p className="text-center text-xs text-muted">Perfil ativo apos o pagamento</p>
+          )}
+        </form>
+      )}
     </div>
   );
 }
