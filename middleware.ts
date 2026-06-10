@@ -5,7 +5,7 @@ const PUBLIC_ROUTES = [
   "/", "/seja-profissional", "/servicos", "/profissional",
   "/como-funciona", "/privacidade", "/termos", "/banido",
   "/excluir-conta", "/inicio", "/login", "/cadastro",
-  "/recuperar-senha", "/auth",
+  "/recuperar-senha", "/auth", "/bem-vindo",
 ];
 
 const PRIVATE_ROUTES = ["/painel", "/admin", "/favoritos", "/perfil"];
@@ -50,7 +50,6 @@ export async function middleware(request: NextRequest) {
   );
 
   // getSession le o JWT local — ZERO round-trip ao servidor
-  // muito mais rapido que getUser()
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
@@ -61,7 +60,7 @@ export async function middleware(request: NextRequest) {
   const role = session.user?.app_metadata?.role
     || session.user?.user_metadata?.role;
 
-  // Verificar se esta banido via JWT claim
+  // Verificar se esta banido via JWT
   const banned = session.user?.app_metadata?.banned;
   if (banned) {
     const res = NextResponse.redirect(new URL("/banido", request.url));
