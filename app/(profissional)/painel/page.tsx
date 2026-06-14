@@ -37,7 +37,7 @@ export default function PainelPage() {
 
       const { data: profData } = await supabase
         .from("professionals")
-        .select(`id, slug, plan, status, avg_rating, views_count, available_now, bio, whatsapp, instagram,
+        .select(`id, slug, plan, status, avg_rating, views_count, available_now, bio, whatsapp, instagram, trial_ends_at,
           categories(name, icon, slug),
           subscriptions(status, next_billing, plan)`)
         .eq("user_id", authUser.id).single();
@@ -103,6 +103,16 @@ export default function PainelPage() {
   const isPro = prof?.plan === "pro";
   const isActive = prof?.status === "active";
   const subscription = (prof?.subscriptions as any[])?.[0];
+
+  // Calcular dias restantes do trial
+  const trialEndsAt = prof?.trial_ends_at ? new Date(prof.trial_ends_at) : null;
+  const hasSubscription = subscription?.status === "active";
+  const diasRestantesTrial = trialEndsAt && !hasSubscription
+    ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+  const isTrialExpiringSoon = diasRestantesTrial !== null && diasRestantesTrial <= 15;
+  const isTrialUrgent = diasRestantesTrial !== null && diasRestantesTrial <= 7;
+
   const currentPeriod = periodo === "7"
     ? { views: metrics.viewsSemana, leads: metrics.leadsSemana }
     : { views: metrics.viewsMes, leads: metrics.leadsMes };
@@ -147,6 +157,61 @@ export default function PainelPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
+
+        {/* Banner trial expirando */}
+        {diasRestantesTrial !== null && isActive && (
+          <div className="p-4 rounded-2xl"
+            style={{
+              background: isTrialUrgent
+                ? "rgba(239,68,68,0.08)"
+                : isTrialExpiringSoon
+                  ? "rgba(251,191,36,0.08)"
+                  : "rgba(59,130,246,0.08)",
+              border: isTrialUrgent
+                ? "1px solid rgba(239,68,68,0.3)"
+                : isTrialExpiringSoon
+                  ? "1px solid rgba(251,191,36,0.3)"
+                  : "1px solid rgba(59,130,246,0.2)",
+            }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">
+                  {isTrialUrgent ? "🚨" : isTrialExpiringSoon ? "⚠️" : "🎁"}
+                </span>
+                <p className="font-syne font-bold text-sm"
+                  style={{ color: isTrialUrgent ? "#f87171" : isTrialExpiringSoon ? "#FBBF24" : "#93c5fd" }}>
+                  {isTrialUrgent
+                    ? `Seu trial expira em ${diasRestantesTrial} dia${diasRestantesTrial !== 1 ? "s" : ""}!`
+                    : isTrialExpiringSoon
+                      ? `${diasRestantesTrial} dias restantes no seu trial`
+                      : `${diasRestantesTrial} dias gratis restantes`}
+                </p>
+              </div>
+              <span className="font-syne font-bold text-2xl"
+                style={{ color: isTrialUrgent ? "#f87171" : isTrialExpiringSoon ? "#FBBF24" : "#3B82F6" }}>
+                {diasRestantesTrial}
+              </span>
+            </div>
+            <p className="text-xs text-muted mb-3">
+              {isTrialUrgent
+                ? "Assine agora para nao perder seus clientes e continuar aparecendo nas buscas!"
+                : isTrialExpiringSoon
+                  ? "Seu perfil sera desativado em breve. Assine para continuar recebendo clientes."
+                  : "Aproveite seu trial! Assine antes de expirar para nao perder nenhum cliente."}
+            </p>
+            <Link href="/painel/assinatura"
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white"
+              style={{
+                background: isTrialUrgent
+                  ? "linear-gradient(135deg, #ef4444, #dc2626)"
+                  : isTrialExpiringSoon
+                    ? "linear-gradient(135deg, #d97706, #b45309)"
+                    : "linear-gradient(135deg, #3B82F6, #1d4ed8)"
+              }}>
+              {isTrialUrgent ? "⚡ Assinar agora — R$69/mes" : "Garantir minha assinatura — R$69/mes"}
+            </Link>
+          </div>
+        )}
 
         {/* Status inativo */}
         {!isActive && (
