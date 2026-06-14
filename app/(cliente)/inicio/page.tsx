@@ -3,27 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, ChevronDown, Search, MessageCircle, Star, Heart, X, UserPlus, ArrowRight, Grid3X3, Crown } from "lucide-react";
+import { MapPin, ChevronDown, Search, Heart, X, UserPlus, ArrowRight, Grid3X3 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
-import { ProfessionalCardSkeleton } from "@/app/components/ui/Skeletons";
+import ProCarousel from "@/app/components/ui/ProCarousel";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
-
-interface Professional {
-  id: string;
-  slug: string;
-  whatsapp: string;
-  avg_rating: number;
-  available_now: boolean;
-  plan: string;
-  users: { name: string; avatar: string | null };
-  categories: { name: string; icon: string; slug: string };
-  professional_neighborhoods: { neighborhoods: { name: string } }[];
-}
 
 const QUICK_CATS = [
   { slug: "eletricista", name: "Eletricista", icon: "⚡" },
@@ -40,9 +28,6 @@ export default function InicioPage() {
   const router = useRouter();
   const [neighborhood, setNeighborhood] = useState("");
   const [showLocationSelect, setShowLocationSelect] = useState(false);
-  const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [favorites, setFavorites] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -54,68 +39,23 @@ export default function InicioPage() {
       const parsed = JSON.parse(saved);
       setNeighborhood(parsed.neighborhood || "");
     }
-    loadData();
+    loadUser();
   }, []);
 
-  async function loadData() {
+  async function loadUser() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       setUserId(user.id);
       const { data: userData } = await supabase.from("users").select("name").eq("id", user.id).single();
       setUserName(userData?.name?.split(" ")[0] || null);
-      const { data: favs } = await supabase
-        .from("favorites").select("professional_id").eq("user_id", user.id);
-      setFavorites(favs?.map((f) => f.professional_id) || []);
     }
-
-    const { data } = await supabase
-      .from("professionals")
-      .select(`id, slug, whatsapp, avg_rating, available_now, plan,
-        users(name, avatar),
-        categories(name, icon, slug),
-        professional_neighborhoods(neighborhoods(name))`)
-      .eq("status", "active")
-      .order("plan", { ascending: false })
-      .order("avg_rating", { ascending: false })
-      .limit(10);
-
-    setProfessionals((data as any) || []);
-    setLoading(false);
   }
 
   function saveLocation(n: string) {
     localStorage.setItem("udihub_location", JSON.stringify({ city: "Uberlandia", neighborhood: n }));
     setNeighborhood(n);
     setShowLocationSelect(false);
-  }
-
-  async function toggleFavorite(profId: string) {
-    if (!userId) { toast.error("Faca login para favoritar"); return; }
-    const supabase = createClient();
-    if (favorites.includes(profId)) {
-      await supabase.from("favorites").delete().eq("user_id", userId).eq("professional_id", profId);
-      setFavorites((prev) => prev.filter((id) => id !== profId));
-    } else {
-      await supabase.from("favorites").insert({ user_id: userId, professional_id: profId });
-      setFavorites((prev) => [...prev, profId]);
-    }
-  }
-
-  async function handleWhatsApp(prof: Professional) {
-    if (!userId) {
-      setPendingAction("whatsapp");
-      setShowLoginModal(true);
-      return;
-    }
-    try {
-      await fetch("/api/whatsapp-click", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ professional_id: prof.id, city: "Uberlandia", neighborhood }),
-      });
-    } catch {}
-    window.open(buildWhatsAppUrl(prof.whatsapp, `Ola ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
 
   function handleProfileClick(e: React.MouseEvent) {
@@ -224,127 +164,11 @@ export default function InicioPage() {
           </Link>
         </div>
 
-        {/* Profissionais PRO em destaque */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Crown size={14} style={{ color: "#FBBF24" }} />
-            <span className="text-xs font-bold tracking-widest text-muted">PROFISSIONAIS PRO</span>
-          </div>
-
-          {loading ? (
-            <div className="space-y-3">
-              {[...Array(3)].map((_, i) => <ProfessionalCardSkeleton key={i} />)}
-            </div>
-          ) : professionals.length === 0 ? (
-            <div className="text-center py-10 rounded-2xl"
-              style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-              <div className="text-4xl mb-3">🔍</div>
-              <p className="font-syne font-bold text-foreground mb-1">Nenhum profissional ainda</p>
-              <p className="text-xs text-muted mb-4">Seja o primeiro a anunciar em Uberlandia!</p>
-              <Link href="/seja-profissional"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white"
-                style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
-                Anunciar agora
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {professionals.map((prof) => {
-                const profNeighborhood = (prof.professional_neighborhoods as any)?.[0]?.neighborhoods?.name;
-                const isFav = favorites.includes(prof.id);
-                const avatarUrl = (prof.users as any)?.avatar;
-                return (
-                  <div key={prof.id} className="rounded-2xl overflow-hidden"
-                    style={{
-                      background: prof.plan === "pro" ? "linear-gradient(135deg, #0F1729, #111827)" : "#111113",
-                      border: prof.plan === "pro" ? "1px solid rgba(59,130,246,0.3)" : "1px solid #1F1F23"
-                    }}>
-                    <Link href={`/profissional/${prof.slug}`}
-                      className="block p-4" onClick={handleProfileClick}>
-                      <div className="flex items-start gap-3">
-                        <div className="relative flex-shrink-0">
-                          {avatarUrl ? (
-                            <Image src={avatarUrl} alt={(prof.users as any)?.name || ""}
-                              width={56} height={56} className="w-14 h-14 rounded-xl object-cover" />
-                          ) : (
-                            <div className="w-14 h-14 rounded-xl flex items-center justify-center font-syne font-bold text-lg"
-                              style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
-                              {getInitials((prof.users as any)?.name || "?")}
-                            </div>
-                          )}
-                          {prof.available_now && (
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
-                              style={{ background: "#22c55e", borderColor: "#111113" }} />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <h3 className="font-syne font-bold text-sm text-foreground truncate">
-                                  {(prof.users as any)?.name}
-                                </h3>
-                                {prof.plan === "pro" && <span className="badge-pro">PRO</span>}
-                              </div>
-                              <p className="text-xs text-muted">
-                                {(prof.categories as any)?.icon} {(prof.categories as any)?.name}
-                              </p>
-                            </div>
-                            <button onClick={(e) => { e.preventDefault(); toggleFavorite(prof.id); }}
-                              className="p-1.5 rounded-lg flex-shrink-0"
-                              style={{ background: isFav ? "rgba(239,68,68,0.1)" : "transparent" }}>
-                              <Heart size={16} fill={isFav ? "#ef4444" : "transparent"}
-                                className={isFav ? "text-red-500" : "text-muted"} />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-3 mt-1.5">
-                            {profNeighborhood && (
-                              <div className="flex items-center gap-1">
-                                <MapPin size={10} className="text-muted" />
-                                <span className="text-xs text-muted">{profNeighborhood}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1">
-                              <Star size={10} fill="#FBBF24" className="star-filled" />
-                              <span className="text-xs text-muted">
-                                {prof.avg_rating > 0 ? Number(prof.avg_rating).toFixed(1) : "Novo"}
-                              </span>
-                            </div>
-                            {prof.available_now && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
-                                style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>
-                                Disponivel
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                    <div className="px-4 pb-4 grid grid-cols-2 gap-2">
-                      <Link href={`/profissional/${prof.slug}`}
-                        onClick={handleProfileClick}
-                        className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold"
-                        style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#93c5fd" }}>
-                        Ver perfil
-                      </Link>
-                      <button onClick={() => handleWhatsApp(prof)}
-                        className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-white"
-                        style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
-                        <MessageCircle size={13} /> WhatsApp
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-
-              <Link href="/servicos"
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold"
-                style={{ background: "#111113", border: "1px solid #1F1F23", color: "#A1A1AA" }}>
-                Ver todos os profissionais <ArrowRight size={14} />
-              </Link>
-            </div>
-          )}
-        </div>
+        {/* Carrossel de profissionais em destaque */}
+        <ProCarousel userId={userId} onLoginRequired={() => {
+          setPendingAction("whatsapp");
+          setShowLoginModal(true);
+        }} />
 
         {/* Banner seja profissional */}
         <div className="relative p-5 rounded-2xl overflow-hidden"
