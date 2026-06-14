@@ -3,12 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, ChevronDown, Search, Zap, MessageCircle, Star, Heart, X, UserPlus, ArrowRight, Grid3X3 } from "lucide-react";
+import { MapPin, ChevronDown, Search, MessageCircle, Star, Heart, X, UserPlus, ArrowRight, Grid3X3, Crown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
 import { ProfessionalCardSkeleton } from "@/app/components/ui/Skeletons";
-import ProCarousel from "@/app/components/ui/ProCarousel";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -177,7 +176,7 @@ export default function InicioPage() {
           </h1>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { value: "107+", label: "Categorias", color: "#3B82F6" },
+              { value: "108+", label: "Categorias", color: "#3B82F6" },
               { value: "100%", label: "Via WhatsApp", color: "#22c55e" },
               { value: "UDI", label: "Uberlandia", color: "#a855f7" },
             ].map(({ value, label, color }) => (
@@ -205,7 +204,7 @@ export default function InicioPage() {
             <span className="text-xs font-bold tracking-widest text-muted">CATEGORIAS</span>
             <Link href="/servicos" className="flex items-center gap-1 text-xs font-semibold"
               style={{ color: "#3B82F6" }}>
-              Ver todas 107 <ArrowRight size={11} />
+              Ver todas 108 <ArrowRight size={11} />
             </Link>
           </div>
           <div className="grid grid-cols-4 gap-2">
@@ -221,18 +220,15 @@ export default function InicioPage() {
           <Link href="/servicos"
             className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold"
             style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)", color: "#93c5fd" }}>
-            <Grid3X3 size={13} /> Ver todas as 107 categorias
+            <Grid3X3 size={13} /> Ver todas as 108 categorias
           </Link>
         </div>
 
-        {/* Carrossel PRO */}
-        <ProCarousel />
-
-        {/* Profissionais em destaque */}
+        {/* Profissionais PRO em destaque */}
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Zap size={14} style={{ color: "#3B82F6" }} />
-            <span className="text-xs font-bold tracking-widest text-muted">EM DESTAQUE</span>
+            <Crown size={14} style={{ color: "#FBBF24" }} />
+            <span className="text-xs font-bold tracking-widest text-muted">PROFISSIONAIS PRO</span>
           </div>
 
           {loading ? (
@@ -259,7 +255,10 @@ export default function InicioPage() {
                 const avatarUrl = (prof.users as any)?.avatar;
                 return (
                   <div key={prof.id} className="rounded-2xl overflow-hidden"
-                    style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                    style={{
+                      background: prof.plan === "pro" ? "linear-gradient(135deg, #0F1729, #111827)" : "#111113",
+                      border: prof.plan === "pro" ? "1px solid rgba(59,130,246,0.3)" : "1px solid #1F1F23"
+                    }}>
                     <Link href={`/profissional/${prof.slug}`}
                       className="block p-4" onClick={handleProfileClick}>
                       <div className="flex items-start gap-3">
