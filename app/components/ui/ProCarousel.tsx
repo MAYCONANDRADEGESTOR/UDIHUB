@@ -2,24 +2,24 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { MessageCircle, Star, Crown, ChevronLeft, ChevronRight } from "lucide-react";
+import { MessageCircle, Star, MapPin, ChevronLeft, ChevronRight, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
 
-interface ProProf {
+interface Prof {
   id: string;
   slug: string;
   whatsapp: string;
   avg_rating: number;
   available_now: boolean;
+  plan: string;
   users: { name: string; avatar: string | null };
   categories: { name: string; icon: string };
   professional_neighborhoods: { neighborhoods: { name: string } }[];
 }
 
 export default function ProCarousel() {
-  const [professionals, setProfessionals] = useState<ProProf[]>([]);
-  const [active, setActive] = useState(false);
+  const [professionals, setProfessionals] = useState<Prof[]>([]);
   const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -27,23 +27,14 @@ export default function ProCarousel() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const { data: setting } = await supabase
-        .from("app_settings")
-        .select("value")
-        .eq("key", "pro_carousel_active")
-        .single();
-
-      if (setting?.value !== "true") { setLoading(false); return; }
-      setActive(true);
-
       const { data } = await supabase
         .from("professionals")
-        .select(`id, slug, whatsapp, avg_rating, available_now,
+        .select(`id, slug, whatsapp, avg_rating, available_now, plan,
           users(name, avatar),
           categories(name, icon),
           professional_neighborhoods(neighborhoods(name))`)
         .eq("status", "active")
-        .eq("plan", "pro")
+        .order("plan", { ascending: false })
         .order("avg_rating", { ascending: false })
         .limit(10);
 
@@ -71,38 +62,45 @@ export default function ProCarousel() {
     setCurrent((p) => (p + 1) % professionals.length);
   }
 
-  if (loading || !active || professionals.length === 0) return null;
+  if (loading || professionals.length === 0) return null;
 
   const prof = professionals[current];
   const neighborhood = (prof.professional_neighborhoods as any)?.[0]?.neighborhoods?.name;
+  const isPro = prof.plan === "pro";
 
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Crown size={14} style={{ color: "#FBBF24" }} />
-          <span className="text-xs font-bold tracking-widest text-muted">PROFISSIONAIS PRO</span>
+          <Zap size={14} style={{ color: "#3B82F6" }} />
+          <span className="text-xs font-bold tracking-widest text-muted">EM DESTAQUE</span>
         </div>
         <span className="text-[10px] text-muted">{current + 1}/{professionals.length}</span>
       </div>
 
       <div className="relative overflow-hidden rounded-2xl"
-        style={{ background: "linear-gradient(135deg, #0F1729, #1a2f5a)", border: "2px solid rgba(59,130,246,0.4)", boxShadow: "0 0 30px rgba(59,130,246,0.1)" }}>
+        style={{
+          background: isPro ? "linear-gradient(135deg, #0F1729, #1a2f5a)" : "#111113",
+          border: isPro ? "2px solid rgba(59,130,246,0.4)" : "1px solid #1F1F23",
+          boxShadow: isPro ? "0 0 30px rgba(59,130,246,0.1)" : "none"
+        }}>
 
         {/* Badge PRO */}
-        <div className="absolute top-3 right-3 z-10">
-          <span className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-bold"
-            style={{ background: "rgba(251,191,36,0.2)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.4)" }}>
-            <Crown size={9} /> PRO
-          </span>
-        </div>
+        {isPro && (
+          <div className="absolute top-3 right-3 z-10">
+            <span className="text-[10px] px-2 py-1 rounded-full font-bold"
+              style={{ background: "rgba(251,191,36,0.2)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.4)" }}>
+              PRO
+            </span>
+          </div>
+        )}
 
         {/* Disponível */}
         {prof.available_now && (
           <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold"
             style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e" }}>
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            Disponível
+            Disponivel
           </div>
         )}
 
@@ -112,7 +110,7 @@ export default function ProCarousel() {
               {(prof.users as any)?.avatar ? (
                 <img src={(prof.users as any).avatar} alt={(prof.users as any).name}
                   className="w-20 h-20 rounded-2xl object-cover"
-                  style={{ border: "2px solid rgba(59,130,246,0.5)" }} />
+                  style={{ border: isPro ? "2px solid rgba(59,130,246,0.5)" : "1px solid #1F1F23" }} />
               ) : (
                 <div className="w-20 h-20 rounded-2xl flex items-center justify-center font-syne font-bold text-2xl"
                   style={{ background: "linear-gradient(135deg, #1e3a5f, #1d4ed8)", color: "#93c5fd" }}>
@@ -121,21 +119,25 @@ export default function ProCarousel() {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-syne font-bold text-base text-white truncate mb-0.5">
+              <h3 className="font-syne font-bold text-base truncate mb-0.5"
+                style={{ color: isPro ? "#ffffff" : "#FAFAFA" }}>
                 {(prof.users as any)?.name}
               </h3>
-              <p className="text-sm mb-1" style={{ color: "#93c5fd" }}>
+              <p className="text-sm mb-1" style={{ color: isPro ? "#93c5fd" : "#A1A1AA" }}>
                 {(prof.categories as any)?.icon} {(prof.categories as any)?.name}
               </p>
               <div className="flex items-center gap-3">
-                {prof.avg_rating > 0 && (
-                  <div className="flex items-center gap-1">
-                    <Star size={11} fill="#FBBF24" style={{ color: "#FBBF24" }} />
-                    <span className="text-xs text-white font-semibold">{Number(prof.avg_rating).toFixed(1)}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-1">
+                  <Star size={11} fill="#FBBF24" style={{ color: "#FBBF24" }} />
+                  <span className="text-xs font-semibold" style={{ color: isPro ? "#ffffff" : "#FAFAFA" }}>
+                    {prof.avg_rating > 0 ? Number(prof.avg_rating).toFixed(1) : "Novo"}
+                  </span>
+                </div>
                 {neighborhood && (
-                  <span className="text-xs text-muted truncate">{neighborhood}</span>
+                  <div className="flex items-center gap-1">
+                    <MapPin size={10} className="text-muted" />
+                    <span className="text-xs text-muted truncate">{neighborhood}</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -143,7 +145,7 @@ export default function ProCarousel() {
         </Link>
 
         <div className="px-5 pb-4">
-          <button onClick={() => window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${(prof.users as any)?.name}! Vi seu perfil em destaque no UDIHUB.`), "_blank")}
+          <button onClick={() => window.open(buildWhatsAppUrl(prof.whatsapp, `Ola ${(prof.users as any)?.name}! Vi seu perfil no UDIHUB.`), "_blank")}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white"
             style={{ background: "linear-gradient(135deg, #16a34a, #15803d)", boxShadow: "0 0 16px rgba(22,163,74,0.3)" }}>
             <MessageCircle size={15} /> Chamar no WhatsApp
