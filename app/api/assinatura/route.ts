@@ -18,11 +18,12 @@ export async function POST(request: NextRequest) {
 
     if (!prof) return NextResponse.json({ error: "Professional not found" }, { status: 404 });
 
-    if (prof.coupon_code) {
-      return NextResponse.json({ alreadyActive: true, message: "Cupom aplicado — sem mensalidade" });
-    }
+    // Verifica se trial ainda está ativo (não expirou)
+    const trialStillActive = prof.trial_ends_at && new Date(prof.trial_ends_at) > new Date();
 
-    if (prof.trial_ends_at && new Date(prof.trial_ends_at) > new Date()) {
+    // Só bloqueia se o cupom existe E o trial ainda não expirou
+    // Quando o trial expira, permite assinar normalmente
+    if (prof.coupon_code && trialStillActive) {
       const daysLeft = Math.ceil((new Date(prof.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
       return NextResponse.json({ trialActive: true, daysLeft });
     }
@@ -126,6 +127,6 @@ export async function GET() {
 
     return NextResponse.json({ subscription: sub, professional: prof });
   } catch (err) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error", details: String(err) }, { status: 500 });
   }
 }
