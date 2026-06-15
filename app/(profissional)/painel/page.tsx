@@ -10,12 +10,15 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/utils";
+import NotificationBell from "@/app/components/ui/NotificationBell";
 
 export default function PainelPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [prof, setProf] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
+  const [hasNeighborhood, setHasNeighborhood] = useState(false);
+  const [hasPhotosGallery, setHasPhotosGallery] = useState(false);
   const [metrics, setMetrics] = useState({
     viewsHoje: 0, viewsSemana: 0, viewsMes: 0, viewsTotal: 0,
     leadsHoje: 0, leadsSemana: 0, leadsMes: 0, leadsTotal: 0,
@@ -53,7 +56,7 @@ export default function PainelPage() {
       const [
         viewsHoje, viewsSemana, viewsMes,
         leadsHoje, leadsSemana, leadsMes, leadsTotal,
-        favoritosTotal, reviewsData,
+        favoritosTotal, reviewsData, neighborhoodsData, photosData,
       ] = await Promise.all([
         supabase.from("profile_views").select("id", { count: "exact", head: true }).eq("professional_id", profData.id).gte("created_at", todayStart),
         supabase.from("profile_views").select("id", { count: "exact", head: true }).eq("professional_id", profData.id).gte("created_at", weekStart),
@@ -64,7 +67,12 @@ export default function PainelPage() {
         supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }).eq("professional_id", profData.id),
         supabase.from("favorites").select("id", { count: "exact", head: true }).eq("professional_id", profData.id),
         supabase.from("reviews").select("rating").eq("professional_id", profData.id),
+        supabase.from("professional_neighborhoods").select("id", { count: "exact", head: true }).eq("professional_id", profData.id),
+        supabase.from("professional_photos").select("id", { count: "exact", head: true }).eq("professional_id", profData.id),
       ]);
+
+      setHasNeighborhood((neighborhoodsData.count || 0) > 0);
+      setHasPhotosGallery((photosData.count || 0) > 0);
 
       const viewsT = profData.views_count || 0;
       const leadsT = leadsTotal.count || 0;
@@ -104,7 +112,6 @@ export default function PainelPage() {
   const isActive = prof?.status === "active";
   const subscription = (prof?.subscriptions as any[])?.[0];
 
-  // Calcular dias restantes do trial
   const trialEndsAt = prof?.trial_ends_at ? new Date(prof.trial_ends_at) : null;
   const hasSubscription = subscription?.status === "active";
   const diasRestantesTrial = trialEndsAt && !hasSubscription
@@ -149,10 +156,21 @@ export default function PainelPage() {
               <p className="text-xs text-muted">{(prof?.categories as any)?.icon} {(prof?.categories as any)?.name}</p>
             </div>
           </div>
-          <Link href="/painel/perfil" className="p-2 rounded-xl"
-            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <Settings size={16} className="text-muted" />
-          </Link>
+
+          {/* Sino + Configurações */}
+          <div className="flex items-center gap-2">
+            <NotificationBell
+              hasAvatar={!!(user?.avatar || prof?.avatar)}
+              hasBio={!!prof?.bio}
+              hasNeighborhood={hasNeighborhood}
+              hasPhotosGallery={hasPhotosGallery}
+              avgRating={metrics.avgRating}
+            />
+            <Link href="/painel/perfil" className="p-2 rounded-xl"
+              style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+              <Settings size={16} className="text-muted" />
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -162,22 +180,12 @@ export default function PainelPage() {
         {diasRestantesTrial !== null && isActive && (
           <div className="p-4 rounded-2xl"
             style={{
-              background: isTrialUrgent
-                ? "rgba(239,68,68,0.08)"
-                : isTrialExpiringSoon
-                  ? "rgba(251,191,36,0.08)"
-                  : "rgba(59,130,246,0.08)",
-              border: isTrialUrgent
-                ? "1px solid rgba(239,68,68,0.3)"
-                : isTrialExpiringSoon
-                  ? "1px solid rgba(251,191,36,0.3)"
-                  : "1px solid rgba(59,130,246,0.2)",
+              background: isTrialUrgent ? "rgba(239,68,68,0.08)" : isTrialExpiringSoon ? "rgba(251,191,36,0.08)" : "rgba(59,130,246,0.08)",
+              border: isTrialUrgent ? "1px solid rgba(239,68,68,0.3)" : isTrialExpiringSoon ? "1px solid rgba(251,191,36,0.3)" : "1px solid rgba(59,130,246,0.2)",
             }}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-lg">
-                  {isTrialUrgent ? "🚨" : isTrialExpiringSoon ? "⚠️" : "🎁"}
-                </span>
+                <span className="text-lg">{isTrialUrgent ? "🚨" : isTrialExpiringSoon ? "⚠️" : "🎁"}</span>
                 <p className="font-syne font-bold text-sm"
                   style={{ color: isTrialUrgent ? "#f87171" : isTrialExpiringSoon ? "#FBBF24" : "#93c5fd" }}>
                   {isTrialUrgent
