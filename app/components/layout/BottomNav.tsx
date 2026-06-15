@@ -38,15 +38,18 @@ export default function BottomNav() {
     loadUser();
   }, [pathname]);
 
-  const hidden = ["/login", "/cadastro", "/recuperar-senha", "/admin"]
+  // Esconde o BottomNav nessas rotas
+  const hidden = ["/login", "/cadastro", "/recuperar-senha", "/admin", "/bem-vindo"]
     .some((p) => pathname.startsWith(p));
   if (hidden) return null;
 
   const isHomeActive = pathname === "/";
   const isSearchActive = pathname === "/inicio" || pathname === "/servicos" || pathname.startsWith("/servicos/");
   const isFavActive = pathname === "/favoritos";
+
+  // Ativo quando está no painel ou em qualquer sub-rota do painel
   const isPainelActive = painelHref
-    ? pathname === painelHref || pathname.startsWith(painelHref + "/")
+    ? pathname === painelHref || pathname.startsWith(painelHref + "/") || pathname.startsWith("/painel")
     : false;
 
   return (
@@ -103,7 +106,7 @@ export default function BottomNav() {
               style={{ color: isFavActive ? "#ef4444" : "rgba(255,255,255,0.5)", transition: "all 0.2s ease" }} />
           </Link>
 
-          {/* Perfil */}
+          {/* Perfil / Painel */}
           {!loaded ? (
             <div className="w-9 h-9 rounded-full skeleton flex-shrink-0" />
           ) : (
