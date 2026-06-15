@@ -36,7 +36,8 @@ export default function ProCarousel() {
         .eq("status", "active")
         .order("plan", { ascending: false })
         .order("avg_rating", { ascending: false })
-        .limit(10);
+        .order("created_at", { ascending: false })
+        .limit(50);
 
       setProfessionals((data as any) || []);
       setLoading(false);
@@ -168,14 +169,21 @@ export default function ProCarousel() {
           </>
         )}
 
-        {/* Dots */}
+        {/* Dots — máximo 10 para não poluir a tela */}
         {professionals.length > 1 && (
-          <div className="flex justify-center gap-1.5 pb-4">
-            {professionals.map((_, i) => (
+          <div className="flex justify-center gap-1.5 pb-4 overflow-hidden">
+            {professionals.slice(0, 10).map((_, i) => (
               <button key={i} onClick={() => setCurrent(i)}
-                className="rounded-full transition-all duration-300"
-                style={{ width: i === current ? 16 : 6, height: 6, background: i === current ? "#3B82F6" : "rgba(255,255,255,0.2)" }} />
+                className="rounded-full transition-all duration-300 flex-shrink-0"
+                style={{
+                  width: i === current ? 16 : 6,
+                  height: 6,
+                  background: i === current ? "#3B82F6" : "rgba(255,255,255,0.2)"
+                }} />
             ))}
+            {professionals.length > 10 && (
+              <span className="text-[10px] text-muted self-center ml-1">+{professionals.length - 10}</span>
+            )}
           </div>
         )}
       </div>
