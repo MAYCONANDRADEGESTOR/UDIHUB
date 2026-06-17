@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -40,10 +41,18 @@ export default function LoginPage() {
     const role = userData?.role;
     toast.success("Bem-vindo!");
 
+    // Se vier um destino de retorno na URL (ex: voltar pro perfil de um
+    // profissional após login), respeita esse destino — mas só para
+    // clientes. Admin e profissional sempre vão para o painel deles,
+    // independente do que vier em `redirect`.
+    const redirectTo = searchParams.get("redirect");
+
     if (role === "admin") {
       router.push("/admin");
     } else if (role === "professional") {
       router.push("/painel");
+    } else if (redirectTo) {
+      router.push(redirectTo);
     } else {
       router.push("/inicio");
     }
