@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -8,7 +8,7 @@ import { Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
@@ -41,10 +41,6 @@ export default function LoginPage() {
     const role = userData?.role;
     toast.success("Bem-vindo!");
 
-    // Se vier um destino de retorno na URL (ex: voltar pro perfil de um
-    // profissional após login), respeita esse destino — mas só para
-    // clientes. Admin e profissional sempre vão para o painel deles,
-    // independente do que vier em `redirect`.
     const redirectTo = searchParams.get("redirect");
 
     if (role === "admin") {
@@ -64,14 +60,7 @@ export default function LoginPage() {
   const inputStyle = { background: "#111113", border: "1px solid #1F1F23", outline: "none" };
 
   return (
-    <div className="min-h-screen flex flex-col px-4 py-8"
-      style={{ background: "linear-gradient(135deg, #09090B 0%, #0F172A 100%)" }}>
-
-      <Link href="/" className="flex items-center gap-2 text-muted mb-8 w-fit">
-        <ArrowLeft size={18} />
-        <span className="text-sm">Voltar</span>
-      </Link>
-
+    <>
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
           <Image src="/logo.png" alt="UDIHUB" width={72} height={72}
@@ -118,6 +107,27 @@ export default function LoginPage() {
         className="text-center text-sm text-muted mt-2 block hover:text-foreground transition-colors">
         Esqueceu a senha?
       </Link>
+    </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen flex flex-col px-4 py-8"
+      style={{ background: "linear-gradient(135deg, #09090B 0%, #0F172A 100%)" }}>
+
+      <Link href="/" className="flex items-center gap-2 text-muted mb-8 w-fit">
+        <ArrowLeft size={18} />
+        <span className="text-sm">Voltar</span>
+      </Link>
+
+      <Suspense fallback={
+        <div className="flex justify-center py-12">
+          <Loader2 size={24} className="animate-spin text-muted" />
+        </div>
+      }>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
