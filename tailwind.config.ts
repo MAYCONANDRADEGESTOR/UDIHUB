@@ -9,9 +9,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        syne: ["Syne", "sans-serif"],
-        inter: ["Inter", "sans-serif"],
-        sans: ["Inter", "sans-serif"],
+        syne: ["Syne", "ui-sans-serif", "system-ui", "sans-serif"],
+        inter: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       colors: {
         background: "#09090B",
