@@ -59,6 +59,8 @@ export default function ProfissionalPage() {
   const [submittingReviewReport, setSubmittingReviewReport] = useState(false);
   const [isProfOwner, setIsProfOwner] = useState(false);
   const [extraCategories, setExtraCategories] = useState<any[]>([]);
+  const [limitReachedModal, setLimitReachedModal] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -136,12 +138,32 @@ export default function ProfissionalPage() {
 
   async function handleWhatsApp() {
     if (!prof) return;
+
+    // Exige login antes de revelar o WhatsApp — fecha a brecha de clique anônimo
+    // na contagem de "cliente único" do plano gratuito.
+    if (!userId) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
     try {
-      await fetch("/api/whatsapp-click", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const res = await fetch("/api/whatsapp-click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ professional_id: prof.id, city: prof.users?.city || "Uberlândia" }),
       });
-    } catch {}
+
+      if (res.status === 403) {
+        const data = await res.json().catch(() => null);
+        if (data?.error === "FREE_LIMIT_REACHED") {
+          setLimitReachedModal(true);
+          return; // não abre o WhatsApp
+        }
+      }
+    } catch {
+      // Falha de rede: não bloqueia o cliente, segue para o WhatsApp normalmente.
+    }
+
     window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
 
@@ -605,6 +627,65 @@ export default function ProfissionalPage() {
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal limite de contatos do profissional atingido */}
+      {limitReachedModal && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.7)" }}
+          onClick={(e) => e.target === e.currentTarget && setLimitReachedModal(false)}>
+          <div className="w-full max-w-lg rounded-t-3xl p-6 animate-slide-up text-center"
+            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex justify-end mb-2">
+              <button onClick={() => setLimitReachedModal(false)} className="text-muted"><X size={18} /></button>
+            </div>
+            <Clock size={32} style={{ color: "#FBBF24" }} className="mx-auto mb-3" />
+            <h3 className="font-syne font-bold text-foreground text-lg mb-2">
+              Este profissional está indisponível para novos contatos
+            </h3>
+            <p className="text-sm text-muted leading-relaxed mb-5">
+              Este profissional atingiu o limite de novos contatos neste mês. Tente novamente em breve ou veja outros profissionais disponíveis na mesma categoria.
+            </p>
+            <button onClick={() => router.push(`/servicos/${prof.categories?.slug || ""}`)}
+              className="w-full py-3 rounded-xl font-bold text-sm text-white"
+              style={{ background: "linear-gradient(135deg,#3B82F6,#1d4ed8)" }}>
+              Ver outros profissionais
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal exigindo login para contatar via WhatsApp */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center"
+          style={{ background: "rgba(0,0,0,0.7)" }}
+          onClick={(e) => e.target === e.currentTarget && setShowLoginPrompt(false)}>
+          <div className="w-full max-w-lg rounded-t-3xl p-6 animate-slide-up text-center"
+            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex justify-end mb-2">
+              <button onClick={() => setShowLoginPrompt(false)} className="text-muted"><X size={18} /></button>
+            </div>
+            <MessageCircle size={32} style={{ color: "#22c55e" }} className="mx-auto mb-3" />
+            <h3 className="font-syne font-bold text-foreground text-lg mb-2">
+              Entre para conversar no WhatsApp
+            </h3>
+            <p className="text-sm text-muted leading-relaxed mb-5">
+              Para contatar {prof.users?.name}, faça login ou crie uma conta gratuita. Leva menos de 1 minuto.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Link href={`/login?redirect=/profissional/${slug}`}
+                className="w-full py-3 rounded-xl font-bold text-sm text-white"
+                style={{ background: "linear-gradient(135deg,#3B82F6,#1d4ed8)" }}>
+                Entrar
+              </Link>
+              <Link href={`/cadastro?redirect=/profissional/${slug}`}
+                className="w-full py-3 rounded-xl font-bold text-sm"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid #1F1F23", color: "#A1A1AA" }}>
+                Criar conta gratuita
+              </Link>
+            </div>
           </div>
         </div>
       )}
