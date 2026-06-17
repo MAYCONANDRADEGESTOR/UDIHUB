@@ -19,6 +19,7 @@ export default function PainelPage() {
   const [user, setUser] = useState<any>(null);
   const [hasNeighborhood, setHasNeighborhood] = useState(false);
   const [hasPhotosGallery, setHasPhotosGallery] = useState(false);
+  const [uniqueClientsUsed, setUniqueClientsUsed] = useState(0);
   const [metrics, setMetrics] = useState({
     viewsHoje: 0, viewsSemana: 0, viewsMes: 0, viewsTotal: 0,
     leadsHoje: 0, leadsSemana: 0, leadsMes: 0, leadsTotal: 0,
@@ -40,7 +41,7 @@ export default function PainelPage() {
 
       const { data: profData } = await supabase
         .from("professionals")
-        .select(`id, slug, plan, status, avg_rating, views_count, available_now, bio, whatsapp, instagram, trial_ends_at,
+        .select(`id, slug, plan, status, avg_rating, views_count, available_now, bio, whatsapp, instagram, trial_ends_at, unique_clients_limit, free_cycle_started_at,
           categories(name, icon, slug),
           subscriptions(status, next_billing, plan)`)
         .eq("user_id", authUser.id).single();
@@ -57,6 +58,7 @@ export default function PainelPage() {
         viewsHoje, viewsSemana, viewsMes,
         leadsHoje, leadsSemana, leadsMes, leadsTotal,
         favoritosTotal, reviewsData, neighborhoodsData, photosData,
+        uniqueClientsData,
       ] = await Promise.all([
         supabase.from("profile_views").select("id", { count: "exact", head: true }).eq("professional_id", profData.id).gte("created_at", todayStart),
         supabase.from("profile_views").select("id", { count: "exact", head: true }).eq("professional_id", profData.id).gte("created_at", weekStart),
@@ -69,10 +71,15 @@ export default function PainelPage() {
         supabase.from("reviews").select("rating").eq("professional_id", profData.id),
         supabase.from("professional_neighborhoods").select("id", { count: "exact", head: true }).eq("professional_id", profData.id),
         supabase.from("professional_photos").select("id", { count: "exact", head: true }).eq("professional_id", profData.id),
+        // Conta clientes únicos com janela de 30 dias ainda válida — só importa para plano free,
+        // mas a query roda sempre; o card só é exibido condicionalmente abaixo.
+        supabase.from("unique_client_contacts").select("id", { count: "exact", head: true })
+          .eq("professional_id", profData.id).gt("window_expires_at", new Date().toISOString()),
       ]);
 
       setHasNeighborhood((neighborhoodsData.count || 0) > 0);
       setHasPhotosGallery((photosData.count || 0) > 0);
+      setUniqueClientsUsed(uniqueClientsData.count || 0);
 
       const viewsT = profData.views_count || 0;
       const leadsT = leadsTotal.count || 0;
@@ -108,7 +115,9 @@ export default function PainelPage() {
     </div>
   );
 
-  const isPro = prof?.plan === "pro";
+  // Planos pagos: professional, professional_annual (e o legado "pro", mantido por segurança)
+  const isPaidPlan = prof?.plan === "professional" || prof?.plan === "professional_annual" || prof?.plan === "pro";
+  const isFreePlan = prof?.plan === "free" || prof?.plan === "basic"; // "basic" tratado como legado de free
   const isActive = prof?.status === "active";
   const subscription = (prof?.subscriptions as any[])?.[0];
 
@@ -125,6 +134,13 @@ export default function PainelPage() {
     : { views: metrics.viewsMes, leads: metrics.leadsMes };
   const convPeriodo = currentPeriod.views > 0
     ? Math.round((currentPeriod.leads / currentPeriod.views) * 100) : 0;
+
+  // Card de progresso "clientes utilizados" — só relevante para plano free
+  const clientsLimit = prof?.unique_clients_limit || 5;
+  const clientsRemaining = Math.max(0, clientsLimit - uniqueClientsUsed);
+  const clientsPct = Math.min(100, Math.round((uniqueClientsUsed / clientsLimit) * 100));
+  const clientsBarColor = uniqueClientsUsed >= 5 ? "#ef4444" : uniqueClientsUsed === 4 ? "#FBBF24" : "#22c55e";
+  const clientsTextColor = clientsBarColor;
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -146,7 +162,7 @@ export default function PainelPage() {
             <div>
               <div className="flex items-center gap-2">
                 <p className="font-syne font-bold text-sm text-foreground">{user?.name}</p>
-                {isPro && (
+                {isPaidPlan && (
                   <span className="text-[9px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
                     style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
                     <Crown size={8} /> PRO
@@ -176,7 +192,52 @@ export default function PainelPage() {
 
       <div className="px-4 py-4 space-y-4">
 
-        {/* Banner trial expirando */}
+        {/* Card de progresso de clientes (Plano Gratuito) */}
+        {isFreePlan && isActive && (
+          <div className="p-4 rounded-2xl"
+            style={{
+              background: uniqueClientsUsed >= 5 ? "rgba(239,68,68,0.08)" : uniqueClientsUsed === 4 ? "rgba(251,191,36,0.08)" : "#111113",
+              border: uniqueClientsUsed >= 5 ? "1px solid rgba(239,68,68,0.3)" : uniqueClientsUsed === 4 ? "1px solid rgba(251,191,36,0.3)" : "1px solid #1F1F23",
+            }}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-syne font-bold text-sm text-foreground">Clientes recebidos este mês</p>
+              <span className="font-syne font-bold text-lg" style={{ color: clientsTextColor }}>
+                {uniqueClientsUsed}/{clientsLimit}
+              </span>
+            </div>
+            <div className="h-2.5 rounded-full overflow-hidden mb-2" style={{ background: "#1F1F23" }}>
+              <div className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${clientsPct}%`, background: clientsBarColor }} />
+            </div>
+            {uniqueClientsUsed >= 5 ? (
+              <>
+                <p className="text-xs text-muted mb-3">
+                  Parabéns! Você recebeu seus 5 clientes gratuitos deste mês. Desbloqueie clientes ilimitados por apenas R$ 59,90/mês.
+                </p>
+                <Link href="/painel/assinatura"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white"
+                  style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)" }}>
+                  Fazer Upgrade Agora
+                </Link>
+              </>
+            ) : uniqueClientsUsed === 4 ? (
+              <>
+                <p className="text-xs text-muted mb-3">Você está próximo do limite gratuito.</p>
+                <Link href="/painel/assinatura"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white"
+                  style={{ background: "linear-gradient(135deg, #d97706, #b45309)" }}>
+                  Assinar Plano Profissional
+                </Link>
+              </>
+            ) : (
+              <p className="text-xs text-muted">
+                {clientsRemaining} cliente{clientsRemaining !== 1 ? "s" : ""} restante{clientsRemaining !== 1 ? "s" : ""} no seu plano gratuito este mês.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Banner trial expirando (legado — só aparece se ainda houver trial_ends_at setado) */}
         {diasRestantesTrial !== null && isActive && (
           <div className="p-4 rounded-2xl"
             style={{
@@ -216,7 +277,7 @@ export default function PainelPage() {
                     ? "linear-gradient(135deg, #d97706, #b45309)"
                     : "linear-gradient(135deg, #3B82F6, #1d4ed8)"
               }}>
-              {isTrialUrgent ? "⚡ Assinar agora — R$69/mes" : "Garantir minha assinatura — R$69/mes"}
+              {isTrialUrgent ? "⚡ Assinar agora — R$59,90/mes" : "Garantir minha assinatura — R$59,90/mes"}
             </Link>
           </div>
         )}
@@ -376,12 +437,12 @@ export default function PainelPage() {
         <div>
           <p className="text-xs font-bold tracking-widest text-muted mb-2">ASSINATURA</p>
           <div className="p-4 rounded-2xl"
-            style={{ background: isPro ? "linear-gradient(135deg, #0F1729, #1a2f5a)" : "#111113", border: isPro ? "1px solid #3B82F6" : "1px solid #1F1F23" }}>
+            style={{ background: isPaidPlan ? "linear-gradient(135deg, #0F1729, #1a2f5a)" : "#111113", border: isPaidPlan ? "1px solid #3B82F6" : "1px solid #1F1F23" }}>
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-syne font-bold text-sm text-foreground">
-                    {isPro ? "Plano Pro" : "Plano Basico"}
+                    {prof?.plan === "professional_annual" ? "Plano Profissional Anual" : isPaidPlan ? "Plano Profissional" : "Plano Gratuito"}
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
                     style={{ background: isActive ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: isActive ? "#22c55e" : "#f87171" }}>
@@ -389,7 +450,7 @@ export default function PainelPage() {
                   </span>
                 </div>
                 <p className="text-xs text-muted mt-0.5">
-                  {isPro ? "R$99/mes" : "R$69/mes"}
+                  {prof?.plan === "professional_annual" ? "R$499,90/ano" : isPaidPlan ? "R$59,90/mes" : "R$0"}
                   {subscription?.next_billing && ` · Renova ${new Date(subscription.next_billing).toLocaleDateString("pt-BR")}`}
                 </p>
               </div>
@@ -400,29 +461,29 @@ export default function PainelPage() {
               </Link>
             </div>
             <div className="space-y-1.5">
-              {isPro ? (
+              {isPaidPlan ? (
                 <>
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Aparece PRIMEIRO nas buscas</div>
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Badge PRO em destaque</div>
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Ate 10 fotos na galeria</div>
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Metricas avancadas</div>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Clientes ilimitados</div>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Aparece antes dos perfis gratuitos</div>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Ate 15 fotos na galeria</div>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#93c5fd" }}><span>✓</span> Selo Verificado + Metricas avancadas</div>
                 </>
               ) : (
                 <>
                   <div className="flex items-center gap-2 text-xs text-muted"><span>✓</span> Perfil ativo nas buscas</div>
-                  <div className="flex items-center gap-2 text-xs text-muted"><span>✓</span> Leads direto no WhatsApp</div>
+                  <div className="flex items-center gap-2 text-xs text-muted"><span>✓</span> Ate 5 clientes unicos por mes</div>
                   <div className="flex items-center gap-2 text-xs text-muted"><span>✓</span> Ate 3 fotos no perfil</div>
                   <div className="flex items-center gap-2 text-xs" style={{ color: "#64748b" }}>
-                    <Lock size={10} /> Aparecer primeiro — upgrade para Pro
+                    <Lock size={10} /> Clientes ilimitados — upgrade para Profissional
                   </div>
                 </>
               )}
             </div>
-            {!isPro && isActive && (
+            {!isPaidPlan && isActive && (
               <Link href="/painel/assinatura"
                 className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white"
                 style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
-                <Crown size={12} /> Fazer upgrade para Pro — R$99/mes
+                <Crown size={12} /> Fazer upgrade — R$59,90/mes
               </Link>
             )}
           </div>
@@ -454,8 +515,8 @@ export default function PainelPage() {
           </div>
         </div>
 
-        {/* Metricas avancadas PRO */}
-        {isPro && (
+        {/* Metricas avancadas plano pago */}
+        {isPaidPlan && (
           <div>
             <p className="text-xs font-bold tracking-widest text-muted mb-2">
               METRICAS AVANCADAS{" "}
@@ -492,7 +553,7 @@ export default function PainelPage() {
                     { label: "WhatsApp configurado", done: !!prof?.whatsapp },
                     { label: "Instagram adicionado", done: !!prof?.instagram },
                     { label: "Tem avaliacoes", done: metrics.avaliacoes > 0 },
-                    { label: "Plano Pro ativo", done: isPro },
+                    { label: "Plano Profissional ativo", done: isPaidPlan },
                   ];
                   const score = Math.round((checks.filter(c => c.done).length / checks.length) * 100);
                   return (
@@ -521,8 +582,8 @@ export default function PainelPage() {
           </div>
         )}
 
-        {/* Bloquear basico */}
-        {!isPro && (
+        {/* Bloquear gratuito */}
+        {!isPaidPlan && (
           <div className="p-4 rounded-2xl relative overflow-hidden"
             style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="absolute inset-0 flex items-center justify-center z-10"
@@ -530,7 +591,7 @@ export default function PainelPage() {
               <div className="text-center px-4">
                 <Lock size={20} style={{ color: "#3B82F6" }} className="mx-auto mb-2" />
                 <p className="font-syne font-bold text-sm text-foreground mb-1">Metricas avancadas</p>
-                <p className="text-xs text-muted mb-3">Score do perfil, comparativos e mais. Disponivel no Plano Pro.</p>
+                <p className="text-xs text-muted mb-3">Score do perfil, comparativos e mais. Disponivel no Plano Profissional.</p>
                 <Link href="/painel/assinatura"
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold text-xs text-white"
                   style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
