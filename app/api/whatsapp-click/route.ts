@@ -13,7 +13,37 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Registra o lead
+    // Verifica limite do plano Gratuito (cliente único / 30 dias) ANTES de logar o clique.
+    // Função roda no banco via SECURITY DEFINER, então funciona mesmo com RLS ativo.
+    const { data: checkResult, error: checkError } = await supabase.rpc(
+      "check_and_register_unique_client",
+      {
+        p_professional_id: professional_id,
+        p_clicker_id: user?.id ?? null,
+      }
+    );
+
+    if (checkError) {
+      console.error("Unique client check error:", checkError);
+      // Falha na checagem não deve travar o profissional injustamente nem liberar
+      // sem controle — registra o erro e segue permitindo o clique (fail-open),
+      // já que o objetivo é não perder lead por bug de infraestrutura.
+    }
+
+    if (checkResult?.blocked) {
+      return NextResponse.json(
+        {
+          error: "FREE_LIMIT_REACHED",
+          message: "Você atingiu o limite gratuito de 5 clientes neste mês.",
+          upgradeMessage: "Continue recebendo clientes ilimitados por apenas R$ 59,90/mês.",
+          used: checkResult.used,
+          limit: checkResult.limit,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Registra o lead (sempre — inclusive cliques repetidos do mesmo cliente já contado)
     const { error } = await supabase.from("whatsapp_clicks").insert({
       professional_id,
       clicker_id: user?.id ?? null,
@@ -35,7 +65,6 @@ export async function POST(request: NextRequest) {
 
     if (prof?.users) {
       const { name, email } = prof.users as { name: string; email: string };
-      // Envia email de novo lead em background
       fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,7 +77,12 @@ export async function POST(request: NextRequest) {
       }).catch(() => {});
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      isNewUniqueClient: checkResult?.is_new_unique_client ?? false,
+      used: checkResult?.used ?? null,
+      limit: checkResult?.limit ?? null,
+    });
   } catch (err) {
     console.error("Unexpected error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
