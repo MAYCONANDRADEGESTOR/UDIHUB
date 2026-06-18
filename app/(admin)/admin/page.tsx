@@ -6,7 +6,7 @@ import {
   Users, MapPin, CreditCard, Flag, BarChart3,
   ArrowUpRight, MessageCircle, Loader2, TrendingUp,
   Trash2, X, ArrowLeft, AlertCircle, UserCheck, Crown,
-  Camera, Tag, Clock,
+  Camera, Clock, Layers,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/utils";
@@ -14,6 +14,15 @@ import toast from "react-hot-toast";
 
 const ASAAS_PIX_FIXED = 0.99;
 const ASAAS_PIX_PERCENT = 0.0139;
+
+// Preços reais por plano no modelo Freemium. "pro" e "basic" são legados
+// mantidos só por segurança (não devem mais existir em uso real).
+const PLAN_PRICE: Record<string, number> = {
+  professional: 59.90,
+  professional_annual: 499.90,
+  pro: 99, // legado
+  basic: 69, // legado
+};
 
 function calcNet(valor: number) {
   const fee = (valor * ASAAS_PIX_PERCENT) + ASAAS_PIX_FIXED;
@@ -28,9 +37,8 @@ interface Metrics {
   totalProfessionals: number;
   activeProfessionals: number;
   inactiveProfessionals: number;
-  proProfessionals: number;
-  basicProfessionals: number;
-  couponProfessionals: number;
+  paidProfessionals: number;
+  freeProfessionals: number;
   totalClients: number;
   totalUsers: number;
   monthlyRevenue: number;
@@ -43,6 +51,8 @@ interface Metrics {
   citiesActive: number;
   newUsersToday: number;
   newUsersWeek: number;
+  freeAtLimit: number;
+  freeNearLimit: number;
 }
 
 interface RecentUser {
@@ -61,18 +71,6 @@ interface Report {
   created_at: string;
 }
 
-interface CouponProf {
-  id: string;
-  name: string;
-  email: string;
-  whatsapp: string;
-  categoria: string;
-  coupon_code: string;
-  trial_ends_at: string | null;
-  status: string;
-  created_at: string;
-}
-
 const ADMIN_EMAIL = "udihub@outlook.com";
 
 export default function AdminPage() {
@@ -80,7 +78,6 @@ export default function AdminPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [recentReports, setRecentReports] = useState<Report[]>([]);
-  const [couponProfs, setCouponProfs] = useState<CouponProf[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState<RecentUser | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -107,20 +104,20 @@ export default function AdminPage() {
       const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
       const [
-        totalProf, activeProf, inactiveProf, proProf, basicProf,
+        totalProf, activeProf, inactiveProf, paidProf, freeProf,
         totalClients, totalUsers,
         totalLeads, leadsToday, leadsWeek,
         subscriptions, pendingReports,
         citiesActive, recentUsersData,
         newUsersToday, newUsersWeek,
         recentReportsData, carouselSetting,
-        adminData, couponData,
+        adminData,
       ] = await Promise.all([
         supabase.from("professionals").select("id", { count: "exact", head: true }),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("status", "active"),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("status", "inactive"),
-        supabase.from("professionals").select("id", { count: "exact", head: true }).eq("plan", "pro"),
-        supabase.from("professionals").select("id", { count: "exact", head: true }).eq("plan", "basic"),
+        supabase.from("professionals").select("id", { count: "exact", head: true }).in("plan", ["professional", "professional_annual", "pro"]),
+        supabase.from("professionals").select("id", { count: "exact", head: true }).in("plan", ["free", "basic"]),
         supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "client"),
         supabase.from("users").select("id", { count: "exact", head: true }),
         supabase.from("whatsapp_clicks").select("id", { count: "exact", head: true }),
@@ -135,49 +132,54 @@ export default function AdminPage() {
         supabase.from("reports").select("id, reason, status, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(3),
         supabase.from("app_settings").select("value").eq("key", "pro_carousel_active").single(),
         supabase.from("users").select("name, avatar").eq("id", user.id).single(),
-        // Profissionais com cupom
-        supabase.from("professionals")
-          .select("id, coupon_code, trial_ends_at, status, created_at, whatsapp, users(name, email), categories(name)")
-          .not("coupon_code", "is", null)
-          .order("created_at", { ascending: false }),
       ]);
 
       setAdminAvatar(adminData.data?.avatar || null);
       setAdminName(adminData.data?.name || "Admin");
       setCarouselActive(carouselSetting.data?.value === "true");
 
-      // Profissionais com cupom
-      const couponList: CouponProf[] = (couponData.data || []).map((p: any) => ({
-        id: p.id,
-        name: p.users?.name || "Sem nome",
-        email: p.users?.email || "",
-        whatsapp: p.whatsapp || "",
-        categoria: p.categories?.name || "",
-        coupon_code: p.coupon_code,
-        trial_ends_at: p.trial_ends_at,
-        status: p.status,
-        created_at: p.created_at,
-      }));
-      setCouponProfs(couponList);
-
-      // Contar cupons
-      const couponCount = couponData.data?.length || 0;
-
       let totalRevenue = 0, totalFees = 0;
       for (const s of subscriptions.data || []) {
-        const valor = s.plan === "pro" ? 99 : 69;
+        const valor = PLAN_PRICE[s.plan as string] ?? 0;
         const { net, fee } = calcNet(valor);
         totalRevenue += valor;
         totalFees += fee;
+      }
+
+      // Quantos profissionais free estão no limite (5/5) ou perto dele (4/5) —
+      // usa a mesma janela de 30 dias rolante da função check_and_register_unique_client.
+      const { data: freeProfsData } = await supabase
+        .from("professionals")
+        .select("id, unique_clients_limit")
+        .in("plan", ["free", "basic"]);
+
+      let freeAtLimit = 0;
+      let freeNearLimit = 0;
+      if (freeProfsData && freeProfsData.length > 0) {
+        const ids = freeProfsData.map((p: any) => p.id);
+        const { data: contactsData } = await supabase
+          .from("unique_client_contacts")
+          .select("professional_id")
+          .in("professional_id", ids)
+          .gt("window_expires_at", new Date().toISOString());
+
+        const countByProf: Record<string, number> = {};
+        for (const c of contactsData || []) {
+          countByProf[c.professional_id] = (countByProf[c.professional_id] || 0) + 1;
+        }
+        for (const p of freeProfsData) {
+          const used = countByProf[p.id] || 0;
+          if (used >= (p.unique_clients_limit || 5)) freeAtLimit++;
+          else if (used === (p.unique_clients_limit || 5) - 1) freeNearLimit++;
+        }
       }
 
       setMetrics({
         totalProfessionals: totalProf.count || 0,
         activeProfessionals: activeProf.count || 0,
         inactiveProfessionals: inactiveProf.count || 0,
-        proProfessionals: proProf.count || 0,
-        basicProfessionals: basicProf.count || 0,
-        couponProfessionals: couponCount,
+        paidProfessionals: paidProf.count || 0,
+        freeProfessionals: freeProf.count || 0,
         totalClients: totalClients.count || 0,
         totalUsers: totalUsers.count || 0,
         monthlyRevenue: totalRevenue,
@@ -190,6 +192,8 @@ export default function AdminPage() {
         citiesActive: citiesActive.count || 0,
         newUsersToday: newUsersToday.count || 0,
         newUsersWeek: newUsersWeek.count || 0,
+        freeAtLimit,
+        freeNearLimit,
       });
 
       setRecentUsers((recentUsersData.data as RecentUser[]) || []);
@@ -245,13 +249,6 @@ export default function AdminPage() {
     return new Date(d).toLocaleDateString("pt-BR");
   }
 
-  function daysRemaining(date: string | null) {
-    if (!date) return null;
-    const diff = new Date(date).getTime() - Date.now();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    return days;
-  }
-
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <Loader2 size={24} style={{ color: "#3B82F6" }} className="animate-spin" />
@@ -264,6 +261,7 @@ export default function AdminPage() {
     : 0;
 
   const ADMIN_SECTIONS = [
+    { href: "/admin/profissionais", icon: Layers, label: "Planos", desc: "Gerenciar planos e limites", badge: metrics?.freeAtLimit || 0 },
     { href: "/admin/usuarios", icon: Users, label: "Usuarios", desc: "Gerenciar e banir", badge: null },
     { href: "/admin/cidades", icon: MapPin, label: "Cidades", desc: "Ativar novas cidades", badge: null },
     { href: "/admin/denuncias", icon: Flag, label: "Denuncias", desc: "Resolver denuncias", badge: metrics?.pendingReports || 0 },
@@ -279,7 +277,6 @@ export default function AdminPage() {
         <div className="flex items-center gap-3">
           <Link href="/" className="text-muted"><ArrowLeft size={20} /></Link>
 
-          {/* Avatar clicável */}
           <div className="relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
             {uploadingAvatar ? (
               <div className="w-10 h-10 rounded-xl flex items-center justify-center"
@@ -324,6 +321,17 @@ export default function AdminPage() {
               <strong>{metrics?.inactiveProfessionals}</strong> profissional(is) com perfil inativo
             </p>
             <Link href="/admin/usuarios" className="ml-auto text-[10px] font-bold" style={{ color: "#f87171" }}>Ver</Link>
+          </div>
+        )}
+
+        {(metrics?.freeAtLimit || 0) > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-xl"
+            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+            <Layers size={14} style={{ color: "#f87171" }} className="flex-shrink-0" />
+            <p className="text-xs" style={{ color: "#f87171" }}>
+              <strong>{metrics?.freeAtLimit}</strong> profissional(is) no limite de 5/5 clientes
+            </p>
+            <Link href="/admin/profissionais" className="ml-auto text-[10px] font-bold" style={{ color: "#f87171" }}>Ver</Link>
           </div>
         )}
 
@@ -396,8 +404,8 @@ export default function AdminPage() {
             { label: "Clientes", value: metrics?.totalClients || 0, color: "#a855f7" },
             { label: "Ativos", value: metrics?.activeProfessionals || 0, color: "#22c55e" },
             { label: "Inativos", value: metrics?.inactiveProfessionals || 0, color: "#f87171" },
-            { label: "Basico", value: metrics?.basicProfessionals || 0, color: "#3B82F6" },
-            { label: "Pro", value: metrics?.proProfessionals || 0, color: "#f59e0b" },
+            { label: "Gratuito", value: metrics?.freeProfessionals || 0, color: "#A1A1AA" },
+            { label: "Pago", value: metrics?.paidProfessionals || 0, color: "#f59e0b" },
           ].map(({ label, value, color }) => (
             <div key={label} className="p-2.5 rounded-2xl text-center"
               style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -407,23 +415,28 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Cupom card destaque */}
+        {/* Freemium card destaque */}
         <div className="p-4 rounded-2xl"
-          style={{ background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.25)" }}>
-          <div className="flex items-center gap-3">
+          style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.25)" }}>
+          <div className="flex items-center gap-3 mb-2">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(251,191,36,0.15)" }}>
-              <Tag size={16} style={{ color: "#FBBF24" }} />
+              style={{ background: "rgba(59,130,246,0.15)" }}>
+              <Layers size={16} style={{ color: "#3B82F6" }} />
             </div>
             <div className="flex-1">
-              <p className="font-syne font-bold text-sm text-foreground">Cupom UDIHUB90</p>
-              <p className="text-[10px] text-muted">3 meses gratis · Plano Basico</p>
+              <p className="font-syne font-bold text-sm text-foreground">Modelo Freemium</p>
+              <p className="text-[10px] text-muted">Limite de 5 clientes únicos / 30 dias</p>
             </div>
-            <div className="text-right">
-              <div className="font-syne font-bold text-2xl" style={{ color: "#FBBF24" }}>
-                {metrics?.couponProfessionals || 0}
-              </div>
-              <div className="text-[10px] text-muted">cadastrados</div>
+            <Link href="/admin/profissionais" className="text-xs font-bold" style={{ color: "#3B82F6" }}>Gerenciar</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <div className="p-2.5 rounded-xl text-center" style={{ background: "rgba(239,68,68,0.08)" }}>
+              <div className="font-syne font-bold text-lg" style={{ color: "#ef4444" }}>{metrics?.freeAtLimit || 0}</div>
+              <div className="text-[9px] text-muted">No limite (5/5)</div>
+            </div>
+            <div className="p-2.5 rounded-xl text-center" style={{ background: "rgba(251,191,36,0.08)" }}>
+              <div className="font-syne font-bold text-lg" style={{ color: "#FBBF24" }}>{metrics?.freeNearLimit || 0}</div>
+              <div className="text-[9px] text-muted">Perto (4/5)</div>
             </div>
           </div>
         </div>
@@ -443,7 +456,7 @@ export default function AdminPage() {
           </div>
           <div className="flex justify-between mt-1.5">
             <span className="text-[10px] text-muted">{metrics?.activeProfessionals} ativos</span>
-            <span className="text-[10px] text-muted">275 meta · R$18.975/mes</span>
+            <span className="text-[10px] text-muted">275 meta · R$16.472,50/mes</span>
           </div>
         </div>
 
@@ -458,7 +471,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <p className="font-syne font-bold text-sm text-foreground">Carrossel PRO</p>
-                <p className="text-[10px] text-muted">Destaque na home para profissionais PRO</p>
+                <p className="text-[10px] text-muted">Destaque na home para profissionais pagos</p>
               </div>
             </div>
             <button onClick={toggleCarousel} disabled={carouselLoading}
@@ -507,78 +520,6 @@ export default function AdminPage() {
               </Link>
             ))}
           </div>
-        </div>
-
-        {/* Profissionais com cupom */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-bold tracking-widest" style={{ color: "#FBBF24" }}>
-              CUPOM UDIHUB90 ({couponProfs.length})
-            </p>
-          </div>
-          {couponProfs.length === 0 ? (
-            <div className="text-center py-6 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-              <Tag size={20} className="mx-auto text-muted mb-2" />
-              <p className="text-xs text-muted">Nenhum profissional cadastrado pelo cupom ainda</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {couponProfs.map((prof) => {
-                const days = daysRemaining(prof.trial_ends_at);
-                return (
-                  <div key={prof.id} className="p-4 rounded-2xl"
-                    style={{ background: "#111113", border: "1px solid rgba(251,191,36,0.15)" }}>
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-xs"
-                        style={{ background: "rgba(251,191,36,0.1)", color: "#FBBF24" }}>
-                        {getInitials(prof.name)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-sm text-foreground truncate">{prof.name}</span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
-                            style={{
-                              background: prof.status === "active" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                              color: prof.status === "active" ? "#22c55e" : "#f87171"
-                            }}>
-                            {prof.status === "active" ? "Ativo" : "Inativo"}
-                          </span>
-                          <span className="text-[9px] px-1.5 py-0.5 rounded font-bold"
-                            style={{ background: "rgba(251,191,36,0.1)", color: "#FBBF24" }}>
-                            {prof.coupon_code}
-                          </span>
-                        </div>
-                        <p className="text-xs text-muted truncate">{prof.email}</p>
-                        {prof.categoria && (
-                          <p className="text-[10px] text-muted mt-0.5">{prof.categoria}</p>
-                        )}
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[10px] text-muted">
-                            Cadastrou {formatDate(prof.created_at)}
-                          </span>
-                          {days !== null && (
-                            <span className="flex items-center gap-1 text-[10px]"
-                              style={{ color: days > 7 ? "#22c55e" : days > 0 ? "#FBBF24" : "#f87171" }}>
-                              <Clock size={9} />
-                              {days > 0 ? `${days} dias restantes` : "Trial expirado"}
-                            </span>
-                          )}
-                        </div>
-                        {prof.whatsapp && (
-                          <a href={`https://wa.me/55${prof.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`Oi ${prof.name}! Aqui e o Maycon do UDIHUB. Tudo certo com seu perfil?`)}`}
-                            target="_blank" rel="noreferrer"
-                            className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold px-2 py-1 rounded-lg"
-                            style={{ background: "rgba(22,163,74,0.1)", color: "#22c55e", border: "1px solid rgba(22,163,74,0.2)" }}>
-                            WhatsApp →
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Denuncias recentes */}
