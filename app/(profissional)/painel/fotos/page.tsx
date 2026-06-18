@@ -14,16 +14,20 @@ interface Photo {
   order: number;
 }
 
+type ProfessionalPlan = "free" | "basic" | "professional" | "professional_annual" | "pro";
+
 export default function FotosPage() {
   const router = useRouter();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [professionalId, setProfessionalId] = useState<string | null>(null);
-  const [plan, setPlan] = useState<"basic" | "pro">("basic");
+  const [plan, setPlan] = useState<ProfessionalPlan>("free");
   const [userId, setUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const maxPhotos = plan === "pro" ? 10 : 3;
+
+  const isPaidPlan = plan === "professional" || plan === "professional_annual" || plan === "pro";
+  const maxPhotos = isPaidPlan ? 10 : 3;
 
   useEffect(() => {
     async function load() {
@@ -56,7 +60,7 @@ export default function FotosPage() {
     if (!file || !professionalId || !userId) return;
 
     if (photos.length >= maxPhotos) {
-      toast.error(`Limite de ${maxPhotos} fotos para o plano ${plan === "pro" ? "Pro" : "Básico"}`);
+      toast.error(`Limite de ${maxPhotos} fotos para o plano ${isPaidPlan ? "Profissional" : "Gratuito"}`);
       return;
     }
 
@@ -143,7 +147,7 @@ export default function FotosPage() {
           style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}>
           <ImageIcon size={14} style={{ color: "#3B82F6" }} className="mt-0.5 flex-shrink-0" />
           <p className="text-xs leading-relaxed" style={{ color: "#93c5fd" }}>
-            Profissionais com fotos recebem até 3x mais contatos. Plano {plan === "pro" ? "Pro" : "Básico"}: até {maxPhotos} fotos.
+            Profissionais com fotos recebem até 3x mais contatos. Plano {isPaidPlan ? "Profissional" : "Gratuito"}: até {maxPhotos} fotos.
           </p>
         </div>
 
@@ -181,18 +185,18 @@ export default function FotosPage() {
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp"
           onChange={handleUpload} className="hidden" />
 
-        {/* Upgrade para Pro */}
-        {plan === "basic" && (
+        {/* Upgrade para Profissional */}
+        {!isPaidPlan && (
           <div className="p-4 rounded-2xl"
             style={{ background: "linear-gradient(135deg, #0F1729, #1e3a5f)", border: "1px solid rgba(59,130,246,0.3)" }}>
             <p className="font-syne font-bold text-sm text-white mb-1">Quer mais fotos?</p>
             <p className="text-xs mb-3" style={{ color: "#93c5fd" }}>
-              Faça upgrade para o Plano Pro e adicione até 10 fotos.
+              Assine o Plano Profissional e adicione até 10 fotos.
             </p>
             <Link href="/painel/assinatura"
               className="inline-block px-4 py-2 rounded-xl text-xs font-bold text-white"
               style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)" }}>
-              Upgrade para Pro
+              Assinar Plano Profissional
             </Link>
           </div>
         )}
