@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, ChevronDown, Search, Heart, X, UserPlus, ArrowRight, Grid3X3 } from "lucide-react";
+import { MapPin, ChevronDown, Search, Heart, X, UserPlus, ArrowRight, Grid3X3, MessageCircle, CheckCircle, Zap } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
@@ -22,6 +22,12 @@ const QUICK_CATS = [
   { slug: "cabeleireiro", name: "Cabeleireiro", icon: "✂️" },
   { slug: "personal-trainer", name: "Personal", icon: "💪" },
   { slug: "montador-moveis", name: "Montador", icon: "🪑" },
+];
+
+const PROFISSIONAL_BENEFITS = [
+  { icon: Search, text: "Apareca nas buscas por categoria e bairro" },
+  { icon: MessageCircle, text: "Cliente chama direto no seu WhatsApp" },
+  { icon: CheckCircle, text: "Comece de graca, sem cartao de credito" },
 ];
 
 export default function InicioPage() {
@@ -175,17 +181,37 @@ export default function InicioPage() {
           style={{ background: "linear-gradient(135deg, #0F1729, #1a2f5a)", border: "1px solid #3B82F6" }}>
           <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none"
             style={{ background: "radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)", transform: "translate(20%, -20%)" }} />
-          <p className="text-xs font-bold mb-1" style={{ color: "#93c5fd" }}>E profissional autonomo?</p>
+
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "rgba(34,197,94,0.15)" }}>
+              <Zap size={14} style={{ color: "#22c55e" }} />
+            </div>
+            <p className="text-[10px] font-bold tracking-wide" style={{ color: "#93c5fd" }}>
+              E PROFISSIONAL AUTONOMO? CADASTRO GRATUITO
+            </p>
+          </div>
+
           <h3 className="font-syne font-extrabold text-lg text-white mb-1">
             Receba clientes no seu WhatsApp
           </h3>
           <p className="text-xs text-muted mb-4 leading-relaxed">
-            Crie seu perfil e apareca nas buscas de clientes de Uberlandia por apenas R$69/mes.
+            Crie seu perfil e apareca nas buscas de clientes de Uberlandia sem pagar nada. Quer destaque e clientes ilimitados? Assine a partir de R$59,90/mes quando quiser.
           </p>
+
+          <div className="flex flex-col gap-2 mb-4">
+            {PROFISSIONAL_BENEFITS.map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-2.5">
+                <Icon size={13} style={{ color: "#60a5fa" }} className="flex-shrink-0" />
+                <span className="text-[11px] text-muted leading-tight">{text}</span>
+              </div>
+            ))}
+          </div>
+
           <Link href="/seja-profissional"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white"
             style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 16px rgba(59,130,246,0.3)" }}>
-            Anunciar agora <ArrowRight size={14} />
+            Criar perfil gratis <ArrowRight size={14} />
           </Link>
         </div>
 
