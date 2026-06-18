@@ -127,6 +127,8 @@ export default function FavoritosPage() {
               const prof = fav.professionals as any;
               const neighborhood = prof?.professional_neighborhoods?.[0]?.neighborhoods?.name;
               const avatarUrl = prof?.avatar || prof?.users?.avatar || null;
+              const isPaidPlan = prof?.plan === "professional" || prof?.plan === "professional_annual" || prof?.plan === "pro";
+              const planBadgeLabel = prof?.plan === "professional_annual" ? "ANUAL" : "PRO";
               return (
                 <div key={fav.id} className="rounded-2xl overflow-hidden"
                   style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -152,7 +154,7 @@ export default function FavoritosPage() {
                           <Link href={`/profissional/${prof?.slug}`} className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <h3 className="font-syne font-bold text-sm text-foreground truncate">{prof?.users?.name}</h3>
-                              {prof?.plan === "pro" && <span className="badge-pro">PRO</span>}
+                              {isPaidPlan && <span className="badge-pro">{planBadgeLabel}</span>}
                             </div>
                             <p className="text-xs text-muted">{prof?.categories?.icon} {prof?.categories?.name}</p>
                           </Link>
