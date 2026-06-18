@@ -27,7 +27,7 @@ const HOW_IT_WORKS = [
 
 const FAQ = [
   { q: "E realmente gratuito para clientes?", a: "Sim, 100%. Clientes buscam, visualizam perfis e entram em contato com profissionais sem pagar absolutamente nada, para sempre." },
-  { q: "Como os profissionais aparecem na plataforma?", a: "Profissionais pagam uma mensalidade fixa. O Plano Basico (R$69/mes) coloca o perfil nas buscas. O Plano Pro (R$99/mes) da destaque e aparece primeiro." },
+  { q: "Como os profissionais aparecem na plataforma?", a: "Todo profissional comeca no Plano Gratuito, sem pagar nada. Quem quiser clientes ilimitados e destaque nas buscas pode assinar o Plano Profissional (R$59,90/mes) ou o Plano Anual (R$499,90/ano)." },
   { q: "O UDIHUB esta disponivel em quais cidades?", a: "Lancamos em Uberlandia-MG. Em breve expandimos para Uberaba, Patos de Minas, Ituiutaba e outras cidades do Triangulo Mineiro." },
   { q: "Como funciona o sistema de avaliacoes?", a: "Apenas clientes que clicaram no WhatsApp de um profissional podem avalia-lo. Isso garante avaliacoes 100% autênticas." },
   { q: "Posso cancelar a assinatura a qualquer momento?", a: "Sim. O profissional cancela pelo painel e o perfil fica ativo ate o final do periodo pago. Sem multa ou fidelidade." },
@@ -333,7 +333,6 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* Icones sociais — Instagram + Email + WhatsApp */}
             <div className="flex items-center gap-3">
               <a href="https://www.instagram.com/udihub" target="_blank" rel="noopener noreferrer"
                 className="w-9 h-9 rounded-xl flex items-center justify-center"
