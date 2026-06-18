@@ -27,7 +27,7 @@ export default function ComoFuncionaPage() {
           <div className="space-y-3">
             {[
               { icon: MapPin, step: "01", title: "Localização automática", desc: "O UDIHUB detecta sua cidade e bairro automaticamente. Você pode ajustar manualmente a qualquer momento." },
-              { icon: Search, step: "02", title: "Busque por categoria", desc: "Escolha o tipo de serviço entre 54 categorias disponíveis: encanador, eletricista, diarista, piscineiro, arquiteto e muito mais." },
+              { icon: Search, step: "02", title: "Busque por categoria", desc: "Escolha o tipo de serviço entre 107 categorias disponíveis: encanador, eletricista, diarista, piscineiro, arquiteto e muito mais." },
               { icon: Star, step: "03", title: "Compare e escolha", desc: "Veja perfis, avaliações de clientes reais, fotos do trabalho e disponibilidade em tempo real." },
               { icon: MessageCircle, step: "04", title: "Chame no WhatsApp", desc: "Um clique e você está em contato direto com o profissional. Sem intermediários, sem taxas." },
             ].map(({ icon: Icon, step, title, desc }) => (
@@ -57,8 +57,8 @@ export default function ComoFuncionaPage() {
           </div>
           <div className="space-y-3">
             {[
-              { icon: CheckCircle, title: "Cadastro rápido", desc: "Crie seu perfil em minutos: foto, especialidade, bairros atendidos, WhatsApp e bio. Verificação por CPF para mais segurança." },
-              { icon: CreditCard, title: "Escolha o plano", desc: "Plano Básico (R$69/mês) ou Pro (R$99/mês). Assinatura mensal recorrente. Cancele quando quiser." },
+              { icon: CheckCircle, title: "Cadastro rápido e gratuito", desc: "Crie seu perfil em minutos: foto, especialidade, bairros atendidos, WhatsApp e bio. Verificação por CPF para mais segurança." },
+              { icon: CreditCard, title: "Comece no Plano Gratuito", desc: "Todo profissional nasce no Plano Gratuito, sem pagar nada. Para clientes ilimitados e destaque nas buscas, dá pra assinar o Profissional (R$59,90/mês) ou o Anual (R$499,90/ano) quando quiser." },
               { icon: MessageCircle, title: "Receba leads", desc: "Clientes da sua cidade e bairro entram em contato direto pelo WhatsApp. Cada clique é registrado no seu painel." },
               { icon: Star, title: "Construa reputação", desc: "Clientes que te contactaram podem avaliar seu serviço. Avaliações reais = mais clientes." },
             ].map(({ icon: Icon, title, desc }) => (
@@ -81,36 +81,50 @@ export default function ComoFuncionaPage() {
             <CreditCard size={16} style={{ color: "#3B82F6" }} />
             <h2 className="font-syne font-bold text-lg text-foreground">Planos disponíveis</h2>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
             <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-              <p className="font-syne font-bold text-sm text-foreground mb-1">Básico</p>
-              <p className="font-syne font-extrabold text-2xl mb-2" style={{ color: "#3B82F6" }}>R$69<span className="text-xs font-normal text-muted">/mês</span></p>
+              <p className="font-syne font-bold text-sm text-foreground mb-1">Gratuito</p>
+              <p className="font-syne font-extrabold text-2xl mb-2 text-foreground">R$0</p>
               <div className="space-y-1">
-                {["Perfil ativo", "Aparece nas buscas", "Até 3 fotos", "Leads via WhatsApp"].map(f => (
+                {["Perfil ativo nas buscas", "Até 3 fotos", "Até 5 clientes únicos por mês", "Leads via WhatsApp"].map(f => (
                   <div key={f} className="flex items-center gap-1.5">
-                    <CheckCircle size={10} style={{ color: "#3B82F6" }} />
+                    <CheckCircle size={10} style={{ color: "#22c55e" }} />
                     <span className="text-[10px] text-muted">{f}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="p-4 rounded-2xl" style={{ background: "linear-gradient(135deg, #0F1729, #1e3a5f)", border: "1px solid rgba(59,130,246,0.4)" }}>
-              <div className="flex items-center gap-1.5 mb-1">
-                <p className="font-syne font-bold text-sm text-white">Pro</p>
-                <span className="badge-pro">PRO</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-4 rounded-2xl" style={{ background: "linear-gradient(135deg, #0F1729, #1e3a5f)", border: "1px solid rgba(59,130,246,0.4)" }}>
+                <p className="font-syne font-bold text-sm text-white mb-1">Profissional</p>
+                <p className="font-syne font-extrabold text-2xl mb-2" style={{ color: "#3B82F6" }}>R$59,90<span className="text-xs font-normal text-muted">/mês</span></p>
+                <div className="space-y-1">
+                  {["Clientes ilimitados", "Destaque nas buscas", "Até 15 fotos", "Métricas avançadas"].map(f => (
+                    <div key={f} className="flex items-center gap-1.5">
+                      <CheckCircle size={10} style={{ color: "#3B82F6" }} />
+                      <span className="text-[10px]" style={{ color: "#93c5fd" }}>{f}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <p className="font-syne font-extrabold text-2xl mb-2" style={{ color: "#3B82F6" }}>R$99<span className="text-xs font-normal text-muted">/mês</span></p>
-              <div className="space-y-1">
-                {["Aparece primeiro", "Badge PRO", "Até 10 fotos", "Métricas avançadas"].map(f => (
-                  <div key={f} className="flex items-center gap-1.5">
-                    <CheckCircle size={10} style={{ color: "#3B82F6" }} />
-                    <span className="text-[10px]" style={{ color: "#93c5fd" }}>{f}</span>
-                  </div>
-                ))}
+              <div className="p-4 rounded-2xl" style={{ background: "linear-gradient(135deg, #1a1304, #3b2a06)", border: "1px solid rgba(251,191,36,0.4)" }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="font-syne font-bold text-sm text-white">Anual</p>
+                  <span className="badge-pro">ANUAL</span>
+                </div>
+                <p className="font-syne font-extrabold text-2xl mb-2" style={{ color: "#FBBF24" }}>R$499,90<span className="text-xs font-normal text-muted">/ano</span></p>
+                <div className="space-y-1">
+                  {["Tudo do Profissional", "Equivale a R$41,66/mês", "Destaque Premium", "Selo Parceiro"].map(f => (
+                    <div key={f} className="flex items-center gap-1.5">
+                      <CheckCircle size={10} style={{ color: "#FBBF24" }} />
+                      <span className="text-[10px]" style={{ color: "#FBBF24" }}>{f}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-          <p className="text-[10px] text-muted text-center mt-2">Assinatura mensal recorrente · Cancele quando quiser</p>
+          <p className="text-[10px] text-muted text-center mt-2">Assinatura recorrente nos planos pagos · Cancele quando quiser</p>
         </section>
 
         {/* Segurança */}
