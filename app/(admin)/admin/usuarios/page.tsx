@@ -2,481 +2,272 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search, Ban, CheckCircle, User, Briefcase, AlertTriangle, X, Loader2, Crown, Star, MessageCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { getInitials, formatDate } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, CheckCircle, CreditCard, Zap, AlertCircle, Loader2, ExternalLink, Calendar, Crown } from "lucide-react";
+import { PLANS } from "@/lib/constants";
+import toast from "react-hot-toast";
 
-interface UserItem {
-  id: string;
-  name: string;
-  email: string;
-  role: "client" | "professional";
-  banned: boolean;
-  ban_reason?: string;
-  created_at: string;
-  plan?: string | null;
-  prof_status?: string | null;
-  category?: string | null;
-  category_icon?: string | null;
-  whatsapp?: string | null;
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-export default function AdminUsuariosPage() {
-  const [users, setUsers] = useState<UserItem[]>([]);
+function formatPrice(price: number) {
+  return price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const PAID_PLAN_OPTIONS = ["professional", "professional_annual"] as const;
+
+// Mapa de planos legados para seus equivalentes atuais, usado apenas para
+// exibição (nome/preço/features) — nunca atribuído a ninguém novo.
+const LEGACY_PLAN_MAP: Record<string, "free" | "professional"> = {
+  basic: "free",
+  pro: "professional",
+};
+
+export default function AssinaturaPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | "client" | "professional">("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [categories, setCategories] = useState<{ name: string; icon: string }[]>([]);
-  const [banModal, setBanModal] = useState<{ user: UserItem; action: "ban" | "unban" } | null>(null);
-  const [banReason, setBanReason] = useState("");
-  const [processing, setProcessing] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [professional, setProfessional] = useState<any>(null);
+  const [selectedPlan, setSelectedPlan] = useState<"professional" | "professional_annual">("professional");
 
-  useEffect(() => { loadUsers(); }, []);
-
-  async function loadUsers() {
-    setLoading(true);
-    try {
-      const supabase = createClient();
-
-      const { data: usersData, error: usersError } = await supabase
-        .from("users")
-        .select("id, name, email, role, banned, ban_reason, created_at")
-        .order("created_at", { ascending: false });
-
-      if (usersError || !usersData) { setLoading(false); return; }
-
-      const { data: profsData } = await supabase
-        .from("professionals")
-        .select("user_id, plan, status, whatsapp, categories(name, icon)");
-
-      const profMap = new Map((profsData || []).map((p: any) => [p.user_id, {
-        plan: p.plan,
-        status: p.status,
-        whatsapp: p.whatsapp || null,
-        category: p.categories?.name || null,
-        category_icon: p.categories?.icon || null,
-      }]));
-
-      const enriched: UserItem[] = usersData.map((u: any) => ({
-        ...u,
-        plan: profMap.get(u.id)?.plan || null,
-        prof_status: profMap.get(u.id)?.status || null,
-        whatsapp: profMap.get(u.id)?.whatsapp || null,
-        category: profMap.get(u.id)?.category || null,
-        category_icon: profMap.get(u.id)?.category_icon || null,
-      }));
-
-      const uniqueCategories = [...new Map(
-        enriched.filter((u) => u.category).map((u) => [u.category, { name: u.category!, icon: u.category_icon || "" }])
-      ).values()];
-      setCategories(uniqueCategories);
-      setUsers(enriched);
-    } catch (err) {
-      console.error("Erro ao carregar usuarios:", err);
-    } finally {
+  useEffect(() => {
+    async function load() {
+      const res = await fetch("/api/assinatura");
+      const data = await res.json();
+      setSubscription(data.subscription);
+      setProfessional(data.professional);
       setLoading(false);
     }
-  }
+    load();
+  }, []);
 
-  async function handleBanAction() {
-    if (!banModal) return;
-    if (banModal.action === "ban" && !banReason.trim()) return;
-    setProcessing(true);
-
-    const supabase = createClient();
-    const isBanning = banModal.action === "ban";
-
+  async function handleSubscribe(planOverride?: "professional" | "professional_annual") {
+    setPaying(true);
+    const plan = planOverride || selectedPlan;
     try {
-      // 1. Atualiza banned na tabela users
-      await supabase.from("users").update({
-        banned: isBanning,
-        ban_reason: isBanning ? banReason : null,
-      }).eq("id", banModal.user.id);
-
-      // 2. Atualiza status do profissional — some das buscas e categorias
-      if (banModal.user.role === "professional") {
-        const { data: prof } = await supabase
-          .from("professionals").select("id").eq("user_id", banModal.user.id).single();
-        if (prof) {
-          await supabase.from("professionals")
-            .update({ status: isBanning ? "suspended" : "active" })
-            .eq("id", prof.id);
-        }
-      }
-
-      // 3. Invalida sessão do usuário — força logout imediato
-      await fetch("/api/admin/ban", {
+      const res = await fetch("/api/assinatura", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: banModal.user.id, action: banModal.action }),
-      }).catch(() => {});
-
-      // 4. Atualiza UI
-      setUsers((prev) => prev.map((u) =>
-        u.id === banModal.user.id
-          ? {
-              ...u,
-              banned: isBanning,
-              ban_reason: isBanning ? banReason : undefined,
-              prof_status: banModal.user.role === "professional"
-                ? (isBanning ? "suspended" : "active")
-                : u.prof_status,
-            }
-          : u
-      ));
-
-      setBanModal(null);
-      setBanReason("");
-    } catch (err) {
-      console.error("Erro ao banir:", err);
-    } finally {
-      setProcessing(false);
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json();
+      if (data.paymentUrl) {
+        window.open(data.paymentUrl, "_blank");
+        toast.success("Link de pagamento aberto!");
+      } else {
+        toast.error("Erro ao gerar link de pagamento");
+      }
+    } catch {
+      toast.error("Erro ao processar pagamento");
     }
+    setPaying(false);
   }
 
-  function formatWhatsApp(w: string) {
-    const n = w.replace(/\D/g, "");
-    if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
-    if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
-    return w;
-  }
+  // Planos pagos reais: professional, professional_annual (e "pro" legado,
+  // que era equivalente). "basic" NÃO é pago — é tratado como legado de
+  // free, igual já é feito em painel/page.tsx, pra manter consistência.
+  const isPaidPlan = professional?.plan === "professional" || professional?.plan === "professional_annual" || professional?.plan === "pro";
+  const isFreePlan = professional?.plan === "free" || professional?.plan === "basic";
+  const isActive = professional?.status === "active" && (isFreePlan || subscription?.status === "active");
+  const isPending = subscription?.status === "pending";
+  const nextBillingFormatted = formatDate(subscription?.next_billing);
 
-  const filtered = users.filter((u) => {
-    const q = query.toLowerCase();
-    const matchQuery = !query ||
-      u.name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q) ||
-      u.whatsapp?.includes(q);
-    const matchRole = roleFilter === "all" || u.role === roleFilter;
-    const matchCategory = categoryFilter === "all" || u.category === categoryFilter;
-    const matchStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && u.prof_status === "active") ||
-      (statusFilter === "inactive" && (
-        u.prof_status === "inactive" ||
-        u.prof_status === "pending" ||
-        u.prof_status === "suspended" ||
-        (u.role === "professional" && !u.prof_status)
-      ));
-    return matchQuery && matchRole && matchCategory && matchStatus;
-  });
+  // Plano atual com fallback seguro: mapeia planos legados (basic/pro) para
+  // seus equivalentes atuais antes de buscar em PLANS, pra nunca mostrar
+  // nome/preço antigo (ex: R$69) por engano. Se nada bater, cai em "free".
+  const effectivePlanKey = professional?.plan
+    ? (LEGACY_PLAN_MAP[professional.plan] || professional.plan)
+    : "free";
+  const currentPlanKey = PLANS[effectivePlanKey as keyof typeof PLANS] ? effectivePlanKey : "free";
+  const currentPlan = PLANS[currentPlanKey as keyof typeof PLANS];
 
-  const totalProfs = users.filter(u => u.role === "professional").length;
-  const incompleteProfs = users.filter(u => u.role === "professional" && (u.prof_status === "inactive" || u.prof_status === "pending" || u.prof_status === "suspended" || !u.prof_status)).length;
-  const totalClients = users.filter(u => u.role === "client").length;
-
-  function PlanBadge({ plan }: { plan?: string | null }) {
-    if (!plan) return null;
-    const isPaidPlan = plan === "professional" || plan === "professional_annual" || plan === "pro";
-    if (isPaidPlan) {
-      const label = plan === "professional_annual" ? "ANUAL" : "PRO";
-      return (
-        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
-          style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
-          <Crown size={8} /> {label}
-        </span>
-      );
-    }
-    return (
-      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
-        style={{ background: "rgba(59,130,246,0.1)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.2)" }}>
-        <Star size={8} /> Gratuito
-      </span>
-    );
-  }
-
-  function StatusBadge({ status, role }: { status?: string | null; role: string }) {
-    if (role !== "professional") return null;
-    if (status === "active") return (
-      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
-        style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>Ativo</span>
-    );
-    if (status === "suspended") return (
-      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
-        style={{ background: "rgba(239,68,68,0.15)", color: "#f87171" }}>Suspenso</span>
-    );
-    return (
-      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold animate-pulse"
-        style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>Incompleto</span>
-    );
-  }
+  if (loading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <Loader2 size={24} style={{ color: "#3B82F6" }} className="animate-spin" />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-background pb-6">
+    <div className="min-h-screen bg-background pb-24">
       <div className="sticky top-0 z-40 flex items-center gap-3 px-4 h-14"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
-        <Link href="/admin" className="text-muted"><ArrowLeft size={20} /></Link>
-        <h1 className="font-syne font-bold text-lg text-foreground flex-1">Usuarios</h1>
-        <span className="text-xs text-muted">{users.length} total</span>
+        <Link href="/painel" className="text-muted"><ArrowLeft size={20} /></Link>
+        <h1 className="font-syne font-bold text-lg text-foreground flex-1">Assinatura</h1>
       </div>
 
-      <div className="px-4 py-4 space-y-3">
+      <div className="px-4 py-4 space-y-4">
 
-        {/* Metricas rapidas */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>{totalProfs}</div>
-            <div className="text-[10px] text-muted">Profissionais</div>
-          </div>
-          <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid rgba(239,68,68,0.3)" }}>
-            <div className="font-syne font-bold text-lg" style={{ color: "#f87171" }}>{incompleteProfs}</div>
-            <div className="text-[10px] text-muted">Incompletos</div>
-          </div>
-          <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="font-syne font-bold text-lg" style={{ color: "#a855f7" }}>{totalClients}</div>
-            <div className="text-[10px] text-muted">Clientes</div>
-          </div>
-        </div>
-
-        {/* Alerta incompletos */}
-        {incompleteProfs > 0 && (
-          <div className="flex items-center gap-3 p-3 rounded-xl"
-            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
-            <AlertTriangle size={14} style={{ color: "#f87171" }} className="flex-shrink-0" />
-            <p className="text-xs flex-1" style={{ color: "#f87171" }}>
-              <strong>{incompleteProfs}</strong> profissional(is) com cadastro incompleto
-            </p>
-            <button onClick={() => { setRoleFilter("professional"); setStatusFilter("inactive"); }}
-              className="text-[10px] font-bold flex-shrink-0" style={{ color: "#f87171" }}>
-              Ver →
-            </button>
-          </div>
-        )}
-
-        {/* Busca */}
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-          style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-          <Search size={16} className="text-muted flex-shrink-0" />
-          <input type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-            placeholder="Nome, e-mail ou WhatsApp..."
-            className="flex-1 bg-transparent text-sm text-foreground placeholder-muted outline-none min-w-0" />
-          {query && (
-            <button onClick={() => setQuery("")} className="text-muted flex-shrink-0"><X size={14} /></button>
-          )}
-        </div>
-
-        {/* Filtros role */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {(["all", "client", "professional"] as const).map((r) => (
-            <button key={r} onClick={() => setRoleFilter(r)}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0 transition-all"
-              style={{
-                background: roleFilter === r ? "rgba(59,130,246,0.2)" : "#111113",
-                border: roleFilter === r ? "1px solid rgba(59,130,246,0.4)" : "1px solid #1F1F23",
-                color: roleFilter === r ? "#3B82F6" : "#A1A1AA",
-              }}>
-              {r === "all" ? "Todos" : r === "client" ? "Clientes" : "Profissionais"}
-            </button>
-          ))}
-        </div>
-
-        {/* Filtros status */}
-        {roleFilter !== "client" && (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {(["all", "active", "inactive"] as const).map((s) => (
-              <button key={s} onClick={() => setStatusFilter(s)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0 transition-all"
-                style={{
-                  background: statusFilter === s
-                    ? s === "inactive" ? "rgba(239,68,68,0.2)" : s === "active" ? "rgba(34,197,94,0.2)" : "rgba(59,130,246,0.2)"
-                    : "#111113",
-                  border: statusFilter === s
-                    ? s === "inactive" ? "1px solid rgba(239,68,68,0.4)" : s === "active" ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(59,130,246,0.4)"
-                    : "1px solid #1F1F23",
-                  color: statusFilter === s
-                    ? s === "inactive" ? "#f87171" : s === "active" ? "#22c55e" : "#3B82F6"
-                    : "#A1A1AA",
-                }}>
-                {s === "all" ? "Todos" : s === "active" ? "Ativos" : "Incompletos"}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Filtro categoria */}
-        {categories.length > 0 && roleFilter !== "client" && (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            <button onClick={() => setCategoryFilter("all")}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0"
-              style={{
-                background: categoryFilter === "all" ? "rgba(168,85,247,0.2)" : "#111113",
-                border: categoryFilter === "all" ? "1px solid rgba(168,85,247,0.4)" : "1px solid #1F1F23",
-                color: categoryFilter === "all" ? "#a855f7" : "#A1A1AA",
-              }}>
-              Todas
-            </button>
-            {categories.map(({ name, icon }) => (
-              <button key={name} onClick={() => setCategoryFilter(name)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0"
-                style={{
-                  background: categoryFilter === name ? "rgba(168,85,247,0.2)" : "#111113",
-                  border: categoryFilter === name ? "1px solid rgba(168,85,247,0.4)" : "1px solid #1F1F23",
-                  color: categoryFilter === name ? "#a855f7" : "#A1A1AA",
-                }}>
-                {icon} {name}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <p className="text-[10px] text-muted">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</p>
-
-        {/* Lista */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={24} style={{ color: "#3B82F6" }} className="animate-spin" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <User size={28} className="text-muted mx-auto mb-2" />
-            <p className="text-sm text-muted">Nenhum usuario encontrado</p>
-            {(roleFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all" || query) && (
-              <button onClick={() => { setRoleFilter("all"); setStatusFilter("all"); setCategoryFilter("all"); setQuery(""); }}
-                className="text-xs mt-2 font-semibold" style={{ color: "#3B82F6" }}>
-                Limpar filtros
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filtered.map((user) => (
-              <div key={user.id} className="p-4 rounded-2xl"
-                style={{
-                  background: "#111113",
-                  border: user.banned
-                    ? "1px solid rgba(239,68,68,0.4)"
-                    : (user.role === "professional" && user.prof_status !== "active" && user.prof_status !== null)
-                      ? "1px solid rgba(239,68,68,0.2)"
-                      : "1px solid #1F1F23"
-                }}>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
-                    style={{
-                      background: user.banned ? "rgba(239,68,68,0.1)" : "rgba(59,130,246,0.1)",
-                      color: user.banned ? "#f87171" : "#93c5fd"
-                    }}>
-                    {getInitials(user.name || "?")}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                      <span className="font-semibold text-sm text-foreground truncate">{user.name || "Sem nome"}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 flex-shrink-0"
-                        style={{
-                          background: user.role === "professional" ? "rgba(59,130,246,0.1)" : "rgba(161,161,170,0.1)",
-                          color: user.role === "professional" ? "#93c5fd" : "#A1A1AA"
-                        }}>
-                        {user.role === "professional" ? <Briefcase size={9} /> : <User size={9} />}
-                        {user.role === "professional" ? "Profissional" : "Cliente"}
-                      </span>
-                      {user.role === "professional" && <PlanBadge plan={user.plan} />}
-                      {user.role === "professional" && <StatusBadge status={user.prof_status} role={user.role} />}
-                      {user.banned && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex-shrink-0"
-                          style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>BANIDO</span>
-                      )}
-                    </div>
-
-                    <p className="text-xs text-muted truncate">{user.email}</p>
-
-                    {user.category && (
-                      <p className="text-[11px] mt-0.5" style={{ color: "#64748b" }}>
-                        {user.category_icon} {user.category}
-                      </p>
-                    )}
-
-                    {user.whatsapp && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <a href={`https://wa.me/55${user.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
-                          user.prof_status !== "active"
-                            ? `Oi ${user.name}! Aqui e o Maycon do UDIHUB. Vi que voce comecou o cadastro mas seu perfil ainda nao ficou ativo nas buscas. Posso te ajudar a finalizar?`
-                            : `Oi ${user.name}! Aqui e o Maycon do UDIHUB. Tudo certo com sua conta?`
-                        )}`}
-                          target="_blank" rel="noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold"
-                          style={{ background: "rgba(22,163,74,0.15)", border: "1px solid rgba(22,163,74,0.3)", color: "#22c55e" }}>
-                          <MessageCircle size={11} /> {formatWhatsApp(user.whatsapp)}
-                        </a>
-                        {user.prof_status !== "active" && user.role === "professional" && (
-                          <span className="text-[10px] px-2 py-1 rounded-lg font-bold"
-                            style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
-                            Ativar!
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {user.ban_reason && (
-                      <p className="text-xs mt-1" style={{ color: "#f87171" }}>
-                        Motivo: {user.ban_reason}
-                      </p>
-                    )}
-
-                    <p className="text-[10px] text-muted mt-1">Cadastrou {formatDate(user.created_at)}</p>
-                  </div>
-
-                  {/* Botao ban */}
-                  <button onClick={() => setBanModal({ user, action: user.banned ? "unban" : "ban" })}
-                    className="p-2 rounded-xl flex-shrink-0"
-                    style={{
-                      background: user.banned ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                      border: user.banned ? "1px solid rgba(34,197,94,0.2)" : "1px solid rgba(239,68,68,0.2)"
-                    }}>
-                    {user.banned
-                      ? <CheckCircle size={15} style={{ color: "#22c55e" }} />
-                      : <Ban size={15} style={{ color: "#f87171" }} />}
-                  </button>
+        {/* Status atual */}
+        {isFreePlan ? (
+          <div className="p-5 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <span className="font-syne font-bold text-lg text-foreground">Plano Gratuito</span>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="font-syne font-extrabold text-3xl text-foreground">R$0</span>
                 </div>
               </div>
-            ))}
+              <div className="px-2.5 py-1 rounded-full text-xs font-bold text-green-400"
+                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
+                ● Ativo
+              </div>
+            </div>
+            <div className="space-y-2">
+              {currentPlan.features.map((feat) => (
+                <div key={feat} className="flex items-center gap-2">
+                  <CheckCircle size={12} style={{ color: "#22c55e" }} />
+                  <span className="text-xs text-muted">{feat}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : isPaidPlan && isActive ? (
+          <div className="p-5 rounded-2xl"
+            style={{ background: "linear-gradient(135deg,#0F1729,#1e3a5f)", border: "1px solid rgba(59,130,246,0.4)" }}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-syne font-bold text-lg text-white">Plano {currentPlan.name}</span>
+                  <Crown size={14} style={{ color: "#FBBF24" }} />
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="font-syne font-extrabold text-3xl text-white">R${formatPrice(currentPlan.price)}</span>
+                  <span className="text-sm text-muted">{currentPlan.annual ? "/ano" : "/mês"}</span>
+                </div>
+              </div>
+              <div className="px-2.5 py-1 rounded-full text-xs font-bold text-green-400"
+                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
+                ● Ativo
+              </div>
+            </div>
+            <div className="space-y-2 mb-4">
+              {currentPlan.features.map((feat) => (
+                <div key={feat} className="flex items-center gap-2">
+                  <CheckCircle size={12} style={{ color: "#3B82F6" }} />
+                  <span className="text-xs" style={{ color: "#93c5fd" }}>{feat}</span>
+                </div>
+              ))}
+            </div>
+
+            {nextBillingFormatted && (
+              <div className="flex items-center gap-2 pt-3"
+                style={{ borderTop: "1px solid rgba(59,130,246,0.2)" }}>
+                <Calendar size={13} style={{ color: "#60a5fa" }} />
+                <span className="text-xs" style={{ color: "#93c5fd" }}>
+                  Próximo vencimento: <span className="font-semibold text-white">{nextBillingFormatted}</span>
+                </span>
+              </div>
+            )}
+          </div>
+        ) : isPending ? (
+          <div className="flex items-start gap-3 p-4 rounded-2xl"
+            style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
+            <AlertCircle size={16} style={{ color: "#FBBF24" }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "#FBBF24" }}>Pagamento pendente</p>
+              <p className="text-xs text-muted mt-0.5">Complete o pagamento para ativar o plano pago.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3 p-4 rounded-2xl"
+            style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+            <AlertCircle size={16} style={{ color: "#f87171" }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "#f87171" }}>Perfil inativo</p>
+              <p className="text-xs text-muted mt-0.5">Assine um plano para aparecer nas buscas e receber clientes.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Upgrade — visível para quem está no Gratuito */}
+        {isFreePlan && (
+          <>
+            <div>
+              <p className="text-xs font-bold text-muted mb-3 tracking-widest">FAZER UPGRADE</p>
+              <div className="grid grid-cols-2 gap-3">
+                {PAID_PLAN_OPTIONS.map((p) => {
+                  const planData = PLANS[p];
+                  return (
+                    <button key={p} onClick={() => setSelectedPlan(p)}
+                      className="p-4 rounded-2xl text-left transition-all duration-200"
+                      style={{
+                        background: selectedPlan === p ? "rgba(59,130,246,0.1)" : "#111113",
+                        border: selectedPlan === p ? "1px solid rgba(59,130,246,0.5)" : "1px solid #1F1F23",
+                      }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-syne font-bold text-sm text-foreground">{planData.name}</span>
+                        {selectedPlan === p && <CheckCircle size={14} style={{ color: "#3B82F6" }} />}
+                      </div>
+                      <div className="font-syne font-extrabold text-xl mb-2" style={{ color: "#3B82F6" }}>
+                        R${formatPrice(planData.price)}
+                        <span className="text-xs font-normal text-muted">{planData.annual ? "/ano" : "/mês"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {planData.features.slice(0, 3).map((f) => (
+                          <div key={f} className="flex items-center gap-1.5">
+                            <CheckCircle size={9} style={{ color: "#3B82F6" }} />
+                            <span className="text-[10px] text-muted">{f}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <button onClick={() => handleSubscribe()} disabled={paying}
+              className="w-full py-4 rounded-2xl font-bold text-base text-white flex items-center justify-center gap-2"
+              style={{ background: "linear-gradient(135deg,#3B82F6,#1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.4)", opacity: paying ? 0.7 : 1 }}>
+              {paying ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+              {paying ? "Gerando link..." : `Assinar — R$${formatPrice(PLANS[selectedPlan].price)}${PLANS[selectedPlan].annual ? "/ano" : "/mês"}`}
+            </button>
+
+            <p className="text-center text-xs text-muted">
+              Pagamento via PIX ou cartão pelo Asaas · Cancele quando quiser
+            </p>
+          </>
+        )}
+
+        {/* Sugestão de upgrade para anual — visível para quem já é Profissional mensal */}
+        {professional?.plan === "professional" && isActive && (
+          <div className="p-4 rounded-2xl"
+            style={{ background: "linear-gradient(135deg,#1a1304,#3b2a06)", border: "1px solid rgba(251,191,36,0.3)" }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Zap size={14} style={{ color: "#FBBF24" }} />
+              <span className="font-syne font-bold text-sm text-white">Economize no plano anual</span>
+            </div>
+            <p className="text-xs mb-3" style={{ color: "#FBBF24" }}>
+              R$499,90/ano (R$41,66/mês) — economia de mais de R$200 em relação ao mensal.
+            </p>
+            <button onClick={() => handleSubscribe("professional_annual")} disabled={paying}
+              className="w-full py-2.5 rounded-xl font-bold text-sm text-black"
+              style={{ background: "linear-gradient(135deg,#FBBF24,#f59e0b)", opacity: paying ? 0.7 : 1 }}>
+              {paying ? "Gerando link..." : "Mudar para o plano anual"}
+            </button>
+          </div>
+        )}
+
+        {/* Gerenciar */}
+        {isPaidPlan && isActive && (
+          <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <h3 className="font-syne font-bold text-sm text-foreground mb-3">Gerenciar</h3>
+            <a href="https://www.asaas.com" target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-between py-2.5 text-sm"
+              style={{ borderBottom: "1px solid #1F1F23" }}>
+              <span className="text-muted">Ver faturas no Asaas</span>
+              <ExternalLink size={13} className="text-muted" />
+            </a>
+            <button className="flex items-center justify-between w-full py-2.5 text-sm">
+              <span style={{ color: "#f87171" }}>Cancelar assinatura</span>
+            </button>
           </div>
         )}
       </div>
-
-      {/* Modal ban */}
-      {banModal && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center"
-          style={{ background: "rgba(0,0,0,0.7)" }}
-          onClick={(e) => e.target === e.currentTarget && setBanModal(null)}>
-          <div className="w-full max-w-lg rounded-t-3xl p-5 animate-slide-up"
-            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle size={18} style={{ color: banModal.action === "ban" ? "#f87171" : "#22c55e" }} />
-                <h3 className="font-syne font-bold text-foreground">
-                  {banModal.action === "ban" ? "Banir usuario" : "Desbanir usuario"}
-                </h3>
-              </div>
-              <button onClick={() => setBanModal(null)} className="text-muted"><X size={18} /></button>
-            </div>
-            <p className="text-sm text-muted mb-4">
-              {banModal.action === "ban"
-                ? `Banir "${banModal.user.name}"? O perfil sera removido do marketplace imediatamente e a sessao sera encerrada.`
-                : `Restaurar acesso de "${banModal.user.name}"?`}
-            </p>
-            {banModal.action === "ban" && (
-              <textarea value={banReason} onChange={(e) => setBanReason(e.target.value)}
-                placeholder="Motivo do banimento (obrigatorio)..." rows={3}
-                className="w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted mb-3"
-                style={{ background: "#09090B", border: "1px solid #1F1F23", outline: "none", resize: "none" }} />
-            )}
-            <div className="flex gap-3">
-              <button onClick={() => setBanModal(null)}
-                className="flex-1 py-3 rounded-xl text-sm font-medium text-muted"
-                style={{ background: "#09090B", border: "1px solid #1F1F23" }}>Cancelar</button>
-              <button onClick={handleBanAction}
-                disabled={processing || (banModal.action === "ban" && !banReason.trim())}
-                className="flex-1 py-3 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
-                style={{ background: banModal.action === "ban" ? "#ef4444" : "#22c55e", opacity: processing ? 0.6 : 1 }}>
-                {processing && <Loader2 size={14} className="animate-spin" />}
-                {banModal.action === "ban" ? "Confirmar banimento" : "Restaurar acesso"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
