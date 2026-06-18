@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Users, MapPin, CreditCard, Flag, BarChart3,
   ArrowUpRight, MessageCircle, Loader2, TrendingUp,
-  Trash2, X, ArrowLeft, AlertCircle, UserCheck, Crown,
+  X, ArrowLeft, AlertCircle, UserCheck, Crown,
   Camera, Clock, Layers,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -53,15 +53,8 @@ interface Metrics {
   newUsersWeek: number;
   freeAtLimit: number;
   freeNearLimit: number;
-}
-
-interface RecentUser {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  banned: boolean;
-  created_at: string;
+  pendingPayments: number;
+  oldestPendingHours: number | null;
 }
 
 interface Report {
@@ -76,11 +69,8 @@ const ADMIN_EMAIL = "udihub@outlook.com";
 export default function AdminPage() {
   const router = useRouter();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
-  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [recentReports, setRecentReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteModal, setDeleteModal] = useState<RecentUser | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [carouselActive, setCarouselActive] = useState(false);
   const [carouselLoading, setCarouselLoading] = useState(false);
   const [adminAvatar, setAdminAvatar] = useState<string | null>(null);
@@ -108,10 +98,10 @@ export default function AdminPage() {
         totalClients, totalUsers,
         totalLeads, leadsToday, leadsWeek,
         subscriptions, pendingReports,
-        citiesActive, recentUsersData,
+        citiesActive,
         newUsersToday, newUsersWeek,
         recentReportsData, carouselSetting,
-        adminData,
+        adminData, pendingPaymentsData, oldestPendingData,
       ] = await Promise.all([
         supabase.from("professionals").select("id", { count: "exact", head: true }),
         supabase.from("professionals").select("id", { count: "exact", head: true }).eq("status", "active"),
@@ -126,12 +116,13 @@ export default function AdminPage() {
         supabase.from("subscriptions").select("plan").eq("status", "active"),
         supabase.from("reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("cities").select("id", { count: "exact", head: true }).eq("enabled", true),
-        supabase.from("users").select("id, name, email, role, banned, created_at").order("created_at", { ascending: false }).limit(5),
         supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", todayStart),
         supabase.from("users").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
         supabase.from("reports").select("id, reason, status, created_at").eq("status", "pending").order("created_at", { ascending: false }).limit(3),
         supabase.from("app_settings").select("value").eq("key", "pro_carousel_active").single(),
         supabase.from("users").select("name, avatar").eq("id", user.id).single(),
+        supabase.from("subscriptions").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("subscriptions").select("created_at").eq("status", "pending").order("created_at", { ascending: true }).limit(1),
       ]);
 
       setAdminAvatar(adminData.data?.avatar || null);
@@ -174,6 +165,11 @@ export default function AdminPage() {
         }
       }
 
+      const oldestPendingCreatedAt = oldestPendingData.data?.[0]?.created_at;
+      const oldestPendingHours = oldestPendingCreatedAt
+        ? Math.round((Date.now() - new Date(oldestPendingCreatedAt).getTime()) / (1000 * 60 * 60))
+        : null;
+
       setMetrics({
         totalProfessionals: totalProf.count || 0,
         activeProfessionals: activeProf.count || 0,
@@ -194,9 +190,10 @@ export default function AdminPage() {
         newUsersWeek: newUsersWeek.count || 0,
         freeAtLimit,
         freeNearLimit,
+        pendingPayments: pendingPaymentsData.count || 0,
+        oldestPendingHours,
       });
 
-      setRecentUsers((recentUsersData.data as RecentUser[]) || []);
       setRecentReports((recentReportsData.data as Report[]) || []);
       setLoading(false);
     }
@@ -219,18 +216,6 @@ export default function AdminPage() {
     setAdminAvatar(url);
     toast.success("Foto atualizada!");
     setUploadingAvatar(false);
-  }
-
-  async function handleDelete() {
-    if (!deleteModal) return;
-    setDeleting(true);
-    const supabase = createClient();
-    await supabase.from("professionals").delete().eq("user_id", deleteModal.id);
-    await supabase.from("users").delete().eq("id", deleteModal.id);
-    setRecentUsers((prev) => prev.filter((u) => u.id !== deleteModal.id));
-    setDeleteModal(null);
-    setDeleting(false);
-    toast.success("Usuario deletado!");
   }
 
   async function toggleCarousel() {
@@ -262,10 +247,10 @@ export default function AdminPage() {
 
   const ADMIN_SECTIONS = [
     { href: "/admin/profissionais", icon: Layers, label: "Planos", desc: "Gerenciar planos e limites", badge: metrics?.freeAtLimit || 0 },
-    { href: "/admin/usuarios", icon: Users, label: "Usuarios", desc: "Gerenciar e banir", badge: null },
-    { href: "/admin/cidades", icon: MapPin, label: "Cidades", desc: "Ativar novas cidades", badge: null },
+    { href: "/admin/usuarios", icon: Users, label: "Usuarios", desc: "Gerenciar e banir", badge: 0 },
+    { href: "/admin/cidades", icon: MapPin, label: "Cidades", desc: "Ativar novas cidades", badge: 0 },
     { href: "/admin/denuncias", icon: Flag, label: "Denuncias", desc: "Resolver denuncias", badge: metrics?.pendingReports || 0 },
-    { href: "/admin/metricas", icon: BarChart3, label: "Metricas", desc: "Faturamento e dados", badge: null },
+    { href: "/admin/metricas", icon: BarChart3, label: "Metricas", desc: "Faturamento e dados", badge: 0 },
   ];
 
   return (
@@ -343,6 +328,25 @@ export default function AdminPage() {
               <strong>{metrics?.pendingReports}</strong> denuncia(s) pendente(s)
             </p>
             <Link href="/admin/denuncias" className="ml-auto text-[10px] font-bold" style={{ color: "#FBBF24" }}>Ver</Link>
+          </div>
+        )}
+
+        {/* Pagamentos pendentes — relacionado ao webhook do Asaas que nao dispara sozinho */}
+        {(metrics?.pendingPayments || 0) > 0 && (
+          <div className="flex items-center gap-3 p-3 rounded-xl"
+            style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.25)" }}>
+            <Clock size={14} style={{ color: "#a855f7" }} className="flex-shrink-0" />
+            <p className="text-xs flex-1" style={{ color: "#c4b5fd" }}>
+              <strong>{metrics?.pendingPayments}</strong> pagamento(s) pendente(s)
+              {metrics?.oldestPendingHours !== null && metrics.oldestPendingHours > 1 && (
+                <> · o mais antigo parado há {metrics.oldestPendingHours}h</>
+              )}
+              {" "}— confira manualmente no Asaas caso o webhook nao tenha confirmado
+            </p>
+            <a href="https://www.asaas.com" target="_blank" rel="noopener noreferrer"
+              className="flex-shrink-0 text-[10px] font-bold" style={{ color: "#a855f7" }}>
+              Asaas →
+            </a>
           </div>
         )}
 
@@ -502,7 +506,7 @@ export default function AdminPage() {
             {ADMIN_SECTIONS.map(({ href, icon: Icon, label, desc, badge }) => (
               <Link key={href} href={href} className="card-hover p-4 rounded-2xl relative"
                 style={{ background: "#111113" }}>
-                {badge && badge > 0 && (
+                {badge > 0 && (
                   <div className="absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
                     style={{ background: "#ef4444" }}>{badge}</div>
                 )}
@@ -545,74 +549,7 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-
-        {/* Usuarios recentes */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[10px] font-bold tracking-widest" style={{ color: "#3B82F6" }}>USUARIOS RECENTES</p>
-            <Link href="/admin/usuarios" className="text-xs font-semibold" style={{ color: "#3B82F6" }}>Ver todos</Link>
-          </div>
-          <div className="space-y-2">
-            {recentUsers.length === 0 ? (
-              <div className="text-center py-8 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <p className="text-sm text-muted">Nenhum usuario ainda</p>
-              </div>
-            ) : recentUsers.map((user) => (
-              <div key={user.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  style={{ background: "rgba(59,130,246,0.1)", color: "#93c5fd" }}>
-                  {user.name?.charAt(0).toUpperCase() || "?"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-foreground truncate">{user.name || "Sem nome"}</span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded"
-                      style={{ background: user.role === "professional" ? "rgba(59,130,246,0.1)" : "rgba(161,161,170,0.1)", color: user.role === "professional" ? "#93c5fd" : "#A1A1AA" }}>
-                      {user.role === "professional" ? "Prof" : "Cliente"}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-muted truncate">{user.email}</p>
-                </div>
-                <button onClick={() => setDeleteModal(user)}
-                  className="p-1.5 rounded-lg flex-shrink-0"
-                  style={{ background: "rgba(239,68,68,0.08)" }}>
-                  <Trash2 size={13} style={{ color: "#f87171" }} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
-
-      {/* Modal deletar */}
-      {deleteModal && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center"
-          style={{ background: "rgba(0,0,0,0.7)" }}
-          onClick={(e) => e.target === e.currentTarget && setDeleteModal(null)}>
-          <div className="w-full max-w-lg rounded-t-3xl p-5 animate-slide-up"
-            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-syne font-bold text-foreground">Deletar usuario</h3>
-              <button onClick={() => setDeleteModal(null)} className="text-muted"><X size={18} /></button>
-            </div>
-            <p className="text-sm text-muted mb-6">
-              Deletar <strong className="text-foreground">{deleteModal.name}</strong> permanentemente?
-            </p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteModal(null)}
-                className="flex-1 py-3 rounded-xl text-sm font-medium text-muted"
-                style={{ background: "#09090B", border: "1px solid #1F1F23" }}>Cancelar</button>
-              <button onClick={handleDelete} disabled={deleting}
-                className="flex-1 py-3 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
-                style={{ background: "#ef4444", opacity: deleting ? 0.6 : 1 }}>
-                {deleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                Deletar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
