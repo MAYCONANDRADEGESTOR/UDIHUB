@@ -18,6 +18,16 @@ interface Prof {
   professional_neighborhoods: { neighborhoods: { name: string } }[];
 }
 
+// Planos pagos reais ordenados por prioridade de destaque no carrossel.
+// "pro" e "basic" mantidos como legado, por segurança.
+const PLAN_RANK: Record<string, number> = {
+  professional_annual: 3,
+  professional: 2,
+  pro: 2,
+  basic: 1,
+  free: 0,
+};
+
 export default function ProCarousel() {
   const [professionals, setProfessionals] = useState<Prof[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,12 +44,19 @@ export default function ProCarousel() {
           categories(name, icon),
           professional_neighborhoods(neighborhoods(name))`)
         .eq("status", "active")
-        .order("plan", { ascending: false })
         .order("avg_rating", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(50);
 
-      setProfessionals((data as any) || []);
+      // Reordena no JS por prioridade de plano (Anual > Profissional/Pro > Básico > Gratuito),
+      // já que ordenar por "plan" no banco é alfabético e não reflete a hierarquia real dos planos.
+      const sorted = ((data as any) || []).sort((a: Prof, b: Prof) => {
+        const rankA = PLAN_RANK[a.plan] ?? 0;
+        const rankB = PLAN_RANK[b.plan] ?? 0;
+        return rankB - rankA;
+      });
+
+      setProfessionals(sorted);
       setLoading(false);
     }
     load();
@@ -67,7 +84,9 @@ export default function ProCarousel() {
 
   const prof = professionals[current];
   const neighborhood = (prof.professional_neighborhoods as any)?.[0]?.neighborhoods?.name;
-  const isPro = prof.plan === "pro";
+  // Planos pagos reais: professional, professional_annual (e "pro" legado, por segurança).
+  const isPro = prof.plan === "professional" || prof.plan === "professional_annual" || prof.plan === "pro";
+  const planBadgeLabel = prof.plan === "professional_annual" ? "ANUAL" : "PRO";
 
   return (
     <div>
@@ -86,12 +105,12 @@ export default function ProCarousel() {
           boxShadow: isPro ? "0 0 30px rgba(59,130,246,0.1)" : "none"
         }}>
 
-        {/* Badge PRO */}
+        {/* Badge plano pago */}
         {isPro && (
           <div className="absolute top-3 right-3 z-10">
             <span className="text-[10px] px-2 py-1 rounded-full font-bold"
               style={{ background: "rgba(251,191,36,0.2)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.4)" }}>
-              PRO
+              {planBadgeLabel}
             </span>
           </div>
         )}
