@@ -85,7 +85,6 @@ export default function ProfissionalPage() {
 
       if (!profData) { setLoading(false); return; }
 
-      // Buscar categorias extras
       const { data: profCats } = await supabase
         .from("professional_categories")
         .select("categories(name, icon, slug), is_primary")
@@ -157,7 +156,7 @@ export default function ProfissionalPage() {
         const data = await res.json().catch(() => null);
         if (data?.error === "FREE_LIMIT_REACHED") {
           setLimitReachedModal(true);
-          return; // não abre o WhatsApp
+          return;
         }
       }
     } catch {
@@ -265,6 +264,10 @@ export default function ProfissionalPage() {
   const todayKey = DAYS[todayIndex].toLowerCase();
   const todayHours = workHours?.[todayKey];
 
+  // Planos pagos reais: professional, professional_annual (e "pro" legado, por segurança).
+  const isPaidPlan = prof.plan === "professional" || prof.plan === "professional_annual" || prof.plan === "pro";
+  const planBadgeLabel = prof.plan === "professional_annual" ? "ANUAL" : "PRO";
+
   return (
     <>
       <div className="min-h-screen bg-background pb-36">
@@ -302,7 +305,7 @@ export default function ProfissionalPage() {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-0.5">
                 <h1 className="font-syne font-extrabold text-xl text-foreground">{prof.users?.name}</h1>
-                {prof.plan === "pro" && <span className="badge-pro">PRO</span>}
+                {isPaidPlan && <span className="badge-pro">{planBadgeLabel}</span>}
               </div>
               <p className="text-xs text-muted mb-1">{prof.categories?.icon} {prof.categories?.name}</p>
               {extraCategories.length > 0 && (
