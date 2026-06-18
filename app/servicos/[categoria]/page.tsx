@@ -13,6 +13,21 @@ import { useRouter } from "next/navigation";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
+// Prioridade de plano para ranqueamento — quanto menor o número, mais acima na lista.
+// Cobre os planos novos (Fase Freemium) e os legados, para não quebrar caso algum
+// profissional ainda esteja em "pro" ou "basic" por algum motivo.
+const PLAN_PRIORITY: Record<string, number> = {
+  professional_annual: 1,
+  professional: 2,
+  pro: 2, // legado, tratado como equivalente a "professional"
+  free: 3,
+  basic: 3, // legado, tratado como equivalente a "free"
+};
+
+function getPlanPriority(plan: string | null | undefined): number {
+  return PLAN_PRIORITY[plan ?? ""] ?? 4; // qualquer plano desconhecido vai para o final
+}
+
 interface Filters {
   neighborhood: string;
   minRating: number;
@@ -70,7 +85,12 @@ export default function CategoriaPage() {
 
       if (filters.minRating > 0) query = query.gte("avg_rating", filters.minRating);
       if (filters.availableOnly) query = query.eq("available_now", true);
-      if (filters.sortBy === "pro_first") query = query.order("plan", { ascending: false }).order("avg_rating", { ascending: false });
+
+      // Ordenação por avaliação ou data continua no banco (são colunas simples).
+      // A ordenação por plano (pro_first) é feita no JavaScript abaixo, porque
+      // a hierarquia de planos (Anual > Profissional > Gratuito) não corresponde
+      // à ordem alfabética dos nomes — depender de .order("plan") seria frágil
+      // e quebraria silenciosamente se um novo nome de plano fosse adicionado.
       if (filters.sortBy === "best_rated") query = query.order("avg_rating", { ascending: false });
       if (filters.sortBy === "newest") query = query.order("created_at", { ascending: false });
 
@@ -86,6 +106,16 @@ export default function CategoriaPage() {
         result = result.filter((p: any) =>
           p.professional_neighborhoods?.some((pn: any) => pn.neighborhoods?.name === filters.neighborhood)
         );
+      }
+
+      // Ranking real por plano: Anual > Profissional > Gratuito, com avaliação
+      // como critério de desempate dentro do mesmo nível de plano.
+      if (filters.sortBy === "pro_first") {
+        result = [...result].sort((a: any, b: any) => {
+          const planDiff = getPlanPriority(a.plan) - getPlanPriority(b.plan);
+          if (planDiff !== 0) return planDiff;
+          return (b.avg_rating || 0) - (a.avg_rating || 0);
+        });
       }
 
       setProfessionals(result);
@@ -265,7 +295,11 @@ export default function CategoriaPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                         <h3 className="font-syne font-bold text-sm text-foreground">{(prof.users as any)?.name}</h3>
-                        {prof.plan === "pro" && <span className="badge-pro">PRO</span>}
+                        {(prof.plan === "professional" || prof.plan === "professional_annual" || prof.plan === "pro") && (
+                          <span className="badge-pro">
+                            {prof.plan === "professional_annual" ? "ANUAL" : "PRO"}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-muted mb-1">{(prof.categories as any)?.icon} {(prof.categories as any)?.name}</p>
                       {prof.bio && <p className="text-xs text-muted line-clamp-2 leading-relaxed mb-2">{prof.bio}</p>}
