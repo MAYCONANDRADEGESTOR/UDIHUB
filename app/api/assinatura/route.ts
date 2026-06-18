@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+// Preços reais do modelo Freemium. "pro" e "basic" mantidos como legado
+// apenas como fallback de segurança — não devem ser atribuídos a ninguém.
+const PLAN_PRICE: Record<string, number> = {
+  professional: 59.90,
+  professional_annual: 499.90,
+  pro: 99,
+  basic: 69,
+};
+
+const PLAN_CYCLE: Record<string, "MONTHLY" | "YEARLY"> = {
+  professional: "MONTHLY",
+  professional_annual: "YEARLY",
+  pro: "MONTHLY",
+  basic: "MONTHLY",
+};
+
+const PLAN_LABEL: Record<string, string> = {
+  professional: "UDIHUB Profissional",
+  professional_annual: "UDIHUB Profissional Anual",
+  pro: "UDIHUB Pro (legado)",
+  basic: "UDIHUB Básico (legado)",
+};
+
 export async function POST(request: NextRequest) {
   try {
     const { plan } = await request.json();
+
+    if (!PLAN_PRICE[plan]) {
+      return NextResponse.json({ error: "Plano inválido" }, { status: 400 });
+    }
+
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -13,23 +41,14 @@ export async function POST(request: NextRequest) {
 
     const { data: prof } = await supabase
       .from("professionals")
-      .select("id, coupon_code, trial_ends_at, status")
+      .select("id, status")
       .eq("user_id", user.id).single();
 
     if (!prof) return NextResponse.json({ error: "Professional not found" }, { status: 404 });
 
-    // Verifica se trial ainda está ativo (não expirou)
-    const trialStillActive = prof.trial_ends_at && new Date(prof.trial_ends_at) > new Date();
-
-    // Só bloqueia se o cupom existe E o trial ainda não expirou
-    // Quando o trial expira, permite assinar normalmente
-    if (prof.coupon_code && trialStillActive) {
-      const daysLeft = Math.ceil((new Date(prof.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-      return NextResponse.json({ trialActive: true, daysLeft });
-    }
-
-    const price = plan === "pro" ? 99 : 69;
-    const planName = plan === "pro" ? "UDIHUB Pro" : "UDIHUB Básico";
+    const price = PLAN_PRICE[plan];
+    const planName = PLAN_LABEL[plan];
+    const cycle = PLAN_CYCLE[plan];
     const apiUrl = process.env.ASAAS_API_URL;
     const apiKey = process.env.ASAAS_API_KEY!;
 
@@ -55,17 +74,17 @@ export async function POST(request: NextRequest) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dueDate = tomorrow.toISOString().split("T")[0];
 
-    // 2. Cria assinatura mensal com URL de retorno
+    // 2. Cria assinatura (mensal ou anual, conforme o plano) com URL de retorno
     const subRes = await fetch(`${apiUrl}/subscriptions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "access_token": apiKey },
       body: JSON.stringify({
         customer: customer.id,
         billingType: "UNDEFINED",
-        cycle: "MONTHLY",
+        cycle,
         value: price,
         nextDueDate: dueDate,
-        description: `${planName} — Assinatura mensal UDIHUB`,
+        description: `${planName} — Assinatura UDIHUB`,
         externalReference: `${prof.id}|${plan}`,
         posPayment: {
           type: "FIXED",
@@ -115,7 +134,7 @@ export async function GET() {
 
     const { data: prof } = await supabase
       .from("professionals")
-      .select("id, plan, status, coupon_code, trial_ends_at")
+      .select("id, plan, status, unique_clients_limit, free_cycle_started_at")
       .eq("user_id", user.id).single();
 
     if (!prof) return NextResponse.json({ subscription: null });
