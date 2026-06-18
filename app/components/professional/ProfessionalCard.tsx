@@ -12,6 +12,8 @@ export default function ProfessionalCard({ professional }: ProfessionalCardProps
   const { user, category, slug, avg_rating, plan, available_now, neighborhoods } = professional;
 
   const neighborhood = neighborhoods?.[0]?.name;
+  const isPaidPlan = plan === "professional" || plan === "professional_annual" || plan === "pro";
+  const planBadgeLabel = plan === "professional_annual" ? "ANUAL" : "PRO";
 
   return (
     <div
@@ -69,7 +71,7 @@ export default function ProfessionalCard({ professional }: ProfessionalCardProps
 
                 {/* Badges */}
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  {plan === "pro" && <span className="badge-pro">PRO</span>}
+                  {isPaidPlan && <span className="badge-pro">{planBadgeLabel}</span>}
                   {available_now && <span className="badge-available">Disponível</span>}
                 </div>
               </div>
@@ -113,7 +115,7 @@ export default function ProfessionalCard({ professional }: ProfessionalCardProps
 
       {/* WhatsApp button */}
       <div className="px-4 pb-4">
-        <a
+        
           href={`https://wa.me/55${professional.whatsapp}`}
           target="_blank"
           rel="noopener noreferrer"
