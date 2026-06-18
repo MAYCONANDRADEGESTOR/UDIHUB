@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, User, Briefcase, Loader2, Check, Camera, X, Tag, Instagram, ArrowRight } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, User, Briefcase, Loader2, Check, Camera, X, Instagram, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES } from "@/lib/constants";
 import toast from "react-hot-toast";
@@ -26,22 +26,20 @@ function formatPhone(value: string) {
   return nums;
 }
 
-type CouponType = "free_forever" | "trial_30days" | "trial_90days" | null;
-
-export default function CadastroPage() {
+function CadastroForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect");
+
   const [role, setRole] = useState<"client" | "professional" | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
-  const [couponValid, setCouponValid] = useState<CouponType>(null);
-  const [couponChecking, setCouponChecking] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "", email: "", phone: "", password: "",
     category: "", bio: "", instagram: "",
-    plan: "basic" as "basic" | "pro", coupon: "",
   });
 
   const inputClass = "w-full px-4 py-3 rounded-xl text-sm text-foreground placeholder-muted";
@@ -65,29 +63,6 @@ export default function CadastroPage() {
     return data.publicUrl;
   }
 
-  async function checkCoupon(code: string) {
-    if (!code || !form.email) { toast.error("Preencha seu e-mail primeiro"); return; }
-    setCouponChecking(true);
-    const supabase = createClient();
-
-    const { data: coupon } = await supabase
-      .from("coupons").select("type, active, max_uses, uses_count, expires_at")
-      .eq("code", code.toUpperCase()).eq("active", true).single();
-
-    if (!coupon) { setCouponValid(null); toast.error("Cupom invalido"); setCouponChecking(false); return; }
-    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) { setCouponValid(null); toast.error("Cupom expirado"); setCouponChecking(false); return; }
-    if (coupon.max_uses && coupon.uses_count >= coupon.max_uses) { setCouponValid(null); toast.error("Cupom esgotado"); setCouponChecking(false); return; }
-
-    const { data: prevUse } = await supabase.from("coupon_uses").select("id")
-      .eq("coupon_code", code.toUpperCase()).eq("email", form.email.toLowerCase()).single();
-
-    if (prevUse) { setCouponValid(null); toast.error("Este e-mail ja utilizou este cupom!"); setCouponChecking(false); return; }
-
-    setCouponValid(coupon.type as CouponType);
-    toast.success(coupon.type === "trial_90days" ? "Cupom valido! 3 meses gratis!" : "Cupom valido!");
-    setCouponChecking(false);
-  }
-
   // Etapa 1 — Validação básica, avança para etapa 2 (profissional) ou cadastra (cliente)
   async function handleStep1(e: React.FormEvent) {
     e.preventDefault();
@@ -104,7 +79,9 @@ export default function CadastroPage() {
     setStep(2);
   }
 
-  // Submit final — chama Edge Function que cria tudo instantaneamente
+  // Submit final — chama Edge Function que cria tudo instantaneamente.
+  // Modelo Freemium: todo profissional novo nasce no Plano Gratuito, ja ativo,
+  // sem escolha de plano nem cupom nesta etapa.
   async function handleFinalSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     if (role === "professional" && !form.category) { toast.error("Selecione sua especialidade"); return; }
@@ -113,7 +90,6 @@ export default function CadastroPage() {
     try {
       const supabase = createClient();
 
-      // Chama a Edge Function — usa admin.createUser que é muito mais rápido
       const { data, error } = await supabase.functions.invoke("create-user", {
         body: {
           email: form.email,
@@ -124,8 +100,6 @@ export default function CadastroPage() {
           category_slug: form.category || null,
           bio: form.bio || null,
           instagram: form.instagram || null,
-          coupon: form.coupon || null,
-          plan: form.plan,
         },
       });
 
@@ -159,9 +133,16 @@ export default function CadastroPage() {
 
       if (loginError) {
         toast.success("Conta criada! Faca login para continuar.");
-        router.push("/login");
+        router.push(redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : "/login");
+      } else if (role === "professional") {
+        toast.success("Perfil ativo! Bem-vindo ao UDIHUB!");
+        router.push("/bem-vindo");
+      } else if (redirectTo) {
+        // Cliente cadastrado a partir de um fluxo com destino especifico
+        // (ex: voltar para o perfil do profissional que ele queria contatar).
+        router.push(redirectTo);
       } else {
-        toast.success(couponValid ? "Perfil ativo! Bem-vindo ao UDIHUB!" : "Conta criada com sucesso!");
+        toast.success("Conta criada com sucesso!");
         router.push("/bem-vindo");
       }
 
@@ -238,6 +219,11 @@ export default function CadastroPage() {
                 </div>
               </button>
             </div>
+            {role === "professional" && (
+              <p className="text-[10px] mt-2" style={{ color: "#22c55e" }}>
+                ✓ Comece de graça — ative seu perfil agora mesmo, sem cartão
+              </p>
+            )}
           </div>
 
           <div>
@@ -284,12 +270,13 @@ export default function CadastroPage() {
               ? <><Loader2 size={16} className="animate-spin" /> Processando...</>
               : role === "professional"
                 ? <> Continuar <ArrowRight size={16} /></>
-                : <><Loader2 size={0} /> Criar conta</>}
+                : "Criar conta"}
           </button>
 
           <p className="text-center text-sm text-muted pt-2">
             Ja tem conta?{" "}
-            <Link href="/login" className="font-semibold" style={{ color: "#3B82F6" }}>Entrar</Link>
+            <Link href={redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : "/login"}
+              className="font-semibold" style={{ color: "#3B82F6" }}>Entrar</Link>
           </p>
         </form>
       )}
@@ -369,86 +356,17 @@ export default function CadastroPage() {
             <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
           </div>
 
-          {/* Plano */}
-          {!couponValid && (
-            <div>
-              <label className="block text-xs font-medium text-muted mb-2">Plano</label>
-              <div className="grid grid-cols-2 gap-2">
-                {(["basic", "pro"] as const).map((plan) => (
-                  <button key={plan} type="button" onClick={() => setForm({ ...form, plan })}
-                    className="p-3.5 rounded-xl text-left"
-                    style={{ background: "#111113", border: form.plan === plan ? "2px solid #3B82F6" : "1px solid #1F1F23" }}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-syne font-bold text-sm text-foreground">
-                        {plan === "basic" ? "Basico" : "Pro"}
-                      </span>
-                      {form.plan === plan && <Check size={12} style={{ color: "#3B82F6" }} />}
-                    </div>
-                    <div className="flex items-end gap-0.5 mb-1">
-                      <span className="font-syne font-bold text-lg" style={{ color: "#3B82F6" }}>
-                        {plan === "basic" ? "R$69" : "R$99"}
-                      </span>
-                      <span className="text-[10px] text-muted mb-0.5">/mes</span>
-                    </div>
-                    <p className="text-[10px] text-muted">
-                      {plan === "basic" ? "Aparece nas buscas" : "Aparece primeiro · Badge PRO"}
-                    </p>
-                  </button>
-                ))}
-              </div>
-              <p className="text-[10px] text-muted mt-2 text-center">Cobranca mensal · Cancele quando quiser</p>
+          {/* Aviso Plano Gratuito */}
+          <div className="p-4 rounded-2xl"
+            style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)" }}>
+            <div className="flex items-center gap-2 mb-1">
+              <Check size={14} style={{ color: "#22c55e" }} />
+              <span className="text-sm font-bold" style={{ color: "#22c55e" }}>Seu perfil entra no Plano Gratuito</span>
             </div>
-          )}
-
-          {/* Cupom */}
-          {couponValid ? (
-            <div className="p-4 rounded-2xl"
-              style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.3)" }}>
-              <div className="flex items-center gap-3">
-                <Check size={16} style={{ color: "#22c55e" }} />
-                <div className="flex-1">
-                  <p className="text-sm font-bold" style={{ color: "#22c55e" }}>
-                    {couponValid === "trial_90days" && "3 meses gratis ativados!"}
-                    {couponValid === "trial_30days" && "30 dias gratis ativados!"}
-                    {couponValid === "free_forever" && "Acesso permanente ativado!"}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {couponValid === "trial_90days" && "Perfil ativo por 90 dias. Apos esse periodo, assine para continuar."}
-                    {couponValid === "trial_30days" && "Perfil ativo por 30 dias."}
-                    {couponValid === "free_forever" && "Perfil ativo sem mensalidade."}
-                  </p>
-                </div>
-                <button type="button" onClick={() => { setForm({ ...form, coupon: "" }); setCouponValid(null); }}
-                  className="text-muted flex-shrink-0"><X size={14} /></button>
-              </div>
-              {couponValid === "trial_90days" && (
-                <div className="mt-2 pt-2" style={{ borderTop: "1px solid rgba(34,197,94,0.2)" }}>
-                  <span className="text-[10px]" style={{ color: "#22c55e" }}>Plano Basico · Uso unico por e-mail</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div>
-              <label className="block text-xs font-medium text-muted mb-1.5">
-                <Tag size={11} className="inline mr-1" />Cupom (opcional)
-              </label>
-              <div className="flex gap-2">
-                <input type="text" value={form.coupon}
-                  onChange={(e) => { setForm({ ...form, coupon: e.target.value.toUpperCase() }); setCouponValid(null); }}
-                  placeholder="Digite seu cupom"
-                  className={inputClass} style={{ ...inputStyle, flex: 1 }} />
-                <button type="button" onClick={() => checkCoupon(form.coupon)}
-                  disabled={!form.coupon || couponChecking}
-                  className="px-4 py-3 rounded-xl text-xs font-bold flex-shrink-0"
-                  style={{
-                    background: "rgba(59,130,246,0.15)", border: "1px solid rgba(59,130,246,0.3)",
-                    color: "#3B82F6", opacity: (!form.coupon || couponChecking) ? 0.5 : 1,
-                  }}>
-                  {couponChecking ? <Loader2 size={13} className="animate-spin" /> : "Aplicar"}
-                </button>
-              </div>
-            </div>
-          )}
+            <p className="text-xs text-muted leading-relaxed">
+              Ative agora sem pagar nada e receba até 5 clientes únicos por mês. Quer clientes ilimitados? Faça upgrade quando quiser, direto no seu painel.
+            </p>
+          </div>
 
           <button type="submit" disabled={loading}
             className="w-full py-3.5 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 mt-2"
@@ -459,14 +377,22 @@ export default function CadastroPage() {
             }}>
             {loading
               ? <><Loader2 size={16} className="animate-spin" /> Criando perfil...</>
-              : couponValid ? "Criar perfil" : "Criar perfil e ir para pagamento"}
+              : "Criar perfil gratuito"}
           </button>
-
-          {!couponValid && (
-            <p className="text-center text-xs text-muted">Perfil ativo apos o pagamento</p>
-          )}
         </form>
       )}
     </div>
+  );
+}
+
+export default function CadastroPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 size={24} className="animate-spin text-muted" />
+      </div>
+    }>
+      <CadastroForm />
+    </Suspense>
   );
 }
