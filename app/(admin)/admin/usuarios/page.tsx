@@ -164,21 +164,25 @@ export default function AdminUsuariosPage() {
   });
 
   const totalProfs = users.filter(u => u.role === "professional").length;
-  const inactiveProfs = users.filter(u => u.role === "professional" && (u.prof_status === "inactive" || u.prof_status === "pending" || u.prof_status === "suspended" || !u.prof_status)).length;
+  const incompleteProfs = users.filter(u => u.role === "professional" && (u.prof_status === "inactive" || u.prof_status === "pending" || u.prof_status === "suspended" || !u.prof_status)).length;
   const totalClients = users.filter(u => u.role === "client").length;
 
   function PlanBadge({ plan }: { plan?: string | null }) {
     if (!plan) return null;
-    if (plan === "pro") return (
-      <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
-        style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
-        <Crown size={8} /> PRO
-      </span>
-    );
+    const isPaidPlan = plan === "professional" || plan === "professional_annual" || plan === "pro";
+    if (isPaidPlan) {
+      const label = plan === "professional_annual" ? "ANUAL" : "PRO";
+      return (
+        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
+          style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
+          <Crown size={8} /> {label}
+        </span>
+      );
+    }
     return (
       <span className="text-[10px] px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5"
         style={{ background: "rgba(59,130,246,0.1)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.2)" }}>
-        <Star size={8} /> Basico
+        <Star size={8} /> Gratuito
       </span>
     );
   }
@@ -195,7 +199,7 @@ export default function AdminUsuariosPage() {
     );
     return (
       <span className="text-[10px] px-1.5 py-0.5 rounded font-bold animate-pulse"
-        style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>Nao pagou</span>
+        style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}>Incompleto</span>
     );
   }
 
@@ -217,8 +221,8 @@ export default function AdminUsuariosPage() {
             <div className="text-[10px] text-muted">Profissionais</div>
           </div>
           <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid rgba(239,68,68,0.3)" }}>
-            <div className="font-syne font-bold text-lg" style={{ color: "#f87171" }}>{inactiveProfs}</div>
-            <div className="text-[10px] text-muted">Nao pagaram</div>
+            <div className="font-syne font-bold text-lg" style={{ color: "#f87171" }}>{incompleteProfs}</div>
+            <div className="text-[10px] text-muted">Incompletos</div>
           </div>
           <div className="p-3 rounded-xl text-center" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="font-syne font-bold text-lg" style={{ color: "#a855f7" }}>{totalClients}</div>
@@ -226,13 +230,13 @@ export default function AdminUsuariosPage() {
           </div>
         </div>
 
-        {/* Alerta inativos */}
-        {inactiveProfs > 0 && (
+        {/* Alerta incompletos */}
+        {incompleteProfs > 0 && (
           <div className="flex items-center gap-3 p-3 rounded-xl"
             style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
             <AlertTriangle size={14} style={{ color: "#f87171" }} className="flex-shrink-0" />
             <p className="text-xs flex-1" style={{ color: "#f87171" }}>
-              <strong>{inactiveProfs}</strong> profissional(is) ainda nao pagaram
+              <strong>{incompleteProfs}</strong> profissional(is) com cadastro incompleto
             </p>
             <button onClick={() => { setRoleFilter("professional"); setStatusFilter("inactive"); }}
               className="text-[10px] font-bold flex-shrink-0" style={{ color: "#f87171" }}>
@@ -285,7 +289,7 @@ export default function AdminUsuariosPage() {
                     ? s === "inactive" ? "#f87171" : s === "active" ? "#22c55e" : "#3B82F6"
                     : "#A1A1AA",
                 }}>
-                {s === "all" ? "Todos" : s === "active" ? "Pagando" : "Nao pagaram"}
+                {s === "all" ? "Todos" : s === "active" ? "Ativos" : "Incompletos"}
               </button>
             ))}
           </div>
@@ -387,7 +391,7 @@ export default function AdminUsuariosPage() {
                       <div className="flex items-center gap-2 mt-2">
                         <a href={`https://wa.me/55${user.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
                           user.prof_status !== "active"
-                            ? `Oi ${user.name}! Aqui e o Maycon do UDIHUB. Vi que voce criou seu perfil mas ainda nao ativou a assinatura. Posso te ajudar?`
+                            ? `Oi ${user.name}! Aqui e o Maycon do UDIHUB. Vi que voce comecou o cadastro mas seu perfil ainda nao ficou ativo nas buscas. Posso te ajudar a finalizar?`
                             : `Oi ${user.name}! Aqui e o Maycon do UDIHUB. Tudo certo com sua conta?`
                         )}`}
                           target="_blank" rel="noreferrer"
@@ -398,7 +402,7 @@ export default function AdminUsuariosPage() {
                         {user.prof_status !== "active" && user.role === "professional" && (
                           <span className="text-[10px] px-2 py-1 rounded-lg font-bold"
                             style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
-                            Converter!
+                            Ativar!
                           </span>
                         )}
                       </div>
