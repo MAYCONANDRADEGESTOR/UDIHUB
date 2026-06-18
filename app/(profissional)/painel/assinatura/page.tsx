@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle, CreditCard, Zap, AlertCircle, Loader2, ExternalLink, Calendar } from "lucide-react";
+import { ArrowLeft, CheckCircle, CreditCard, Zap, AlertCircle, Loader2, ExternalLink, Calendar, Crown } from "lucide-react";
 import { PLANS } from "@/lib/constants";
 import toast from "react-hot-toast";
 
@@ -13,13 +13,19 @@ function formatDate(iso: string | null | undefined) {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+function formatPrice(price: number) {
+  return price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const PAID_PLAN_OPTIONS = ["professional", "professional_annual"] as const;
+
 export default function AssinaturaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
   const [professional, setProfessional] = useState<any>(null);
-  const [selectedPlan, setSelectedPlan] = useState<"basic" | "pro">("basic");
+  const [selectedPlan, setSelectedPlan] = useState<"professional" | "professional_annual">("professional");
 
   useEffect(() => {
     async function load() {
@@ -27,19 +33,19 @@ export default function AssinaturaPage() {
       const data = await res.json();
       setSubscription(data.subscription);
       setProfessional(data.professional);
-      if (data.professional?.plan) setSelectedPlan(data.professional.plan);
       setLoading(false);
     }
     load();
   }, []);
 
-  async function handleSubscribe() {
+  async function handleSubscribe(planOverride?: "professional" | "professional_annual") {
     setPaying(true);
+    const plan = planOverride || selectedPlan;
     try {
       const res = await fetch("/api/assinatura", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: selectedPlan }),
+        body: JSON.stringify({ plan }),
       });
       const data = await res.json();
       if (data.paymentUrl) {
@@ -54,9 +60,18 @@ export default function AssinaturaPage() {
     setPaying(false);
   }
 
-  const isActive = professional?.status === "active" && subscription?.status === "active";
+  // Planos pagos reais: professional, professional_annual (e pro/basic legados,
+  // por segurança, caso algum profissional ainda não migrado apareça aqui).
+  const isPaidPlan = professional?.plan === "professional" || professional?.plan === "professional_annual" || professional?.plan === "pro" || professional?.plan === "basic";
+  const isFreePlan = professional?.plan === "free";
+  const isActive = professional?.status === "active" && (isFreePlan || subscription?.status === "active");
   const isPending = subscription?.status === "pending";
   const nextBillingFormatted = formatDate(subscription?.next_billing);
+
+  // Plano atual com fallback seguro: se por algum motivo o valor não existir
+  // em PLANS (não deveria acontecer, mas evita tela quebrada), cai em "free".
+  const currentPlanKey = (professional?.plan && PLANS[professional.plan as keyof typeof PLANS]) ? professional.plan : "free";
+  const currentPlan = PLANS[currentPlanKey as keyof typeof PLANS];
 
   if (loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -75,18 +90,41 @@ export default function AssinaturaPage() {
       <div className="px-4 py-4 space-y-4">
 
         {/* Status atual */}
-        {isActive ? (
+        {isFreePlan ? (
+          <div className="p-5 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <span className="font-syne font-bold text-lg text-foreground">Plano Gratuito</span>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="font-syne font-extrabold text-3xl text-foreground">R$0</span>
+                </div>
+              </div>
+              <div className="px-2.5 py-1 rounded-full text-xs font-bold text-green-400"
+                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
+                ● Ativo
+              </div>
+            </div>
+            <div className="space-y-2">
+              {currentPlan.features.map((feat) => (
+                <div key={feat} className="flex items-center gap-2">
+                  <CheckCircle size={12} style={{ color: "#22c55e" }} />
+                  <span className="text-xs text-muted">{feat}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : isPaidPlan && isActive ? (
           <div className="p-5 rounded-2xl"
             style={{ background: "linear-gradient(135deg,#0F1729,#1e3a5f)", border: "1px solid rgba(59,130,246,0.4)" }}>
             <div className="flex items-start justify-between mb-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-syne font-bold text-lg text-white">Plano {PLANS[professional.plan].name}</span>
-                  {professional.plan === "pro" && <span className="badge-pro">PRO</span>}
+                  <span className="font-syne font-bold text-lg text-white">Plano {currentPlan.name}</span>
+                  <Crown size={14} style={{ color: "#FBBF24" }} />
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="font-syne font-extrabold text-3xl text-white">R${PLANS[professional.plan].price}</span>
-                  <span className="text-sm text-muted">/mês</span>
+                  <span className="font-syne font-extrabold text-3xl text-white">R${formatPrice(currentPlan.price)}</span>
+                  <span className="text-sm text-muted">{currentPlan.annual ? "/ano" : "/mês"}</span>
                 </div>
               </div>
               <div className="px-2.5 py-1 rounded-full text-xs font-bold text-green-400"
@@ -95,7 +133,7 @@ export default function AssinaturaPage() {
               </div>
             </div>
             <div className="space-y-2 mb-4">
-              {PLANS[professional.plan].features.map((feat) => (
+              {currentPlan.features.map((feat) => (
                 <div key={feat} className="flex items-center gap-2">
                   <CheckCircle size={12} style={{ color: "#3B82F6" }} />
                   <span className="text-xs" style={{ color: "#93c5fd" }}>{feat}</span>
@@ -103,7 +141,6 @@ export default function AssinaturaPage() {
               ))}
             </div>
 
-            {/* Próximo vencimento */}
             {nextBillingFormatted && (
               <div className="flex items-center gap-2 pt-3"
                 style={{ borderTop: "1px solid rgba(59,130,246,0.2)" }}>
@@ -120,7 +157,7 @@ export default function AssinaturaPage() {
             <AlertCircle size={16} style={{ color: "#FBBF24" }} />
             <div>
               <p className="text-sm font-semibold" style={{ color: "#FBBF24" }}>Pagamento pendente</p>
-              <p className="text-xs text-muted mt-0.5">Complete o pagamento para ativar seu perfil nas buscas.</p>
+              <p className="text-xs text-muted mt-0.5">Complete o pagamento para ativar o plano pago.</p>
             </div>
           </div>
         ) : (
@@ -134,44 +171,48 @@ export default function AssinaturaPage() {
           </div>
         )}
 
-        {/* Seleção de plano (se não ativo) */}
-        {!isActive && (
+        {/* Upgrade — visível para quem está no Gratuito */}
+        {isFreePlan && (
           <>
             <div>
-              <p className="text-xs font-bold text-muted mb-3 tracking-widest">ESCOLHA SEU PLANO</p>
+              <p className="text-xs font-bold text-muted mb-3 tracking-widest">FAZER UPGRADE</p>
               <div className="grid grid-cols-2 gap-3">
-                {(["basic", "pro"] as const).map((p) => (
-                  <button key={p} onClick={() => setSelectedPlan(p)}
-                    className="p-4 rounded-2xl text-left transition-all duration-200"
-                    style={{
-                      background: selectedPlan === p ? "rgba(59,130,246,0.1)" : "#111113",
-                      border: selectedPlan === p ? "1px solid rgba(59,130,246,0.5)" : "1px solid #1F1F23",
-                    }}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-syne font-bold text-sm text-foreground">{PLANS[p].name}</span>
-                      {selectedPlan === p && <CheckCircle size={14} style={{ color: "#3B82F6" }} />}
-                    </div>
-                    <div className="font-syne font-extrabold text-xl mb-2" style={{ color: "#3B82F6" }}>
-                      R${PLANS[p].price}<span className="text-xs font-normal text-muted">/mês</span>
-                    </div>
-                    <div className="space-y-1">
-                      {PLANS[p].features.slice(0, 3).map((f) => (
-                        <div key={f} className="flex items-center gap-1.5">
-                          <CheckCircle size={9} style={{ color: "#3B82F6" }} />
-                          <span className="text-[10px] text-muted">{f}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </button>
-                ))}
+                {PAID_PLAN_OPTIONS.map((p) => {
+                  const planData = PLANS[p];
+                  return (
+                    <button key={p} onClick={() => setSelectedPlan(p)}
+                      className="p-4 rounded-2xl text-left transition-all duration-200"
+                      style={{
+                        background: selectedPlan === p ? "rgba(59,130,246,0.1)" : "#111113",
+                        border: selectedPlan === p ? "1px solid rgba(59,130,246,0.5)" : "1px solid #1F1F23",
+                      }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-syne font-bold text-sm text-foreground">{planData.name}</span>
+                        {selectedPlan === p && <CheckCircle size={14} style={{ color: "#3B82F6" }} />}
+                      </div>
+                      <div className="font-syne font-extrabold text-xl mb-2" style={{ color: "#3B82F6" }}>
+                        R${formatPrice(planData.price)}
+                        <span className="text-xs font-normal text-muted">{planData.annual ? "/ano" : "/mês"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {planData.features.slice(0, 3).map((f) => (
+                          <div key={f} className="flex items-center gap-1.5">
+                            <CheckCircle size={9} style={{ color: "#3B82F6" }} />
+                            <span className="text-[10px] text-muted">{f}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <button onClick={handleSubscribe} disabled={paying}
+            <button onClick={() => handleSubscribe()} disabled={paying}
               className="w-full py-4 rounded-2xl font-bold text-base text-white flex items-center justify-center gap-2"
               style={{ background: "linear-gradient(135deg,#3B82F6,#1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.4)", opacity: paying ? 0.7 : 1 }}>
               {paying ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
-              {paying ? "Gerando link..." : `Assinar — R$${PLANS[selectedPlan].price}/mês`}
+              {paying ? "Gerando link..." : `Assinar — R$${formatPrice(PLANS[selectedPlan].price)}${PLANS[selectedPlan].annual ? "/ano" : "/mês"}`}
             </button>
 
             <p className="text-center text-xs text-muted">
@@ -180,27 +221,27 @@ export default function AssinaturaPage() {
           </>
         )}
 
-        {/* Upgrade para Pro */}
-        {isActive && professional?.plan === "basic" && (
+        {/* Sugestão de upgrade para anual — visível para quem já é Profissional mensal */}
+        {professional?.plan === "professional" && isActive && (
           <div className="p-4 rounded-2xl"
-            style={{ background: "linear-gradient(135deg,#0F1729,#1e3a5f)", border: "1px solid rgba(59,130,246,0.3)" }}>
+            style={{ background: "linear-gradient(135deg,#1a1304,#3b2a06)", border: "1px solid rgba(251,191,36,0.3)" }}>
             <div className="flex items-center gap-2 mb-2">
-              <Zap size={14} style={{ color: "#3B82F6" }} />
-              <span className="font-syne font-bold text-sm text-white">Upgrade para Pro</span>
+              <Zap size={14} style={{ color: "#FBBF24" }} />
+              <span className="font-syne font-bold text-sm text-white">Economize no plano anual</span>
             </div>
-            <p className="text-xs mb-3" style={{ color: "#93c5fd" }}>
-              Apareça primeiro nas buscas. Por apenas +R$30/mês.
+            <p className="text-xs mb-3" style={{ color: "#FBBF24" }}>
+              R$499,90/ano (R$41,66/mês) — economia de mais de R$200 em relação ao mensal.
             </p>
-            <button onClick={() => { setSelectedPlan("pro"); handleSubscribe(); }}
-              className="w-full py-2.5 rounded-xl font-bold text-sm text-white"
-              style={{ background: "linear-gradient(135deg,#3B82F6,#1d4ed8)" }}>
-              Upgrade — R$99/mês
+            <button onClick={() => handleSubscribe("professional_annual")} disabled={paying}
+              className="w-full py-2.5 rounded-xl font-bold text-sm text-black"
+              style={{ background: "linear-gradient(135deg,#FBBF24,#f59e0b)", opacity: paying ? 0.7 : 1 }}>
+              {paying ? "Gerando link..." : "Mudar para o plano anual"}
             </button>
           </div>
         )}
 
         {/* Gerenciar */}
-        {isActive && (
+        {isPaidPlan && isActive && (
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <h3 className="font-syne font-bold text-sm text-foreground mb-3">Gerenciar</h3>
             <a href="https://www.asaas.com" target="_blank" rel="noopener noreferrer"
