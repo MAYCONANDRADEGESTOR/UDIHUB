@@ -8,6 +8,15 @@ import { createClient } from "@/lib/supabase/client";
 const ASAAS_FIXED = 0.99;
 const ASAAS_PERCENT = 0.0139;
 
+// Preços reais do modelo Freemium. "pro" e "basic" mantidos como legado,
+// apenas como fallback de segurança — não devem ser atribuídos a ninguém.
+const PLAN_PRICE: Record<string, number> = {
+  professional: 59.90,
+  professional_annual: 499.90,
+  pro: 99,
+  basic: 69,
+};
+
 function calcNet(valor: number) {
   return valor - (valor * ASAAS_PERCENT + ASAAS_FIXED);
 }
@@ -39,7 +48,7 @@ const CIDADES_PROJECAO = [
 export default function AdminMetricasPage() {
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<"7" | "30" | "90">("30");
-  const [mixPlanos, setMixPlanos] = useState(50); // % de Pro
+  const [mixPlanos, setMixPlanos] = useState(50); // % de Profissional (vs Gratuito não conta aqui — mix é entre planos pagos)
   const [cidadesAtivas, setCidadesAtivas] = useState<string[]>(["Uberlândia"]);
   const [cadastrosDia, setCadastrosDia] = useState<DayData[]>([]);
   const [viewsDia, setViewsDia] = useState<ViewData[]>([]);
@@ -50,7 +59,7 @@ export default function AdminMetricasPage() {
     cadastrosHoje: 0, cadastrosSemana: 0, cadastrosMes: 0,
     leadsHoje: 0, leadsSemana: 0, leadsMes: 0,
     viewsHoje: 0, viewsSemana: 0, viewsMes: 0,
-    basicAtivos: 0, proAtivos: 0,
+    freeProfissionais: 0, profissionalAtivos: 0, anualAtivos: 0,
     receitaBruta: 0, receitaLiquida: 0, taxasAsaas: 0,
   });
 
@@ -72,7 +81,7 @@ export default function AdminMetricasPage() {
         cadastrosHoje, cadastrosSemana, cadastrosMes,
         leadsHoje, leadsSemana, leadsMes,
         viewsHoje, viewsSemana, viewsMes,
-        subscriptions, usersData, viewsData, leadsData,
+        subscriptions, freeProfs, usersData, viewsData, leadsData,
       ] = await Promise.all([
         supabase.from("users").select("id", { count: "exact", head: true }),
         supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "professional"),
@@ -90,21 +99,25 @@ export default function AdminMetricasPage() {
         supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", weekStart),
         supabase.from("profile_views").select("id", { count: "exact", head: true }).gte("created_at", monthStart),
         supabase.from("subscriptions").select("plan").eq("status", "active"),
+        supabase.from("professionals").select("id", { count: "exact", head: true }).in("plan", ["free", "basic"]),
         supabase.from("users").select("created_at, role").gte("created_at", periodoStart).order("created_at", { ascending: true }),
         supabase.from("profile_views").select("created_at").gte("created_at", periodoStart).order("created_at", { ascending: true }),
         supabase.from("whatsapp_clicks").select("created_at").gte("created_at", periodoStart).order("created_at", { ascending: true }),
       ]);
 
-      // Calcular receita real
-      let bruta = 0, liquida = 0, taxas = 0, basicAtivos = 0, proAtivos = 0;
+      // Calcular receita real com preços do modelo Freemium.
+      // Linhas com plan="free" não geram receita e são ignoradas aqui
+      // (não deveriam existir como subscription ativa, mas por segurança).
+      let bruta = 0, liquida = 0, taxas = 0, profissionalAtivos = 0, anualAtivos = 0;
       for (const s of subscriptions.data || []) {
-        const v = s.plan === "pro" ? 99 : 69;
-        const net = calcNet(v);
-        bruta += v;
+        const price = PLAN_PRICE[s.plan as string];
+        if (!price) continue; // ex: plan="free" não tem preço, ignora
+        const net = calcNet(price);
+        bruta += price;
         liquida += net;
-        taxas += v - net;
-        if (s.plan === "pro") proAtivos++;
-        else basicAtivos++;
+        taxas += price - net;
+        if (s.plan === "professional_annual") anualAtivos++;
+        else profissionalAtivos++;
       }
 
       setTotais({
@@ -123,7 +136,8 @@ export default function AdminMetricasPage() {
         viewsHoje: viewsHoje.count || 0,
         viewsSemana: viewsSemana.count || 0,
         viewsMes: viewsMes.count || 0,
-        basicAtivos, proAtivos,
+        freeProfissionais: freeProfs.count || 0,
+        profissionalAtivos, anualAtivos,
         receitaBruta: bruta, receitaLiquida: liquida, taxasAsaas: taxas,
       });
 
@@ -166,33 +180,33 @@ export default function AdminMetricasPage() {
     return `${day}/${m}`;
   }
 
-  // Cálculo de projeção por cenário
-  function calcProjecao(totalAssinantes: number, pctPro: number) {
-    const pro = Math.round(totalAssinantes * (pctPro / 100));
-    const basic = totalAssinantes - pro;
-    const bruto = (pro * 99) + (basic * 69);
-    const liquido = (pro * calcNet(99)) + (basic * calcNet(69));
-    return { pro, basic, bruto, liquido };
+  // Cálculo de projeção: assume que todos os "assinantes" simulados são pagantes
+  // (Profissional mensal ou Anual), mix entre os dois conforme o slider.
+  function calcProjecao(totalAssinantes: number, pctAnual: number) {
+    const anual = Math.round(totalAssinantes * (pctAnual / 100));
+    const mensal = totalAssinantes - anual;
+    const bruto = (anual * PLAN_PRICE.professional_annual / 12) + (mensal * PLAN_PRICE.professional);
+    const liquido = (anual * calcNet(PLAN_PRICE.professional_annual) / 12) + (mensal * calcNet(PLAN_PRICE.professional));
+    return { mensal, anual, bruto, liquido };
   }
 
-  // Projeção por cidades ativas
   const potencialCidadesAtivas = CIDADES_PROJECAO
     .filter(c => cidadesAtivas.includes(c.nome))
     .reduce((acc, c) => acc + c.potencial, 0);
   const projecaoCidades = calcProjecao(potencialCidadesAtivas, mixPlanos);
 
+  const totalAtivos = totais.profissionalAtivos + totais.anualAtivos;
   const cenarios = [
-    { label: "Atual", assinantes: totais.basicAtivos + totais.proAtivos, pctPro: totais.proAtivos > 0 ? Math.round((totais.proAtivos / (totais.basicAtivos + totais.proAtivos)) * 100) : 50 },
-    { label: "50 assinantes", assinantes: 50, pctPro: mixPlanos },
-    { label: "100 assinantes", assinantes: 100, pctPro: mixPlanos },
-    { label: "275 assinantes", assinantes: 275, pctPro: mixPlanos },
-    { label: "500 assinantes", assinantes: 500, pctPro: mixPlanos },
+    { label: "Atual", assinantes: totalAtivos, pctAnual: totalAtivos > 0 ? Math.round((totais.anualAtivos / totalAtivos) * 100) : mixPlanos },
+    { label: "50 assinantes", assinantes: 50, pctAnual: mixPlanos },
+    { label: "100 assinantes", assinantes: 100, pctAnual: mixPlanos },
+    { label: "275 assinantes", assinantes: 275, pctAnual: mixPlanos },
+    { label: "500 assinantes", assinantes: 500, pctAnual: mixPlanos },
   ];
 
   const maxCadastros = Math.max(...cadastrosDia.map(d => d.cadastros), 1);
   const maxViews = Math.max(...viewsDia.map(d => d.total_views), 1);
   const maxLeads = Math.max(...leadsDia.map(d => d.total_leads), 1);
-  const totalAtivos = totais.basicAtivos + totais.proAtivos;
   const meta275pct = Math.round((totalAtivos / 275) * 100);
 
   if (loading) return (
@@ -227,7 +241,6 @@ export default function AdminMetricasPage() {
         <div>
           <p className="text-[10px] font-bold tracking-widest mb-3" style={{ color: "#22c55e" }}>💰 FATURAMENTO ATUAL</p>
 
-          {/* Cards receita */}
           <div className="grid grid-cols-3 gap-2 mb-3">
             <div className="p-3 rounded-2xl text-center" style={{ background: "#111113", border: "1px solid rgba(34,197,94,0.3)" }}>
               <div className="text-[10px] text-muted mb-1">Bruto/mês</div>
@@ -243,41 +256,50 @@ export default function AdminMetricasPage() {
             </div>
           </div>
 
-          {/* Breakdown planos */}
           <div className="p-4 rounded-2xl space-y-3" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <p className="text-xs font-bold text-muted">Distribuição de planos ativos</p>
+            <p className="text-xs font-bold text-muted">Distribuição de planos</p>
 
-            {/* Básico */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] px-2 py-0.5 rounded font-bold"
+                  style={{ background: "rgba(161,161,170,0.1)", color: "#A1A1AA", border: "1px solid rgba(161,161,170,0.2)" }}>
+                  Gratuito
+                </span>
+                <span className="text-sm font-bold text-foreground">{totais.freeProfissionais}x</span>
+              </div>
+              <div className="text-right">
+                <div className="text-xs font-bold text-muted">R$0</div>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] px-2 py-0.5 rounded font-bold"
                   style={{ background: "rgba(59,130,246,0.1)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.2)" }}>
-                  ⭐ Básico R$69
+                  Profissional R$59,90
                 </span>
-                <span className="text-sm font-bold text-foreground">{totais.basicAtivos}x</span>
+                <span className="text-sm font-bold text-foreground">{totais.profissionalAtivos}x</span>
               </div>
               <div className="text-right">
-                <div className="text-xs font-bold" style={{ color: "#3B82F6" }}>R${fmt2(totais.basicAtivos * 69)}</div>
-                <div className="text-[10px]" style={{ color: "#22c55e" }}>→ R${fmt2(totais.basicAtivos * calcNet(69))} líq.</div>
+                <div className="text-xs font-bold" style={{ color: "#3B82F6" }}>R${fmt2(totais.profissionalAtivos * PLAN_PRICE.professional)}</div>
+                <div className="text-[10px]" style={{ color: "#22c55e" }}>→ R${fmt2(totais.profissionalAtivos * calcNet(PLAN_PRICE.professional))} líq.</div>
               </div>
             </div>
 
-            {/* Pro */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] px-2 py-0.5 rounded font-bold"
                   style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.3)" }}>
-                  👑 Pro R$99
+                  👑 Anual R$499,90
                 </span>
-                <span className="text-sm font-bold text-foreground">{totais.proAtivos}x</span>
+                <span className="text-sm font-bold text-foreground">{totais.anualAtivos}x</span>
               </div>
               <div className="text-right">
-                <div className="text-xs font-bold" style={{ color: "#FBBF24" }}>R${fmt2(totais.proAtivos * 99)}</div>
-                <div className="text-[10px]" style={{ color: "#22c55e" }}>→ R${fmt2(totais.proAtivos * calcNet(99))} líq.</div>
+                <div className="text-xs font-bold" style={{ color: "#FBBF24" }}>R${fmt2(totais.anualAtivos * PLAN_PRICE.professional_annual)}</div>
+                <div className="text-[10px]" style={{ color: "#22c55e" }}>→ R${fmt2(totais.anualAtivos * calcNet(PLAN_PRICE.professional_annual))} líq.</div>
               </div>
             </div>
 
-            {/* Divisor */}
             <div style={{ borderTop: "1px solid #1F1F23" }} className="pt-2 flex items-center justify-between">
               <span className="text-xs font-bold text-foreground">Total líquido/mês</span>
               <span className="text-base font-syne font-extrabold" style={{ color: "#22c55e" }}>
@@ -301,7 +323,7 @@ export default function AdminMetricasPage() {
               style={{ width: `${Math.min(meta275pct, 100)}%`, background: "linear-gradient(90deg, #3B82F6, #22c55e)" }} />
           </div>
           <div className="flex justify-between">
-            <span className="text-[10px] text-muted">{totalAtivos} ativos ({totais.basicAtivos} básico · {totais.proAtivos} pro)</span>
+            <span className="text-[10px] text-muted">{totalAtivos} pagantes ({totais.profissionalAtivos} mensal · {totais.anualAtivos} anual) · {totais.freeProfissionais} gratuito</span>
             <span className="text-[10px] text-muted">275 meta</span>
           </div>
         </div>
@@ -309,13 +331,13 @@ export default function AdminMetricasPage() {
         {/* ── PROJEÇÃO DE RECEITA ── */}
         <div>
           <p className="text-[10px] font-bold tracking-widest mb-2" style={{ color: "#3B82F6" }}>📈 PROJEÇÃO DE RECEITA</p>
+          <p className="text-[10px] text-muted mb-3">Simula apenas profissionais pagantes (Gratuito não entra na receita)</p>
 
-          {/* Slider mix de planos */}
           <div className="p-3 rounded-2xl mb-3" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted">Mix de planos</span>
+              <span className="text-xs text-muted">Mix de planos pagos</span>
               <span className="text-xs font-bold text-foreground">
-                {100 - mixPlanos}% Básico · {mixPlanos}% Pro
+                {100 - mixPlanos}% Mensal · {mixPlanos}% Anual
               </span>
             </div>
             <input type="range" min={0} max={100} value={mixPlanos}
@@ -323,22 +345,21 @@ export default function AdminMetricasPage() {
               className="w-full h-2 rounded-full appearance-none cursor-pointer"
               style={{ background: `linear-gradient(to right, #FBBF24 ${mixPlanos}%, #1F1F23 ${mixPlanos}%)` }} />
             <div className="flex justify-between mt-1">
-              <span className="text-[9px]" style={{ color: "#93c5fd" }}>100% Básico</span>
-              <span className="text-[9px]" style={{ color: "#FBBF24" }}>100% Pro</span>
+              <span className="text-[9px]" style={{ color: "#93c5fd" }}>100% Mensal</span>
+              <span className="text-[9px]" style={{ color: "#FBBF24" }}>100% Anual</span>
             </div>
           </div>
 
-          {/* Tabela de cenários */}
           <div className="rounded-2xl overflow-hidden" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="grid grid-cols-4 px-3 py-2 text-[10px] font-bold text-muted uppercase"
               style={{ borderBottom: "1px solid #1F1F23" }}>
               <span>Cenário</span>
-              <span className="text-center">Básico/Pro</span>
-              <span className="text-center">Bruto</span>
-              <span className="text-center" style={{ color: "#22c55e" }}>Líquido</span>
+              <span className="text-center">Mensal/Anual</span>
+              <span className="text-center">Bruto/mês</span>
+              <span className="text-center" style={{ color: "#22c55e" }}>Líquido/mês</span>
             </div>
-            {cenarios.map(({ label, assinantes, pctPro }) => {
-              const p = calcProjecao(assinantes, pctPro);
+            {cenarios.map(({ label, assinantes, pctAnual }) => {
+              const p = calcProjecao(assinantes, pctAnual);
               const isAtual = label === "Atual";
               return (
                 <div key={label} className="grid grid-cols-4 px-3 py-2.5 text-xs"
@@ -349,7 +370,7 @@ export default function AdminMetricasPage() {
                   <span className="font-semibold" style={{ color: isAtual ? "#93c5fd" : "#A1A1AA" }}>
                     {isAtual ? "🔴 Atual" : label}
                   </span>
-                  <span className="text-center text-muted text-[10px]">{p.basic}/{p.pro}</span>
+                  <span className="text-center text-muted text-[10px]">{p.mensal}/{p.anual}</span>
                   <span className="text-center font-medium text-foreground">{fmtK(p.bruto)}</span>
                   <span className="text-center font-bold" style={{ color: "#22c55e" }}>{fmtK(p.liquido)}</span>
                 </div>
@@ -361,7 +382,7 @@ export default function AdminMetricasPage() {
         {/* ── PROJEÇÃO POR CIDADES ── */}
         <div>
           <p className="text-[10px] font-bold tracking-widest mb-2" style={{ color: "#a855f7" }}>🗺️ PROJEÇÃO POR CIDADES</p>
-          <p className="text-[10px] text-muted mb-3">Selecione as cidades para simular o potencial total</p>
+          <p className="text-[10px] text-muted mb-3">Selecione as cidades para simular o potencial total (apenas pagantes)</p>
 
           <div className="space-y-2 mb-3">
             {CIDADES_PROJECAO.map((cidade) => {
@@ -370,7 +391,7 @@ export default function AdminMetricasPage() {
               return (
                 <button key={cidade.nome} type="button"
                   onClick={() => {
-                    if (cidade.nome === "Uberlândia") return; // não pode desativar Uberlândia
+                    if (cidade.nome === "Uberlândia") return;
                     setCidadesAtivas(prev =>
                       ativa ? prev.filter(c => c !== cidade.nome) : [...prev, cidade.nome]
                     );
@@ -406,7 +427,6 @@ export default function AdminMetricasPage() {
             })}
           </div>
 
-          {/* Resultado projeção cidades */}
           <div className="p-4 rounded-2xl" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.3)" }}>
             <div className="flex items-center gap-2 mb-3">
               <MapPin size={14} style={{ color: "#a855f7" }} />
@@ -427,7 +447,7 @@ export default function AdminMetricasPage() {
               </div>
             </div>
             <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: "1px solid rgba(168,85,247,0.2)" }}>
-              <span className="text-[10px] text-muted">{projecaoCidades.basic} básico + {projecaoCidades.pro} pro</span>
+              <span className="text-[10px] text-muted">{projecaoCidades.mensal} mensal + {projecaoCidades.anual} anual</span>
               <span className="text-[10px] font-bold" style={{ color: "#a855f7" }}>
                 {fmtK(projecaoCidades.bruto)} bruto → {fmtK(projecaoCidades.liquido)} líquido
               </span>
