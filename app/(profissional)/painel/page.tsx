@@ -12,6 +12,10 @@ import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/utils";
 import NotificationBell from "@/app/components/ui/NotificationBell";
 
+function formatDate(d: Date) {
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
+
 export default function PainelPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -142,6 +146,14 @@ export default function PainelPage() {
   const clientsBarColor = uniqueClientsUsed >= 5 ? "#ef4444" : uniqueClientsUsed === 4 ? "#FBBF24" : "#22c55e";
   const clientsTextColor = clientsBarColor;
 
+  // Data de renovação do ciclo gratuito: free_cycle_started_at + 30 dias.
+  // Sem free_cycle_started_at (não deveria acontecer, mas por segurança), não mostra nada.
+  const cycleStartedAt = prof?.free_cycle_started_at ? new Date(prof.free_cycle_started_at) : null;
+  const cycleRenewsAt = cycleStartedAt ? new Date(cycleStartedAt.getTime() + 30 * 24 * 60 * 60 * 1000) : null;
+  const diasParaRenovar = cycleRenewsAt
+    ? Math.max(0, Math.ceil((cycleRenewsAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : null;
+
   return (
     <div className="min-h-screen bg-background pb-24">
 
@@ -211,9 +223,18 @@ export default function PainelPage() {
             </div>
             {uniqueClientsUsed >= 5 ? (
               <>
-                <p className="text-xs text-muted mb-3">
+                <p className="text-xs text-muted mb-1">
                   Parabéns! Você recebeu seus 5 clientes gratuitos deste mês. Desbloqueie clientes ilimitados por apenas R$ 59,90/mês.
                 </p>
+                {cycleRenewsAt && (
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <Clock size={11} className="text-muted" />
+                    <p className="text-[11px] text-muted">
+                      Seu limite gratuito renova em {formatDate(cycleRenewsAt)}
+                      {diasParaRenovar !== null && ` (${diasParaRenovar} dia${diasParaRenovar !== 1 ? "s" : ""})`}
+                    </p>
+                  </div>
+                )}
                 <Link href="/painel/assinatura"
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white"
                   style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)" }}>
@@ -222,7 +243,13 @@ export default function PainelPage() {
               </>
             ) : uniqueClientsUsed === 4 ? (
               <>
-                <p className="text-xs text-muted mb-3">Você está próximo do limite gratuito.</p>
+                <p className="text-xs text-muted mb-1">Você está próximo do limite gratuito.</p>
+                {cycleRenewsAt && (
+                  <div className="flex items-center gap-1.5 mb-3">
+                    <Clock size={11} className="text-muted" />
+                    <p className="text-[11px] text-muted">Renova em {formatDate(cycleRenewsAt)}</p>
+                  </div>
+                )}
                 <Link href="/painel/assinatura"
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs text-white"
                   style={{ background: "linear-gradient(135deg, #d97706, #b45309)" }}>
@@ -230,9 +257,17 @@ export default function PainelPage() {
                 </Link>
               </>
             ) : (
-              <p className="text-xs text-muted">
-                {clientsRemaining} cliente{clientsRemaining !== 1 ? "s" : ""} restante{clientsRemaining !== 1 ? "s" : ""} no seu plano gratuito este mês.
-              </p>
+              <div>
+                <p className="text-xs text-muted">
+                  {clientsRemaining} cliente{clientsRemaining !== 1 ? "s" : ""} restante{clientsRemaining !== 1 ? "s" : ""} no seu plano gratuito este mês.
+                </p>
+                {cycleRenewsAt && (
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    <Clock size={11} className="text-muted" />
+                    <p className="text-[11px] text-muted">Limite renova em {formatDate(cycleRenewsAt)}</p>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -452,6 +487,7 @@ export default function PainelPage() {
                 <p className="text-xs text-muted mt-0.5">
                   {prof?.plan === "professional_annual" ? "R$499,90/ano" : isPaidPlan ? "R$59,90/mes" : "R$0"}
                   {subscription?.next_billing && ` · Renova ${new Date(subscription.next_billing).toLocaleDateString("pt-BR")}`}
+                  {isFreePlan && cycleRenewsAt && ` · Limite renova ${formatDate(cycleRenewsAt)}`}
                 </p>
               </div>
               <Link href="/painel/assinatura"
