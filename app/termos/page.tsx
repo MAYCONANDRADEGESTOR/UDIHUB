@@ -13,7 +13,7 @@ export default function TermosPage() {
       </div>
 
       <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">
-        <p className="text-xs text-muted">Última atualização: maio de 2025</p>
+        <p className="text-xs text-muted">Última atualização: junho de 2026</p>
 
         {[
           {
@@ -30,7 +30,7 @@ export default function TermosPage() {
           },
           {
             title: "4. Para Profissionais",
-            text: "Profissionais pagam uma mensalidade fixa para manter o perfil ativo na plataforma (Plano Básico: R$69/mês ou Plano Pro: R$99/mês). O pagamento é processado pelo Asaas via PIX ou cartão de crédito. O perfil é desativado automaticamente em caso de inadimplência.",
+            text: "O cadastro de profissionais é gratuito (Plano Gratuito), permitindo a criação de perfil e aparição nas buscas. Profissionais que desejarem destaque e clientes ilimitados podem assinar o Plano Profissional (R$59,90/mês) ou o Plano Profissional Anual (R$499,90/ano). O pagamento é processado pelo Asaas via PIX ou cartão de crédito. O perfil pago é desativado automaticamente em caso de inadimplência, voltando ao Plano Gratuito.",
           },
           {
             title: "5. Responsabilidades",
@@ -46,7 +46,7 @@ export default function TermosPage() {
           },
           {
             title: "8. Cancelamento",
-            text: "Profissionais podem cancelar sua assinatura a qualquer momento pelo painel. O perfil permanece ativo até o fim do período pago. Clientes podem excluir sua conta a qualquer momento pelo perfil.",
+            text: "Profissionais podem cancelar sua assinatura paga a qualquer momento pelo painel. O perfil pago permanece ativo até o fim do período pago, voltando então ao Plano Gratuito. Clientes podem excluir sua conta a qualquer momento pelo perfil.",
           },
           {
             title: "9. Privacidade",
