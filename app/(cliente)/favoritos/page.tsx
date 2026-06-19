@@ -72,7 +72,7 @@ export default function FavoritosPage() {
         body: JSON.stringify({ professional_id: prof.id }),
       });
     } catch {}
-    window.open(buildWhatsAppUrl(prof.whatsapp, `Ola ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
+    window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
 
   if (loading) return (
@@ -84,7 +84,7 @@ export default function FavoritosPage() {
   return (
     <div className="min-h-screen bg-background pb-24">
 
-      {/* Header com botao voltar */}
+      {/* Header com botão voltar */}
       <div className="sticky top-0 z-40 px-4 pt-4 pb-3"
         style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
         <div className="flex items-center gap-3">
@@ -113,12 +113,12 @@ export default function FavoritosPage() {
             </div>
             <h2 className="font-syne font-bold text-lg text-foreground mb-2">Nenhum favorito ainda</h2>
             <p className="text-sm text-muted max-w-xs leading-relaxed mb-6">
-              Toque no coracao nos perfis dos profissionais para salvar seus favoritos aqui.
+              Toque no coração nos perfis dos profissionais para salvar seus favoritos aqui.
             </p>
             <Link href="/servicos"
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white"
               style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 16px rgba(59,130,246,0.3)" }}>
-              Explorar servicos <ArrowRight size={16} />
+              Explorar serviços <ArrowRight size={16} />
             </Link>
           </div>
         ) : (
@@ -182,7 +182,7 @@ export default function FavoritosPage() {
                           {prof?.available_now && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold"
                               style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}>
-                              Disponivel
+                              Disponível
                             </span>
                           )}
                         </div>
