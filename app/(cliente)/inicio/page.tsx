@@ -30,6 +30,12 @@ const PROFISSIONAL_BENEFITS = [
   { icon: CheckCircle, text: "Comece de graca, sem cartao de credito" },
 ];
 
+const STATS = [
+  { icon: Grid3X3, value: "108+", label: "Categorias", color: "#3B82F6" },
+  { icon: MessageCircle, value: "100%", label: "Via WhatsApp", color: "#22c55e" },
+  { icon: MapPin, value: "UDI", label: "Uberlandia", color: "#a855f7" },
+];
+
 export default function InicioPage() {
   const router = useRouter();
   const [neighborhood, setNeighborhood] = useState("");
@@ -114,20 +120,29 @@ export default function InicioPage() {
 
         {/* Hero */}
         <div>
-          <p className="text-xs text-muted mb-0.5">
+          <p className="text-xs text-muted mb-1">
             {userName ? `Ola, ${userName}! 👋` : "Bem-vindo ao UDIHUB 👋"}
           </p>
           <h1 className="font-syne font-extrabold text-2xl text-foreground leading-tight mb-4">
-            Encontre o profissional<br />certo para voce
+            Encontre o profissional{" "}
+            <span style={{
+              background: "linear-gradient(135deg, #3B82F6 0%, #60a5fa 50%, #93c5fd 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}>
+              certo
+            </span>{" "}
+            para voce
           </h1>
           <div className="grid grid-cols-3 gap-2">
-            {[
-              { value: "108+", label: "Categorias", color: "#3B82F6" },
-              { value: "100%", label: "Via WhatsApp", color: "#22c55e" },
-              { value: "UDI", label: "Uberlandia", color: "#a855f7" },
-            ].map(({ value, label, color }) => (
-              <div key={label} className="text-center p-2.5 rounded-xl"
+            {STATS.map(({ icon: Icon, value, label, color }) => (
+              <div key={label} className="text-center p-3 rounded-xl"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center mx-auto mb-1.5"
+                  style={{ background: `${color}15` }}>
+                  <Icon size={13} style={{ color }} />
+                </div>
                 <div className="font-syne font-extrabold text-base" style={{ color }}>{value}</div>
                 <div className="text-[10px] text-muted mt-0.5">{label}</div>
               </div>
@@ -137,9 +152,12 @@ export default function InicioPage() {
 
         {/* Busca rapida */}
         <Link href="/servicos"
-          className="flex items-center gap-3 px-4 py-3.5 rounded-2xl w-full"
-          style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-          <Search size={16} className="text-muted flex-shrink-0" />
+          className="flex items-center gap-3 px-4 py-3.5 rounded-full w-full"
+          style={{ background: "#111113", border: "1px solid rgba(59,130,246,0.25)", boxShadow: "0 0 16px rgba(59,130,246,0.08)" }}>
+          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(59,130,246,0.12)" }}>
+            <Search size={13} style={{ color: "#3B82F6" }} />
+          </div>
           <span className="text-sm text-muted flex-1">Buscar por servico ou profissao...</span>
           <ArrowRight size={14} className="text-muted" />
         </Link>
@@ -156,9 +174,12 @@ export default function InicioPage() {
           <div className="grid grid-cols-4 gap-2">
             {QUICK_CATS.map((cat) => (
               <Link key={cat.slug} href={`/servicos/${cat.slug}`}
-                className="flex flex-col items-center gap-1.5 p-3 rounded-2xl text-center"
+                className="flex flex-col items-center gap-2 p-3 rounded-2xl text-center transition-colors"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <span className="text-2xl">{cat.icon}</span>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(59,130,246,0.1)" }}>
+                  <span className="text-lg">{cat.icon}</span>
+                </div>
                 <span className="text-[10px] text-muted leading-tight line-clamp-1">{cat.name}</span>
               </Link>
             ))}
