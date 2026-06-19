@@ -25,15 +25,15 @@ const QUICK_CATS = [
 ];
 
 const PROFISSIONAL_BENEFITS = [
-  { icon: Search, text: "Apareca nas buscas por categoria e bairro" },
+  { icon: Search, text: "Apareça nas buscas por categoria e bairro" },
   { icon: MessageCircle, text: "Cliente chama direto no seu WhatsApp" },
-  { icon: CheckCircle, text: "Comece de graca, sem cartao de credito" },
+  { icon: CheckCircle, text: "Comece de graça, sem cartão de crédito" },
 ];
 
 const STATS = [
   { icon: Grid3X3, value: "108+", label: "Categorias", color: "#3B82F6" },
   { icon: MessageCircle, value: "100%", label: "Via WhatsApp", color: "#22c55e" },
-  { icon: MapPin, value: "UDI", label: "Uberlandia", color: "#a855f7" },
+  { icon: MapPin, value: "UDI", label: "Uberlândia", color: "#a855f7" },
 ];
 
 export default function InicioPage() {
@@ -89,9 +89,9 @@ export default function InicioPage() {
             className="flex items-center gap-1.5">
             <MapPin size={14} style={{ color: "#3B82F6" }} />
             <div className="text-left">
-              <div className="text-[10px] text-muted">Sua localizacao</div>
+              <div className="text-[10px] text-muted">Sua localização</div>
               <div className="text-sm font-semibold text-foreground flex items-center gap-1">
-                {neighborhood ? `${neighborhood}, ` : ""}Uberlandia
+                {neighborhood ? `${neighborhood}, ` : ""}Uberlândia
                 <ChevronDown size={12} className="text-muted" />
               </div>
             </div>
@@ -109,7 +109,7 @@ export default function InicioPage() {
             <select value={neighborhood} onChange={(e) => saveLocation(e.target.value)}
               className="w-full px-3 py-2 rounded-xl text-xs text-foreground"
               style={{ background: "#09090B", border: "1px solid #1F1F23", outline: "none" }}>
-              <option value="">Todos os bairros de Uberlandia</option>
+              <option value="">Todos os bairros de Uberlândia</option>
               {uberlandia.neighborhoods.map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
           </div>
@@ -121,7 +121,7 @@ export default function InicioPage() {
         {/* Hero */}
         <div>
           <p className="text-xs text-muted mb-1">
-            {userName ? `Ola, ${userName}! 👋` : "Bem-vindo ao UDIHUB 👋"}
+            {userName ? `Olá, ${userName}! 👋` : "Bem-vindo ao UDIHUB 👋"}
           </p>
           <h1 className="font-syne font-extrabold text-2xl text-foreground leading-tight mb-4">
             Encontre o profissional{" "}
@@ -133,7 +133,7 @@ export default function InicioPage() {
             }}>
               certo
             </span>{" "}
-            para voce
+            para você
           </h1>
           <div className="grid grid-cols-3 gap-2">
             {STATS.map(({ icon: Icon, value, label, color }) => (
@@ -158,7 +158,7 @@ export default function InicioPage() {
             style={{ background: "rgba(59,130,246,0.12)" }}>
             <Search size={13} style={{ color: "#3B82F6" }} />
           </div>
-          <span className="text-sm text-muted flex-1">Buscar por servico ou profissao...</span>
+          <span className="text-sm text-muted flex-1">Buscar por serviço ou profissão...</span>
           <ArrowRight size={14} className="text-muted" />
         </Link>
 
@@ -209,7 +209,7 @@ export default function InicioPage() {
               <Zap size={14} style={{ color: "#22c55e" }} />
             </div>
             <p className="text-[10px] font-bold tracking-wide" style={{ color: "#93c5fd" }}>
-              E PROFISSIONAL AUTONOMO? CADASTRO GRATUITO
+              É PROFISSIONAL AUTÔNOMO? CADASTRO GRATUITO
             </p>
           </div>
 
@@ -217,7 +217,7 @@ export default function InicioPage() {
             Receba clientes no seu WhatsApp
           </h3>
           <p className="text-xs text-muted mb-4 leading-relaxed">
-            Crie seu perfil e apareca nas buscas de clientes de Uberlandia sem pagar nada. Quer destaque e clientes ilimitados? Assine a partir de R$59,90/mes quando quiser.
+            Crie seu perfil e apareça nas buscas de clientes de Uberlândia sem pagar nada. Quer destaque e clientes ilimitados? Assine a partir de R$59,90/mês quando quiser.
           </p>
 
           <div className="flex flex-col gap-2 mb-4">
@@ -232,7 +232,7 @@ export default function InicioPage() {
           <Link href="/seja-profissional"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white"
             style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 16px rgba(59,130,246,0.3)" }}>
-            Criar perfil gratis <ArrowRight size={14} />
+            Criar perfil grátis <ArrowRight size={14} />
           </Link>
         </div>
 
@@ -257,7 +257,7 @@ export default function InicioPage() {
               {pendingAction === "whatsapp" ? "Entre para falar com o profissional" : "Entre para ver o perfil completo"}
             </h3>
             <p className="text-sm text-muted text-center mb-6 leading-relaxed">
-              O UDIHUB e para clientes. Crie sua conta em menos de 1 minuto.
+              O UDIHUB é para clientes. Crie sua conta em menos de 1 minuto.
             </p>
             <div className="flex flex-col gap-3">
               <Link href="/cadastro"
@@ -268,7 +268,7 @@ export default function InicioPage() {
               <Link href="/login"
                 className="w-full py-3.5 rounded-2xl font-semibold text-sm text-center"
                 style={{ background: "#09090B", border: "1px solid #1F1F23", color: "#94a3b8" }}>
-                Ja tenho conta — Entrar
+                Já tenho conta — Entrar
               </Link>
             </div>
             <p className="text-center text-[10px] text-muted mt-4">
