@@ -9,6 +9,7 @@ export const CATEGORIES = [
   { slug: "serralheiro", name: "Serralheiro", icon: "🔩" },
   { slug: "vidraceiro", name: "Vidraceiro", icon: "🪟" },
   { slug: "azulejista", name: "Azulejista / Revestimento", icon: "🚧" },
+  { slug: "marmoraria", name: "Marmoraria", icon: "🪨" },
   { slug: "impermeabilizacao", name: "Impermeabilização", icon: "💧" },
   { slug: "soldador", name: "Soldador", icon: "⚙️" },
   { slug: "arquiteto", name: "Arquiteto / Decorador de Interiores", icon: "🏠" },
@@ -108,6 +109,7 @@ export const CATEGORIES = [
   { slug: "cerimonialista", name: "Cerimonialista", icon: "💍" },
   { slug: "buffet", name: "Buffet / Garçom", icon: "🍽️" },
   { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
+  { slug: "locutor", name: "Locutor", icon: "🎙️" },
 
   // Animais
   { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐕‍🦺" },
