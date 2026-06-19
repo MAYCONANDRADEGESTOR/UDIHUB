@@ -13,24 +13,24 @@ import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/utils";
 
 const DIFFERENTIALS = [
-  { icon: MapPin, title: "100% Local", desc: "Profissionais do seu bairro. Atendimento rapido e sem deslocamento longo.", color: "#3B82F6" },
+  { icon: MapPin, title: "100% Local", desc: "Profissionais do seu bairro. Atendimento rápido e sem deslocamento longo.", color: "#3B82F6" },
   { icon: CheckCircle, title: "Sempre gratuito", desc: "Clientes nunca pagam nada. Busque, compare e contrate sem custo.", color: "#22c55e" },
-  { icon: Shield, title: "Avaliacoes reais", desc: "So quem contactou via WhatsApp pode avaliar. Zero avaliacoes falsas.", color: "#a855f7" },
-  { icon: Clock, title: "Disponivel agora", desc: "Veja quem esta online e disponivel para atender imediatamente.", color: "#FBBF24" },
+  { icon: Shield, title: "Avaliações reais", desc: "Só quem contactou via WhatsApp pode avaliar. Zero avaliações falsas.", color: "#a855f7" },
+  { icon: Clock, title: "Disponível agora", desc: "Veja quem está online e disponível para atender imediatamente.", color: "#FBBF24" },
 ];
 
 const HOW_IT_WORKS = [
-  { step: "01", icon: Search, title: "Busque o servico", desc: "Escolha entre 107 categorias e encontre profissionais no seu bairro.", color: "#3B82F6" },
-  { step: "02", icon: Star, title: "Compare e escolha", desc: "Veja avaliacoes reais, fotos do trabalho e disponibilidade em tempo real.", color: "#FBBF24" },
-  { step: "03", icon: MessageCircle, title: "Chame no WhatsApp", desc: "Um clique e voce esta falando direto com o profissional. Sem intermediarios.", color: "#22c55e" },
+  { step: "01", icon: Search, title: "Busque o serviço", desc: "Escolha entre 107 categorias e encontre profissionais no seu bairro.", color: "#3B82F6" },
+  { step: "02", icon: Star, title: "Compare e escolha", desc: "Veja avaliações reais, fotos do trabalho e disponibilidade em tempo real.", color: "#FBBF24" },
+  { step: "03", icon: MessageCircle, title: "Chame no WhatsApp", desc: "Um clique e você está falando direto com o profissional. Sem intermediários.", color: "#22c55e" },
 ];
 
 const FAQ = [
-  { q: "E realmente gratuito para clientes?", a: "Sim, 100%. Clientes buscam, visualizam perfis e entram em contato com profissionais sem pagar absolutamente nada, para sempre." },
-  { q: "Como os profissionais aparecem na plataforma?", a: "Todo profissional comeca no Plano Gratuito, sem pagar nada. Quem quiser clientes ilimitados e destaque nas buscas pode assinar o Plano Profissional (R$59,90/mes) ou o Plano Anual (R$499,90/ano)." },
-  { q: "O UDIHUB esta disponivel em quais cidades?", a: "Lancamos em Uberlandia-MG. Em breve expandimos para Uberaba, Patos de Minas, Ituiutaba e outras cidades do Triangulo Mineiro." },
-  { q: "Como funciona o sistema de avaliacoes?", a: "Apenas clientes que clicaram no WhatsApp de um profissional podem avalia-lo. Isso garante avaliacoes 100% autênticas." },
-  { q: "Posso cancelar a assinatura a qualquer momento?", a: "Sim. O profissional cancela pelo painel e o perfil fica ativo ate o final do periodo pago. Sem multa ou fidelidade." },
+  { q: "É realmente gratuito para clientes?", a: "Sim, 100%. Clientes buscam, visualizam perfis e entram em contato com profissionais sem pagar absolutamente nada, para sempre." },
+  { q: "Como os profissionais aparecem na plataforma?", a: "Todo profissional começa no Plano Gratuito, sem pagar nada. Quem quiser clientes ilimitados e destaque nas buscas pode assinar o Plano Profissional (R$59,90/mês) ou o Plano Anual (R$499,90/ano)." },
+  { q: "O UDIHUB está disponível em quais cidades?", a: "Lançamos em Uberlândia-MG. Em breve expandimos para Uberaba, Patos de Minas, Ituiutaba e outras cidades do Triângulo Mineiro." },
+  { q: "Como funciona o sistema de avaliações?", a: "Apenas clientes que clicaram no WhatsApp de um profissional podem avaliá-lo. Isso garante avaliações 100% autênticas." },
+  { q: "Posso cancelar a assinatura a qualquer momento?", a: "Sim. O profissional cancela pelo painel e o perfil fica ativo até o final do período pago. Sem multa ou fidelidade." },
 ];
 
 export default function HomePage() {
@@ -185,7 +185,7 @@ export default function HomePage() {
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold mb-5 tracking-wide"
             style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#93c5fd" }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#3B82F6" }} />
-            NOVO · Uberlandia · MG
+            NOVO · Uberlândia · MG
           </div>
           <h1 className="font-syne font-bold text-2xl text-foreground leading-snug mb-4">
             O profissional certo,{" "}
@@ -195,7 +195,7 @@ export default function HomePage() {
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
             }}>
-              perto de voce.
+              perto de você.
             </span>
           </h1>
           <p className="text-sm leading-relaxed mb-7 max-w-xs mx-auto" style={{ color: "#94a3b8" }}>
@@ -222,8 +222,8 @@ export default function HomePage() {
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
             <p className="text-[10px] font-bold tracking-widest mb-1.5" style={{ color: "#3B82F6" }}>POR QUE USAR</p>
-            <h2 className="font-syne font-bold text-xl text-foreground">Feito para Uberlandia</h2>
-            <p className="text-xs mt-1.5 text-muted">Nao e um app generico. E o seu marketplace local.</p>
+            <h2 className="font-syne font-bold text-xl text-foreground">Feito para Uberlândia</h2>
+            <p className="text-xs mt-1.5 text-muted">Não é um app genérico. É o seu marketplace local.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {DIFFERENTIALS.map(({ icon: Icon, title, desc, color }) => (
@@ -244,7 +244,7 @@ export default function HomePage() {
       <section className="px-4 py-12" style={{ background: "#080809" }}>
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
-            <p className="text-[10px] font-bold tracking-widest mb-1.5" style={{ color: "#3B82F6" }}>DUVIDAS</p>
+            <p className="text-[10px] font-bold tracking-widest mb-1.5" style={{ color: "#3B82F6" }}>DÚVIDAS</p>
             <h2 className="font-syne font-bold text-xl text-foreground">Perguntas frequentes</h2>
           </div>
           <div className="flex flex-col gap-2">
@@ -318,7 +318,7 @@ export default function HomePage() {
               </span>
             </Link>
             <p className="text-xs max-w-xs leading-relaxed text-muted">
-              O marketplace de servicos locais do Triangulo Mineiro.
+              O marketplace de serviços locais do Triângulo Mineiro.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               {[
@@ -344,7 +344,7 @@ export default function HomePage() {
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
                 <Mail size={15} className="text-muted" />
               </a>
-              <a href="https://wa.me/5519990177838?text=Ola!%20Vim%20pelo%20UDIHUB%20e%20preciso%20de%20ajuda."
+              <a href="https://wa.me/5519990177838?text=Ol%C3%A1!%20Vim%20pelo%20UDIHUB%20e%20preciso%20de%20ajuda."
                 target="_blank" rel="noopener noreferrer"
                 className="w-9 h-9 rounded-xl flex items-center justify-center"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -356,7 +356,7 @@ export default function HomePage() {
 
             <div className="w-full h-px" style={{ background: "#1F1F23" }} />
             <p className="text-[10px] text-muted">
-              © 2025 UDIHUB · Uberlandia, MG · Todos os direitos reservados
+              © 2025 UDIHUB · Uberlândia, MG · Todos os direitos reservados
             </p>
           </div>
         </div>
