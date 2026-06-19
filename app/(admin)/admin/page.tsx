@@ -251,6 +251,7 @@ export default function AdminPage() {
     { href: "/admin/cidades", icon: MapPin, label: "Cidades", desc: "Ativar novas cidades", badge: 0 },
     { href: "/admin/denuncias", icon: Flag, label: "Denuncias", desc: "Resolver denuncias", badge: metrics?.pendingReports || 0 },
     { href: "/admin/metricas", icon: BarChart3, label: "Metricas", desc: "Faturamento e dados", badge: 0 },
+    { href: "/admin/pagamentos", icon: CreditCard, label: "Pagamentos", desc: "Assinaturas e cobrancas", badge: metrics?.pendingPayments || 0 },
   ];
 
   return (
