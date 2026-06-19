@@ -19,6 +19,13 @@ function formatPrice(price: number) {
 
 const PAID_PLAN_OPTIONS = ["professional", "professional_annual"] as const;
 
+// Mapa de planos legados para seus equivalentes atuais, usado apenas para
+// exibição (nome/preço/features) — nunca atribuído a ninguém novo.
+const LEGACY_PLAN_MAP: Record<string, "free" | "professional"> = {
+  basic: "free",
+  pro: "professional",
+};
+
 export default function AssinaturaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -60,17 +67,22 @@ export default function AssinaturaPage() {
     setPaying(false);
   }
 
-  // Planos pagos reais: professional, professional_annual (e pro/basic legados,
-  // por segurança, caso algum profissional ainda não migrado apareça aqui).
-  const isPaidPlan = professional?.plan === "professional" || professional?.plan === "professional_annual" || professional?.plan === "pro" || professional?.plan === "basic";
-  const isFreePlan = professional?.plan === "free";
+  // Planos pagos reais: professional, professional_annual (e "pro" legado,
+  // que era equivalente). "basic" NÃO é pago — é tratado como legado de
+  // free, igual já é feito em painel/page.tsx, pra manter consistência.
+  const isPaidPlan = professional?.plan === "professional" || professional?.plan === "professional_annual" || professional?.plan === "pro";
+  const isFreePlan = professional?.plan === "free" || professional?.plan === "basic";
   const isActive = professional?.status === "active" && (isFreePlan || subscription?.status === "active");
   const isPending = subscription?.status === "pending";
   const nextBillingFormatted = formatDate(subscription?.next_billing);
 
-  // Plano atual com fallback seguro: se por algum motivo o valor não existir
-  // em PLANS (não deveria acontecer, mas evita tela quebrada), cai em "free".
-  const currentPlanKey = (professional?.plan && PLANS[professional.plan as keyof typeof PLANS]) ? professional.plan : "free";
+  // Plano atual com fallback seguro: mapeia planos legados (basic/pro) para
+  // seus equivalentes atuais antes de buscar em PLANS, pra nunca mostrar
+  // nome/preço antigo (ex: R$69) por engano. Se nada bater, cai em "free".
+  const effectivePlanKey = professional?.plan
+    ? (LEGACY_PLAN_MAP[professional.plan] || professional.plan)
+    : "free";
+  const currentPlanKey = PLANS[effectivePlanKey as keyof typeof PLANS] ? effectivePlanKey : "free";
   const currentPlan = PLANS[currentPlanKey as keyof typeof PLANS];
 
   if (loading) return (
