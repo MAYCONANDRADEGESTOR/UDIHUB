@@ -1,10 +1,28 @@
 import type { Metadata, Viewport } from "next";
+import { Syne, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import Script from "next/script";
 import BottomNav from "@/app/components/layout/BottomNav";
 
 const GA_ID = "G-QK04EZWBTR";
+
+// Fontes carregadas no build pelo Next.js (self-hosted), em vez de via <link>
+// pro Google Fonts em tempo de execução. Isso elimina o "flash" de fonte
+// errada (FOUT) que acontecia enquanto a fonte ainda baixava do Google.
+const syne = Syne({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  variable: "--font-syne",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -59,16 +77,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR" className={`dark ${syne.variable} ${inter.variable}`}>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          rel="preload"
-          as="style"
-          href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap"
-        />
-        <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <link rel="icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
         <script
