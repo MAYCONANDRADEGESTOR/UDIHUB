@@ -123,7 +123,7 @@ export default function InicioPage() {
           <p className="text-xs text-muted mb-1">
             {userName ? `Olá, ${userName}! 👋` : "Bem-vindo ao UDIHUB 👋"}
           </p>
-          <h1 className="font-syne font-extrabold text-2xl text-foreground leading-tight mb-4">
+          <h1 className="font-syne font-bold text-2xl text-foreground leading-tight mb-4">
             Encontre o profissional{" "}
             <span style={{
               background: "linear-gradient(135deg, #3B82F6 0%, #60a5fa 50%, #93c5fd 100%)",
@@ -213,7 +213,7 @@ export default function InicioPage() {
             </p>
           </div>
 
-          <h3 className="font-syne font-extrabold text-lg text-white mb-1">
+          <h3 className="font-syne font-bold text-lg text-white mb-1">
             Receba clientes no seu WhatsApp
           </h3>
           <p className="text-xs text-muted mb-4 leading-relaxed">
