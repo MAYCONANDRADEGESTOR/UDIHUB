@@ -270,7 +270,7 @@ export default function ProfissionalPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-background pb-36">
+      <div className="min-h-screen bg-background pb-44">
         <div className="sticky top-0 z-40 flex items-center justify-between px-4 h-14"
           style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
           <button onClick={() => router.back()} className="text-muted"><ArrowLeft size={20} /></button>
@@ -521,8 +521,8 @@ export default function ProfissionalPage() {
         </div>
       </div>
 
-      {/* Fixed WhatsApp */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pt-3 pb-8 z-50"
+      {/* Fixed WhatsApp — subido acima do menu flutuante inferior pra não sobrepor */}
+      <div className="fixed bottom-20 left-0 right-0 px-4 pt-3 pb-3 z-50"
         style={{ background: "rgba(9,9,11,0.98)", backdropFilter: "blur(20px)", borderTop: "1px solid #1F1F23" }}>
         <button onClick={handleWhatsApp}
           className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-base text-white"
