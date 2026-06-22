@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { MapPin, ChevronDown, Search, X, UserPlus, ArrowRight, MessageCircle, CheckCircle, Zap, ChevronRight } from "lucide-react";
+import { MapPin, ChevronDown, Search, X, UserPlus, ArrowRight, MessageCircle, CheckCircle, Zap, ChevronRight, Star, Crown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CITIES } from "@/lib/constants";
-import { getInitials } from "@/lib/utils";
-import ProCarousel from "@/app/components/ui/ProCarousel";
+import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
@@ -30,6 +29,25 @@ const PROFISSIONAL_BENEFITS = [
   { icon: CheckCircle, text: "Comece de graça, sem cartão de crédito" },
 ];
 
+const PLAN_RANK: Record<string, number> = {
+  professional_annual: 3,
+  professional: 2,
+  pro: 2,
+  basic: 1,
+  free: 0,
+};
+
+interface Prof {
+  id: string;
+  slug: string;
+  whatsapp: string;
+  avg_rating: number;
+  available_now: boolean;
+  plan: string;
+  users: { name: string; avatar: string | null };
+  categories: { name: string; icon: string };
+}
+
 export default function InicioPage() {
   const router = useRouter();
   const [neighborhood, setNeighborhood] = useState("");
@@ -38,14 +56,13 @@ export default function InicioPage() {
   const [userName, setUserName] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<"whatsapp" | "profile" | null>(null);
-  const [totalPros, setTotalPros] = useState(0);
-  const [disponiveisAgora, setDisponiveisAgora] = useState(0);
+  const [professionals, setProfessionals] = useState<Prof[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem("udihub_location");
     if (saved) setNeighborhood(JSON.parse(saved).neighborhood || "");
     loadUser();
-    loadHeroData();
+    loadProfessionals();
   }, []);
 
   async function loadUser() {
@@ -58,21 +75,24 @@ export default function InicioPage() {
     }
   }
 
-  async function loadHeroData() {
+  async function loadProfessionals() {
     const supabase = createClient();
-
-    const { count: total } = await supabase
+    const { data } = await supabase
       .from("professionals")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "active");
-    if (total) setTotalPros(total);
-
-    const { count: disp } = await supabase
-      .from("professionals")
-      .select("id", { count: "exact", head: true })
+      .select(`id, slug, whatsapp, avg_rating, available_now, plan,
+        users(name, avatar),
+        categories(name, icon)`)
       .eq("status", "active")
-      .eq("available_now", true);
-    if (disp) setDisponiveisAgora(disp);
+      .order("avg_rating", { ascending: false })
+      .limit(50);
+
+    const sorted = ((data as any) || []).sort((a: Prof, b: Prof) => {
+      const rankA = PLAN_RANK[a.plan] ?? 0;
+      const rankB = PLAN_RANK[b.plan] ?? 0;
+      return rankB - rankA;
+    });
+
+    setProfessionals(sorted);
   }
 
   function saveLocation(n: string) {
@@ -81,8 +101,35 @@ export default function InicioPage() {
     setShowLocationSelect(false);
   }
 
+  function handleWhatsApp(pro: Prof, e: React.MouseEvent) {
+    e.preventDefault();
+    if (!userId) {
+      setPendingAction("whatsapp");
+      setShowLoginModal(true);
+      return;
+    }
+    window.open(buildWhatsAppUrl(pro.whatsapp, `Olá ${(pro.users as any)?.name}! Vi seu perfil no UDIHUB.`), "_blank");
+  }
+
+  // Triplica o array pra loop contínuo suave
+  const marqueeItems = [...professionals, ...professionals, ...professionals];
+
   return (
     <div className="min-h-screen bg-background pb-28">
+
+      <style>{`
+        @keyframes marquee-inicio {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-33.333%); }
+        }
+        .marquee-inicio {
+          animation: marquee-inicio 40s linear infinite;
+          display: flex;
+          gap: 14px;
+          width: max-content;
+        }
+        .marquee-inicio:hover { animation-play-state: paused; }
+      `}</style>
 
       {/* HEADER */}
       <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
@@ -97,7 +144,7 @@ export default function InicioPage() {
             <div className="text-left">
               <div className="text-[9px] text-muted uppercase tracking-wider">Localização</div>
               <div className="text-sm font-semibold text-foreground flex items-center gap-1">
-                {neighborhood ? `${neighborhood}` : "Uberlândia"}
+                {neighborhood || "Uberlândia"}
                 <ChevronDown size={11} className="text-muted" />
               </div>
             </div>
@@ -122,8 +169,8 @@ export default function InicioPage() {
         )}
       </div>
 
-      {/* HERO */}
-      <div className="relative px-4 pt-7 pb-8 overflow-hidden"
+      {/* HERO — só título + busca */}
+      <div className="relative px-4 pt-7 pb-10 overflow-hidden"
         style={{ background: "linear-gradient(180deg, #0b111e 0%, #09090B 100%)" }}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
           style={{ width: 320, height: 120, background: "radial-gradient(ellipse, rgba(59,130,246,0.1) 0%, transparent 70%)", filter: "blur(40px)" }} />
@@ -132,8 +179,7 @@ export default function InicioPage() {
           <p className="text-xs mb-3" style={{ color: "#475569" }}>
             {userName ? `Olá, ${userName} 👋` : "Bem-vindo ao UDIHUB 👋"}
           </p>
-
-          <h1 className="font-syne font-bold leading-tight mb-6"
+          <h1 className="font-syne font-bold leading-tight mb-7"
             style={{ fontSize: 28, color: "#f8fafc", letterSpacing: "-0.3px" }}>
             Encontre o profissional{" "}
             <span style={{
@@ -147,62 +193,28 @@ export default function InicioPage() {
             para você
           </h1>
 
-          {/* Stats row — sem fotos */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <div className="font-bold text-sm text-foreground leading-tight">
-                  {totalPros > 0 ? `${totalPros}+` : "—"} profissionais
-                </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse"
-                    style={{ background: "#22c55e" }} />
-                  <span className="text-[11px]" style={{ color: "#64748b" }}>
-                    {disponiveisAgora > 0 ? `${disponiveisAgora} disponíveis agora` : "em Uberlândia"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="w-px h-7" style={{ background: "#1F1F23" }} />
-
-              <div>
-                <div className="font-bold text-sm text-foreground leading-tight">108+</div>
-                <div className="text-[11px] mt-0.5" style={{ color: "#64748b" }}>categorias</div>
-              </div>
+          {/* Busca flutuando sobre o fundo */}
+          <Link href="/servicos"
+            className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full"
+            style={{
+              background: "#111113",
+              border: "1px solid rgba(59,130,246,0.2)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            }}>
+            <Search size={16} style={{ color: "#3B82F6", flexShrink: 0 }} />
+            <span className="text-sm flex-1" style={{ color: "#475569" }}>
+              Qual serviço você precisa?
+            </span>
+            <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "rgba(59,130,246,0.15)" }}>
+              <ArrowRight size={13} style={{ color: "#3B82F6" }} />
             </div>
-
-            {/* Badge cidade */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-              style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.18)" }}>
-              <MapPin size={10} style={{ color: "#a855f7" }} />
-              <span className="text-[10px] font-semibold" style={{ color: "#c084fc" }}>Uberlândia</span>
-            </div>
-          </div>
+          </Link>
         </div>
       </div>
 
-      {/* BUSCA */}
-      <div className="px-4 -mt-4 mb-7 relative z-10">
-        <Link href="/servicos"
-          className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full"
-          style={{
-            background: "#111113",
-            border: "1px solid rgba(59,130,246,0.2)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-          }}>
-          <Search size={16} style={{ color: "#3B82F6", flexShrink: 0 }} />
-          <span className="text-sm flex-1" style={{ color: "#475569" }}>
-            Qual serviço você precisa?
-          </span>
-          <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(59,130,246,0.15)" }}>
-            <ArrowRight size={13} style={{ color: "#3B82F6" }} />
-          </div>
-        </Link>
-      </div>
-
       {/* CATEGORIAS */}
-      <div className="mb-8">
+      <div className="mt-6 mb-8">
         <div className="flex items-center justify-between px-4 mb-4">
           <div>
             <h2 className="font-syne font-bold text-sm text-foreground">Categorias</h2>
@@ -234,14 +246,13 @@ export default function InicioPage() {
         </div>
       </div>
 
-      <div className="px-4 space-y-8">
-
-        {/* EM DESTAQUE */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
+      {/* EM DESTAQUE — marquee animado com cards maiores */}
+      {professionals.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between px-4 mb-4">
             <div>
               <h2 className="font-syne font-bold text-sm text-foreground">Em destaque</h2>
-              <p className="text-[10px] text-muted mt-0.5">Profissionais verificados</p>
+              <p className="text-[10px] text-muted mt-0.5">Passe o dedo ou toque para pausar</p>
             </div>
             <Link href="/servicos"
               className="flex items-center gap-1 text-xs font-semibold"
@@ -249,13 +260,95 @@ export default function InicioPage() {
               Ver todos <ChevronRight size={12} />
             </Link>
           </div>
-          <ProCarousel userId={userId} onLoginRequired={() => {
-            setPendingAction("whatsapp");
-            setShowLoginModal(true);
-          }} />
-        </div>
 
-        {/* BANNER SEJA PROFISSIONAL */}
+          <div className="overflow-hidden">
+            <div className="marquee-inicio px-4">
+              {marqueeItems.map((pro, i) => {
+                const isPro = pro.plan === "professional" || pro.plan === "professional_annual" || pro.plan === "pro";
+                const planLabel = pro.plan === "professional_annual" ? "ANUAL" : "PRO";
+                const avatar = (pro.users as any)?.avatar;
+                const name = (pro.users as any)?.name;
+
+                return (
+                  <div key={i}
+                    className="flex-shrink-0 rounded-2xl overflow-hidden"
+                    style={{
+                      width: 200,
+                      background: isPro ? "linear-gradient(135deg, #0F1729, #1a2f5a)" : "#111113",
+                      border: isPro ? "1.5px solid rgba(59,130,246,0.4)" : "1px solid #1a1a1e",
+                      boxShadow: isPro ? "0 0 20px rgba(59,130,246,0.08)" : "none",
+                    }}>
+
+                    {/* Clicável — vai pro perfil */}
+                    <Link href={`/profissional/${pro.slug}`} className="block p-4">
+
+                      {/* Badges topo */}
+                      <div className="flex items-center justify-between mb-3">
+                        {pro.available_now ? (
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full"
+                            style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)" }}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[9px] font-bold" style={{ color: "#22c55e" }}>Disponível</span>
+                          </div>
+                        ) : <div />}
+                        {isPro && (
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-full"
+                            style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)" }}>
+                            <Crown size={9} style={{ color: "#FBBF24" }} />
+                            <span className="text-[9px] font-bold" style={{ color: "#FBBF24" }}>{planLabel}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Avatar + info */}
+                      <div className="flex items-center gap-3 mb-3">
+                        {avatar ? (
+                          <img src={avatar} alt={name}
+                            className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
+                            style={{ border: isPro ? "2px solid rgba(251,191,36,0.5)" : "1px solid #1F1F23" }} />
+                        ) : (
+                          <div className="w-14 h-14 rounded-xl flex items-center justify-center font-syne font-bold text-lg flex-shrink-0"
+                            style={{ background: "linear-gradient(135deg,#1e3a5f,#1d4ed8)", color: "#93c5fd" }}>
+                            {getInitials(name || "?")}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-syne font-bold text-sm truncate"
+                            style={{ color: isPro ? "#ffffff" : "#f1f5f9" }}>
+                            {name?.split(" ")[0]}
+                          </div>
+                          <div className="text-[11px] mt-0.5 truncate" style={{ color: isPro ? "#93c5fd" : "#64748b" }}>
+                            {(pro.categories as any)?.icon} {(pro.categories as any)?.name}
+                          </div>
+                          <div className="flex items-center gap-1 mt-1">
+                            <Star size={10} fill="#FBBF24" style={{ color: "#FBBF24" }} />
+                            <span className="text-[10px] font-semibold" style={{ color: isPro ? "#f8fafc" : "#94a3b8" }}>
+                              {pro.avg_rating > 0 ? Number(pro.avg_rating).toFixed(1) : "Novo"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+
+                    {/* Botão WhatsApp */}
+                    <div className="px-4 pb-4">
+                      <button
+                        onClick={(e) => handleWhatsApp(pro, e)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs text-white"
+                        style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
+                        <MessageCircle size={13} /> WhatsApp
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BANNER SEJA PROFISSIONAL */}
+      <div className="px-4 mb-8">
         <div className="relative rounded-2xl overflow-hidden p-5"
           style={{ background: "linear-gradient(135deg, #0F1729 0%, #162040 100%)", border: "1px solid rgba(59,130,246,0.25)" }}>
           <div className="absolute top-0 right-0 pointer-events-none"
@@ -267,8 +360,7 @@ export default function InicioPage() {
                 style={{ background: "rgba(34,197,94,0.15)" }}>
                 <Zap size={12} style={{ color: "#22c55e" }} />
               </div>
-              <span className="text-[9px] font-bold tracking-widest uppercase"
-                style={{ color: "#60a5fa" }}>
+              <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: "#60a5fa" }}>
                 É profissional autônomo?
               </span>
             </div>
@@ -296,7 +388,6 @@ export default function InicioPage() {
             </Link>
           </div>
         </div>
-
       </div>
 
       {/* MODAL LOGIN */}
