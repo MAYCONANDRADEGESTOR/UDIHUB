@@ -2,38 +2,32 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { MapPin, ChevronDown, Search, Heart, X, UserPlus, ArrowRight, Grid3X3, MessageCircle, CheckCircle, Zap } from "lucide-react";
+import { MapPin, ChevronDown, Search, X, UserPlus, ArrowRight, MessageCircle, CheckCircle, Zap, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { CATEGORIES, CITIES } from "@/lib/constants";
-import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
+import { CITIES } from "@/lib/constants";
+import { getInitials } from "@/lib/utils";
 import ProCarousel from "@/app/components/ui/ProCarousel";
-import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
 const QUICK_CATS = [
-  { slug: "eletricista", name: "Eletricista", icon: "⚡" },
-  { slug: "encanador", name: "Encanador", icon: "🔧" },
-  { slug: "diarista", name: "Diarista", icon: "🧹" },
-  { slug: "pintor", name: "Pintor", icon: "🎨" },
-  { slug: "ar-condicionado", name: "Ar Condicionado", icon: "❄️" },
-  { slug: "cabeleireiro", name: "Cabeleireiro", icon: "✂️" },
-  { slug: "personal-trainer", name: "Personal", icon: "💪" },
-  { slug: "montador-moveis", name: "Montador", icon: "🪑" },
+  { slug: "eletricista", name: "Eletricista", icon: "⚡", color: "#FBBF24" },
+  { slug: "encanador", name: "Encanador", icon: "🔧", color: "#3B82F6" },
+  { slug: "diarista", name: "Diarista", icon: "🧹", color: "#22c55e" },
+  { slug: "pintor", name: "Pintor", icon: "🎨", color: "#a855f7" },
+  { slug: "ar-condicionado", name: "Ar condicionado", icon: "❄️", color: "#06b6d4" },
+  { slug: "cabeleireiro", name: "Cabeleireiro", icon: "✂️", color: "#f43f5e" },
+  { slug: "personal-trainer", name: "Personal", icon: "💪", color: "#f97316" },
+  { slug: "montador-moveis", name: "Montador", icon: "🪑", color: "#8b5cf6" },
+  { slug: "pedreiro", name: "Pedreiro", icon: "🧱", color: "#84cc16" },
+  { slug: "marceneiro", name: "Marceneiro", icon: "🪵", color: "#f59e0b" },
 ];
 
 const PROFISSIONAL_BENEFITS = [
   { icon: Search, text: "Apareça nas buscas por categoria e bairro" },
   { icon: MessageCircle, text: "Cliente chama direto no seu WhatsApp" },
   { icon: CheckCircle, text: "Comece de graça, sem cartão de crédito" },
-];
-
-const STATS = [
-  { icon: Grid3X3, value: "108+", label: "Categorias", color: "#3B82F6" },
-  { icon: MessageCircle, value: "100%", label: "Via WhatsApp", color: "#22c55e" },
-  { icon: MapPin, value: "UDI", label: "Uberlândia", color: "#a855f7" },
 ];
 
 export default function InicioPage() {
@@ -44,14 +38,15 @@ export default function InicioPage() {
   const [userName, setUserName] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<"whatsapp" | "profile" | null>(null);
+  const [avatarCluster, setAvatarCluster] = useState<string[]>([]);
+  const [totalPros, setTotalPros] = useState(0);
+  const [disponiveisAgora, setDisponiveisAgora] = useState(0);
 
   useEffect(() => {
     const saved = localStorage.getItem("udihub_location");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setNeighborhood(parsed.neighborhood || "");
-    }
+    if (saved) setNeighborhood(JSON.parse(saved).neighborhood || "");
     loadUser();
+    loadHeroData();
   }, []);
 
   async function loadUser() {
@@ -59,9 +54,34 @@ export default function InicioPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       setUserId(user.id);
-      const { data: userData } = await supabase.from("users").select("name").eq("id", user.id).single();
-      setUserName(userData?.name?.split(" ")[0] || null);
+      const { data } = await supabase.from("users").select("name").eq("id", user.id).single();
+      setUserName(data?.name?.split(" ")[0] || null);
     }
+  }
+
+  async function loadHeroData() {
+    const supabase = createClient();
+    const { data: avatars } = await supabase
+      .from("professionals")
+      .select("avatar")
+      .eq("status", "active")
+      .not("avatar", "is", null)
+      .neq("avatar", "")
+      .limit(5);
+    if (avatars) setAvatarCluster(avatars.map((p: any) => p.avatar));
+
+    const { count: total } = await supabase
+      .from("professionals")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active");
+    if (total) setTotalPros(total);
+
+    const { count: disp } = await supabase
+      .from("professionals")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .eq("available_now", true);
+    if (disp) setDisponiveisAgora(disp);
   }
 
   function saveLocation(n: string) {
@@ -70,41 +90,36 @@ export default function InicioPage() {
     setShowLocationSelect(false);
   }
 
-  function handleProfileClick(e: React.MouseEvent) {
-    if (!userId) {
-      e.preventDefault();
-      setPendingAction("profile");
-      setShowLoginModal(true);
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-28">
 
-      {/* Header */}
+      {/* HEADER */}
       <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
-        style={{ background: "rgba(9,9,11,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1F1F23" }}>
+        style={{ background: "rgba(9,9,11,0.97)", backdropFilter: "blur(24px)", borderBottom: "1px solid #1a1a1e" }}>
         <div className="flex items-center justify-between">
           <button onClick={() => setShowLocationSelect(!showLocationSelect)}
-            className="flex items-center gap-1.5">
-            <MapPin size={14} style={{ color: "#3B82F6" }} />
+            className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "rgba(59,130,246,0.12)" }}>
+              <MapPin size={13} style={{ color: "#3B82F6" }} />
+            </div>
             <div className="text-left">
-              <div className="text-[10px] text-muted">Sua localização</div>
+              <div className="text-[9px] text-muted uppercase tracking-wider">Localização</div>
               <div className="text-sm font-semibold text-foreground flex items-center gap-1">
-                {neighborhood ? `${neighborhood}, ` : ""}Uberlândia
-                <ChevronDown size={12} className="text-muted" />
+                {neighborhood ? `${neighborhood}` : "Uberlândia"}
+                <ChevronDown size={11} className="text-muted" />
               </div>
             </div>
           </button>
           <Link href="/servicos"
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-muted"
-            style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-            <Search size={14} /> Buscar
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold"
+            style={{ background: "#111113", border: "1px solid #1F1F23", color: "#94a3b8" }}>
+            <Search size={13} /> Buscar
           </Link>
         </div>
 
         {showLocationSelect && (
-          <div className="mt-2 p-3 rounded-2xl animate-slide-up"
+          <div className="mt-3 p-3 rounded-2xl"
             style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <select value={neighborhood} onChange={(e) => saveLocation(e.target.value)}
               className="w-full px-3 py-2 rounded-xl text-xs text-foreground"
@@ -116,17 +131,23 @@ export default function InicioPage() {
         )}
       </div>
 
-      <div className="px-4 pt-5 pb-4 space-y-6">
+      {/* HERO — fundo com glow sutil */}
+      <div className="relative px-4 pt-7 pb-8 overflow-hidden"
+        style={{ background: "linear-gradient(180deg, #0b111e 0%, #09090B 100%)" }}>
+        {/* Glow decorativo */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
+          style={{ width: 320, height: 120, background: "radial-gradient(ellipse, rgba(59,130,246,0.1) 0%, transparent 70%)", filter: "blur(40px)" }} />
 
-        {/* Hero */}
-        <div>
-          <p className="text-xs text-muted mb-1">
-            {userName ? `Olá, ${userName}! 👋` : "Bem-vindo ao UDIHUB 👋"}
+        <div className="relative z-10">
+          <p className="text-xs mb-3" style={{ color: "#475569" }}>
+            {userName ? `Olá, ${userName} 👋` : "Bem-vindo ao UDIHUB 👋"}
           </p>
-          <h1 className="font-syne font-bold text-2xl text-foreground leading-tight mb-4">
+
+          <h1 className="font-syne font-bold leading-tight mb-6"
+            style={{ fontSize: 28, color: "#f8fafc", letterSpacing: "-0.3px" }}>
             Encontre o profissional{" "}
             <span style={{
-              background: "linear-gradient(135deg, #3B82F6 0%, #60a5fa 50%, #93c5fd 100%)",
+              background: "linear-gradient(135deg, #3B82F6 0%, #93c5fd 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
@@ -135,119 +156,179 @@ export default function InicioPage() {
             </span>{" "}
             para você
           </h1>
-          <div className="grid grid-cols-3 gap-2">
-            {STATS.map(({ icon: Icon, value, label, color }) => (
-              <div key={label} className="text-center p-3 rounded-xl"
-                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center mx-auto mb-1.5"
-                  style={{ background: `${color}15` }}>
-                  <Icon size={13} style={{ color }} />
+
+          {/* Social proof row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Avatares empilhados */}
+              {avatarCluster.length > 0 && (
+                <div className="flex items-center" style={{ isolation: "isolate" }}>
+                  {avatarCluster.slice(0, 5).map((url, i) => (
+                    <div key={i} className="rounded-full overflow-hidden flex-shrink-0"
+                      style={{
+                        width: 34, height: 34,
+                        marginLeft: i === 0 ? 0 : -10,
+                        border: "2.5px solid #09090B",
+                        position: "relative",
+                        zIndex: 5 - i,
+                      }}>
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
                 </div>
-                <div className="font-syne font-extrabold text-base" style={{ color }}>{value}</div>
-                <div className="text-[10px] text-muted mt-0.5">{label}</div>
+              )}
+              <div>
+                <div className="font-bold text-sm text-foreground leading-tight">
+                  {totalPros > 0 ? `${totalPros}+` : "—"} profissionais
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 animate-pulse"
+                    style={{ background: "#22c55e" }} />
+                  <span className="text-[11px]" style={{ color: "#64748b" }}>
+                    {disponiveisAgora > 0 ? `${disponiveisAgora} disponíveis agora` : "em Uberlândia"}
+                  </span>
+                </div>
               </div>
-            ))}
+            </div>
+
+            {/* Badge cidade */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+              style={{ background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.18)" }}>
+              <MapPin size={10} style={{ color: "#a855f7" }} />
+              <span className="text-[10px] font-semibold" style={{ color: "#c084fc" }}>Uberlândia</span>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Busca rapida */}
+      {/* BUSCA */}
+      <div className="px-4 -mt-4 mb-7 relative z-10">
         <Link href="/servicos"
-          className="flex items-center gap-3 px-4 py-3.5 rounded-full w-full"
-          style={{ background: "#111113", border: "1px solid rgba(59,130,246,0.25)", boxShadow: "0 0 16px rgba(59,130,246,0.08)" }}>
-          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(59,130,246,0.12)" }}>
-            <Search size={13} style={{ color: "#3B82F6" }} />
+          className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full"
+          style={{
+            background: "#111113",
+            border: "1px solid rgba(59,130,246,0.2)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+          }}>
+          <Search size={16} style={{ color: "#3B82F6", flexShrink: 0 }} />
+          <span className="text-sm flex-1" style={{ color: "#475569" }}>
+            Qual serviço você precisa?
+          </span>
+          <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(59,130,246,0.15)" }}>
+            <ArrowRight size={13} style={{ color: "#3B82F6" }} />
           </div>
-          <span className="text-sm text-muted flex-1">Buscar por serviço ou profissão...</span>
-          <ArrowRight size={14} className="text-muted" />
         </Link>
+      </div>
 
-        {/* Categorias */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold tracking-widest text-muted">CATEGORIAS</span>
-            <Link href="/servicos" className="flex items-center gap-1 text-xs font-semibold"
-              style={{ color: "#3B82F6" }}>
-              Ver todas 108 <ArrowRight size={11} />
-            </Link>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {QUICK_CATS.map((cat) => (
-              <Link key={cat.slug} href={`/servicos/${cat.slug}`}
-                className="flex flex-col items-center gap-2 p-3 rounded-2xl text-center transition-colors"
-                style={{ background: "#111113", border: "1px solid #1F1F23" }}>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(59,130,246,0.1)" }}>
-                  <span className="text-lg">{cat.icon}</span>
-                </div>
-                <span className="text-[10px] text-muted leading-tight line-clamp-1">{cat.name}</span>
-              </Link>
-            ))}
+      {/* CATEGORIAS — scroll horizontal premium */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between px-4 mb-4">
+          <div>
+            <h2 className="font-syne font-bold text-sm text-foreground">Categorias</h2>
+            <p className="text-[10px] text-muted mt-0.5">108 serviços disponíveis</p>
           </div>
           <Link href="/servicos"
-            className="mt-2 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold"
-            style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.15)", color: "#93c5fd" }}>
-            <Grid3X3 size={13} /> Ver todas as 108 categorias
+            className="flex items-center gap-1 text-xs font-semibold"
+            style={{ color: "#3B82F6" }}>
+            Ver todas <ChevronRight size={12} />
           </Link>
         </div>
 
-        {/* Carrossel de profissionais em destaque */}
-        <ProCarousel userId={userId} onLoginRequired={() => {
-          setPendingAction("whatsapp");
-          setShowLoginModal(true);
-        }} />
-
-        {/* Banner seja profissional */}
-        <div className="relative p-5 rounded-2xl overflow-hidden"
-          style={{ background: "linear-gradient(135deg, #0F1729, #1a2f5a)", border: "1px solid #3B82F6" }}>
-          <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none"
-            style={{ background: "radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)", transform: "translate(20%, -20%)" }} />
-
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(34,197,94,0.15)" }}>
-              <Zap size={14} style={{ color: "#22c55e" }} />
-            </div>
-            <p className="text-[10px] font-bold tracking-wide" style={{ color: "#93c5fd" }}>
-              É PROFISSIONAL AUTÔNOMO? CADASTRO GRATUITO
-            </p>
-          </div>
-
-          <h3 className="font-syne font-bold text-lg text-white mb-1">
-            Receba clientes no seu WhatsApp
-          </h3>
-          <p className="text-xs text-muted mb-4 leading-relaxed">
-            Crie seu perfil e apareça nas buscas de clientes de Uberlândia sem pagar nada. Quer destaque e clientes ilimitados? Assine a partir de R$59,90/mês quando quiser.
-          </p>
-
-          <div className="flex flex-col gap-2 mb-4">
-            {PROFISSIONAL_BENEFITS.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-2.5">
-                <Icon size={13} style={{ color: "#60a5fa" }} className="flex-shrink-0" />
-                <span className="text-[11px] text-muted leading-tight">{text}</span>
+        <div className="flex gap-3 px-4 overflow-x-auto pb-2"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          {QUICK_CATS.map((cat) => (
+            <Link key={cat.slug} href={`/servicos/${cat.slug}`}
+              className="flex-shrink-0 flex flex-col items-center gap-2.5 p-3 rounded-2xl"
+              style={{ background: "#111113", border: "1px solid #1a1a1e", width: 82, minHeight: 90 }}>
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center"
+                style={{ background: `${cat.color}14` }}>
+                <span style={{ fontSize: 22 }}>{cat.icon}</span>
               </div>
-            ))}
-          </div>
+              <span className="text-center leading-tight font-medium"
+                style={{ fontSize: 10, color: "#94a3b8", maxWidth: 68 }}>
+                {cat.name}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
 
-          <Link href="/seja-profissional"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white"
-            style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 16px rgba(59,130,246,0.3)" }}>
-            Criar perfil grátis <ArrowRight size={14} />
-          </Link>
+      <div className="px-4 space-y-8">
+
+        {/* PROFISSIONAIS EM DESTAQUE */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-syne font-bold text-sm text-foreground">Em destaque</h2>
+              <p className="text-[10px] text-muted mt-0.5">Profissionais verificados</p>
+            </div>
+            <Link href="/servicos"
+              className="flex items-center gap-1 text-xs font-semibold"
+              style={{ color: "#3B82F6" }}>
+              Ver todos <ChevronRight size={12} />
+            </Link>
+          </div>
+          <ProCarousel userId={userId} onLoginRequired={() => {
+            setPendingAction("whatsapp");
+            setShowLoginModal(true);
+          }} />
+        </div>
+
+        {/* BANNER SEJA PROFISSIONAL */}
+        <div className="relative rounded-2xl overflow-hidden p-5"
+          style={{ background: "linear-gradient(135deg, #0F1729 0%, #162040 100%)", border: "1px solid rgba(59,130,246,0.25)" }}>
+          <div className="absolute top-0 right-0 pointer-events-none"
+            style={{ width: 140, height: 140, background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)", transform: "translate(30%,-30%)" }} />
+
+          <div className="relative z-10">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(34,197,94,0.15)" }}>
+                <Zap size={12} style={{ color: "#22c55e" }} />
+              </div>
+              <span className="text-[9px] font-bold tracking-widest uppercase"
+                style={{ color: "#60a5fa" }}>
+                É profissional autônomo?
+              </span>
+            </div>
+
+            <h3 className="font-syne font-bold text-lg text-white mb-1.5">
+              Receba clientes no WhatsApp
+            </h3>
+            <p className="text-xs leading-relaxed mb-4" style={{ color: "#64748b" }}>
+              Crie seu perfil grátis e apareça para clientes de Uberlândia. Clientes chamam direto, sem comissão.
+            </p>
+
+            <div className="flex flex-col gap-2 mb-5">
+              {PROFISSIONAL_BENEFITS.map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-2.5">
+                  <Icon size={12} style={{ color: "#60a5fa", flexShrink: 0 }} />
+                  <span className="text-[11px]" style={{ color: "#64748b" }}>{text}</span>
+                </div>
+              ))}
+            </div>
+
+            <Link href="/seja-profissional"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white"
+              style={{ background: "linear-gradient(135deg, #3B82F6, #1d4ed8)", boxShadow: "0 0 20px rgba(59,130,246,0.25)" }}>
+              Criar perfil grátis <ArrowRight size={14} />
+            </Link>
+          </div>
         </div>
 
       </div>
 
-      {/* Modal Login */}
+      {/* MODAL LOGIN */}
       {showLoginModal && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center"
-          style={{ background: "rgba(0,0,0,0.75)" }}
+          style={{ background: "rgba(0,0,0,0.8)" }}
           onClick={(e) => e.target === e.currentTarget && setShowLoginModal(false)}>
-          <div className="w-full max-w-lg rounded-t-3xl p-6 animate-slide-up"
+          <div className="w-full max-w-lg rounded-t-3xl p-6"
             style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <button onClick={() => setShowLoginModal(false)}
               className="absolute top-4 right-4 text-muted"><X size={18} /></button>
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-5">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
                 style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)" }}>
                 <UserPlus size={26} style={{ color: "#3B82F6" }} />
@@ -271,9 +352,7 @@ export default function InicioPage() {
                 Já tenho conta — Entrar
               </Link>
             </div>
-            <p className="text-center text-[10px] text-muted mt-4">
-              Sem fidelidade · Cancele quando quiser
-            </p>
+            <p className="text-center text-[10px] text-muted mt-4">Sem fidelidade · Cancele quando quiser</p>
           </div>
         </div>
       )}
