@@ -38,7 +38,6 @@ export default function InicioPage() {
   const [userName, setUserName] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<"whatsapp" | "profile" | null>(null);
-  const [avatarCluster, setAvatarCluster] = useState<string[]>([]);
   const [totalPros, setTotalPros] = useState(0);
   const [disponiveisAgora, setDisponiveisAgora] = useState(0);
 
@@ -61,14 +60,6 @@ export default function InicioPage() {
 
   async function loadHeroData() {
     const supabase = createClient();
-    const { data: avatars } = await supabase
-      .from("professionals")
-      .select("avatar")
-      .eq("status", "active")
-      .not("avatar", "is", null)
-      .neq("avatar", "")
-      .limit(5);
-    if (avatars) setAvatarCluster(avatars.map((p: any) => p.avatar));
 
     const { count: total } = await supabase
       .from("professionals")
@@ -131,10 +122,9 @@ export default function InicioPage() {
         )}
       </div>
 
-      {/* HERO — fundo com glow sutil */}
+      {/* HERO */}
       <div className="relative px-4 pt-7 pb-8 overflow-hidden"
         style={{ background: "linear-gradient(180deg, #0b111e 0%, #09090B 100%)" }}>
-        {/* Glow decorativo */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
           style={{ width: 320, height: 120, background: "radial-gradient(ellipse, rgba(59,130,246,0.1) 0%, transparent 70%)", filter: "blur(40px)" }} />
 
@@ -157,26 +147,9 @@ export default function InicioPage() {
             para você
           </h1>
 
-          {/* Social proof row */}
+          {/* Stats row — sem fotos */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {/* Avatares empilhados */}
-              {avatarCluster.length > 0 && (
-                <div className="flex items-center" style={{ isolation: "isolate" }}>
-                  {avatarCluster.slice(0, 5).map((url, i) => (
-                    <div key={i} className="rounded-full overflow-hidden flex-shrink-0"
-                      style={{
-                        width: 34, height: 34,
-                        marginLeft: i === 0 ? 0 : -10,
-                        border: "2.5px solid #09090B",
-                        position: "relative",
-                        zIndex: 5 - i,
-                      }}>
-                      <img src={url} alt="" className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="flex items-center gap-4">
               <div>
                 <div className="font-bold text-sm text-foreground leading-tight">
                   {totalPros > 0 ? `${totalPros}+` : "—"} profissionais
@@ -188,6 +161,13 @@ export default function InicioPage() {
                     {disponiveisAgora > 0 ? `${disponiveisAgora} disponíveis agora` : "em Uberlândia"}
                   </span>
                 </div>
+              </div>
+
+              <div className="w-px h-7" style={{ background: "#1F1F23" }} />
+
+              <div>
+                <div className="font-bold text-sm text-foreground leading-tight">108+</div>
+                <div className="text-[11px] mt-0.5" style={{ color: "#64748b" }}>categorias</div>
               </div>
             </div>
 
@@ -221,7 +201,7 @@ export default function InicioPage() {
         </Link>
       </div>
 
-      {/* CATEGORIAS — scroll horizontal premium */}
+      {/* CATEGORIAS */}
       <div className="mb-8">
         <div className="flex items-center justify-between px-4 mb-4">
           <div>
@@ -256,7 +236,7 @@ export default function InicioPage() {
 
       <div className="px-4 space-y-8">
 
-        {/* PROFISSIONAIS EM DESTAQUE */}
+        {/* EM DESTAQUE */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
