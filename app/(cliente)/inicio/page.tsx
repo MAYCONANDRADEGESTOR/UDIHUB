@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, ChevronDown, Search, Heart, X, UserPlus, ArrowRight, Grid3X3, MessageCircle, CheckCircle, Zap } from "lucide-react";
+import { MapPin, ChevronDown, Search, Heart, X, UserPlus, ArrowRight, Grid3X3, MessageCircle, CheckCircle, Zap, Sparkles, Star } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES, CITIES } from "@/lib/constants";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
@@ -44,6 +44,10 @@ export default function InicioPage() {
   const [userName, setUserName] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<"whatsapp" | "profile" | null>(null);
+  const [recentPros, setRecentPros] = useState<any[]>([]);
+  const [recentCount, setRecentCount] = useState(0);
+  const [disponiveisAgora, setDisponiveisAgora] = useState(0);
+  const [recentReviews, setRecentReviews] = useState<any[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem("udihub_location");
@@ -52,6 +56,7 @@ export default function InicioPage() {
       setNeighborhood(parsed.neighborhood || "");
     }
     loadUser();
+    loadDynamicData();
   }, []);
 
   async function loadUser() {
@@ -62,6 +67,54 @@ export default function InicioPage() {
       const { data: userData } = await supabase.from("users").select("name").eq("id", user.id).single();
       setUserName(userData?.name?.split(" ")[0] || null);
     }
+  }
+
+  async function loadDynamicData() {
+    const supabase = createClient();
+
+    // Últimos 8 profissionais cadastrados
+    const { data: recent } = await supabase
+      .from("professionals")
+      .select("id, slug, avatar, created_at, users(name), categories(name, icon)")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(8);
+    if (recent) setRecentPros(recent);
+
+    // Contagem últimos 7 dias
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const { count: weekCount } = await supabase
+      .from("professionals")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .gte("created_at", sevenDaysAgo.toISOString());
+    if (weekCount) setRecentCount(weekCount);
+
+    // Disponíveis agora
+    const { count: dispCount } = await supabase
+      .from("professionals")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "active")
+      .eq("available_now", true);
+    if (dispCount) setDisponiveisAgora(dispCount);
+
+    // Avaliações recentes 5 estrelas
+    const { data: reviews } = await supabase
+      .from("reviews")
+      .select(`
+        id, rating, comment, created_at,
+        users(name),
+        professionals(
+          slug,
+          users(name),
+          categories(name, icon)
+        )
+      `)
+      .eq("rating", 5)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    if (reviews && reviews.length > 0) setRecentReviews(reviews);
   }
 
   function saveLocation(n: string) {
@@ -150,6 +203,19 @@ export default function InicioPage() {
           </div>
         </div>
 
+        {/* Barra de urgência — disponíveis agora */}
+        {disponiveisAgora > 0 && (
+          <Link href="/servicos"
+            className="flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl w-full"
+            style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
+            <span className="w-2 h-2 rounded-full flex-shrink-0 bg-green-500 animate-pulse" />
+            <span className="text-xs font-semibold" style={{ color: "#22c55e" }}>
+              {disponiveisAgora} profissionais disponíveis agora para te atender
+            </span>
+            <ArrowRight size={12} style={{ color: "#22c55e" }} />
+          </Link>
+        )}
+
         {/* Busca rapida */}
         <Link href="/servicos"
           className="flex items-center gap-3 px-4 py-3.5 rounded-full w-full"
@@ -196,6 +262,100 @@ export default function InicioPage() {
           setPendingAction("whatsapp");
           setShowLoginModal(true);
         }} />
+
+        {/* Novos na plataforma */}
+        {recentPros.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles size={13} style={{ color: "#a855f7" }} />
+                <span className="text-xs font-bold tracking-widest text-muted">NOVOS NA PLATAFORMA</span>
+              </div>
+              {recentCount > 0 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(168,85,247,0.15)", color: "#a855f7" }}>
+                  +{recentCount} essa semana
+                </span>
+              )}
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+              {recentPros.map((pro) => (
+                <Link key={pro.id} href={`/profissional/${pro.slug}`}
+                  className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-2xl w-[72px]"
+                  style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                  {pro.avatar ? (
+                    <img src={pro.avatar} alt={pro.users?.name}
+                      className="w-11 h-11 rounded-full object-cover"
+                      style={{ border: "2px solid rgba(168,85,247,0.3)" }} />
+                  ) : (
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0"
+                      style={{ background: "linear-gradient(135deg,#2d1b69,#7c3aed)", color: "#c4b5fd", border: "2px solid rgba(168,85,247,0.3)" }}>
+                      {getInitials(pro.users?.name || "?")}
+                    </div>
+                  )}
+                  <div className="text-center w-full">
+                    <div className="text-[10px] font-semibold text-foreground leading-tight truncate">
+                      {pro.users?.name?.split(" ")[0]}
+                    </div>
+                    <div className="text-[9px] text-muted mt-0.5 truncate">
+                      {pro.categories?.icon} {pro.categories?.name?.split("/")[0].trim()}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted mt-2 text-center">
+              Seu serviço também pode estar aqui —{" "}
+              <Link href="/seja-profissional" className="font-semibold" style={{ color: "#a855f7" }}>
+                cadastro grátis
+              </Link>
+            </p>
+          </div>
+        )}
+
+        {/* O que dizem os clientes — aparece automaticamente quando houver avaliações */}
+        {recentReviews.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Star size={13} fill="#FBBF24" className="text-yellow-400" />
+              <span className="text-xs font-bold tracking-widest text-muted">O QUE DIZEM OS CLIENTES</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+              {recentReviews.map((review) => (
+                <Link key={review.id}
+                  href={`/profissional/${review.professionals?.slug}`}
+                  className="flex-shrink-0 p-3 rounded-2xl w-56"
+                  style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                  <div className="flex gap-0.5 mb-2">
+                    {[1,2,3,4,5].map((s) => (
+                      <Star key={s} size={10} fill="#FBBF24" className="text-yellow-400" />
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted leading-relaxed mb-2 line-clamp-2">
+                    "{review.comment}"
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0"
+                      style={{ background: "rgba(59,130,246,0.15)", color: "#93c5fd" }}>
+                      {getInitials(review.users?.name || "?")}
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold text-foreground">
+                        {review.users?.name?.split(" ")[0]}
+                      </span>
+                      <span className="text-[9px] text-muted"> para </span>
+                      <span className="text-[10px] font-semibold" style={{ color: "#60a5fa" }}>
+                        {review.professionals?.categories?.icon} {review.professionals?.users?.name?.split(" ")[0]}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Banner seja profissional */}
         <div className="relative p-5 rounded-2xl overflow-hidden"
