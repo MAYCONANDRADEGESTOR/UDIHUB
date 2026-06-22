@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { MapPin, ChevronDown, Search, X, UserPlus, ArrowRight, MessageCircle, CheckCircle, Zap, ChevronRight, Star, Crown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -58,12 +58,62 @@ export default function InicioPage() {
   const [pendingAction, setPendingAction] = useState<"whatsapp" | "profile" | null>(null);
   const [professionals, setProfessionals] = useState<Prof[]>([]);
 
+  // Refs para auto-scroll
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pausedRef = useRef(false);
+  const scrollPosRef = useRef(0);
+  const animFrameRef = useRef<number>(0);
+
   useEffect(() => {
     const saved = localStorage.getItem("udihub_location");
     if (saved) setNeighborhood(JSON.parse(saved).neighborhood || "");
     loadUser();
     loadProfessionals();
   }, []);
+
+  // Auto-scroll suave com requestAnimationFrame
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || professionals.length === 0) return;
+
+    function animate() {
+      if (!pausedRef.current && el) {
+        scrollPosRef.current += 0.4; // velocidade: 0.4px por frame ≈ 24px/s a 60fps
+        const half = el.scrollWidth / 2;
+        if (scrollPosRef.current >= half) {
+          scrollPosRef.current = 0;
+        }
+        el.scrollLeft = scrollPosRef.current;
+      }
+      animFrameRef.current = requestAnimationFrame(animate);
+    }
+
+    animFrameRef.current = requestAnimationFrame(animate);
+
+    function onTouchStart() {
+      pausedRef.current = true;
+    }
+    function onTouchEnd() {
+      // Sincroniza posição depois do deslize manual
+      if (el) scrollPosRef.current = el.scrollLeft % (el.scrollWidth / 2);
+      setTimeout(() => { pausedRef.current = false; }, 2000);
+    }
+    function onMouseEnter() { pausedRef.current = true; }
+    function onMouseLeave() { pausedRef.current = false; }
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("mouseenter", onMouseEnter);
+    el.addEventListener("mouseleave", onMouseLeave);
+
+    return () => {
+      cancelAnimationFrame(animFrameRef.current);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("mouseenter", onMouseEnter);
+      el.removeEventListener("mouseleave", onMouseLeave);
+    };
+  }, [professionals.length]);
 
   async function loadUser() {
     const supabase = createClient();
@@ -87,11 +137,8 @@ export default function InicioPage() {
       .limit(50);
 
     const sorted = ((data as any) || []).sort((a: Prof, b: Prof) => {
-      const rankA = PLAN_RANK[a.plan] ?? 0;
-      const rankB = PLAN_RANK[b.plan] ?? 0;
-      return rankB - rankA;
+      return (PLAN_RANK[b.plan] ?? 0) - (PLAN_RANK[a.plan] ?? 0);
     });
-
     setProfessionals(sorted);
   }
 
@@ -111,25 +158,11 @@ export default function InicioPage() {
     window.open(buildWhatsAppUrl(pro.whatsapp, `Olá ${(pro.users as any)?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
 
-  // Triplica o array pra loop contínuo suave
-  const marqueeItems = [...professionals, ...professionals, ...professionals];
+  // Duplica array para loop contínuo
+  const loopItems = [...professionals, ...professionals];
 
   return (
     <div className="min-h-screen bg-background pb-28">
-
-      <style>{`
-        @keyframes marquee-inicio {
-          0%   { transform: translateX(0); }
-          100% { transform: translateX(-33.333%); }
-        }
-        .marquee-inicio {
-          animation: marquee-inicio 40s linear infinite;
-          display: flex;
-          gap: 14px;
-          width: max-content;
-        }
-        .marquee-inicio:hover { animation-play-state: paused; }
-      `}</style>
 
       {/* HEADER */}
       <div className="px-4 pt-4 pb-3 sticky top-0 z-40"
@@ -169,7 +202,7 @@ export default function InicioPage() {
         )}
       </div>
 
-      {/* HERO — só título + busca */}
+      {/* HERO */}
       <div className="relative px-4 pt-7 pb-10 overflow-hidden"
         style={{ background: "linear-gradient(180deg, #0b111e 0%, #09090B 100%)" }}>
         <div className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
@@ -193,7 +226,6 @@ export default function InicioPage() {
             para você
           </h1>
 
-          {/* Busca flutuando sobre o fundo */}
           <Link href="/servicos"
             className="flex items-center gap-3 px-5 py-4 rounded-2xl w-full"
             style={{
@@ -246,13 +278,13 @@ export default function InicioPage() {
         </div>
       </div>
 
-      {/* EM DESTAQUE — marquee animado com cards maiores */}
+      {/* EM DESTAQUE — cards deslizáveis com auto-scroll lento */}
       {professionals.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between px-4 mb-4">
             <div>
               <h2 className="font-syne font-bold text-sm text-foreground">Em destaque</h2>
-              <p className="text-[10px] text-muted mt-0.5">Passe o dedo ou toque para pausar</p>
+              <p className="text-[10px] text-muted mt-0.5">Deslize para ver mais</p>
             </div>
             <Link href="/servicos"
               className="flex items-center gap-1 text-xs font-semibold"
@@ -261,88 +293,101 @@ export default function InicioPage() {
             </Link>
           </div>
 
-          <div className="overflow-hidden">
-            <div className="marquee-inicio px-4">
-              {marqueeItems.map((pro, i) => {
-                const isPro = pro.plan === "professional" || pro.plan === "professional_annual" || pro.plan === "pro";
-                const planLabel = pro.plan === "professional_annual" ? "ANUAL" : "PRO";
-                const avatar = (pro.users as any)?.avatar;
-                const name = (pro.users as any)?.name;
+          {/* Container com scroll manual + auto-scroll */}
+          <div
+            ref={scrollRef}
+            className="flex gap-4 px-4 overflow-x-auto pb-3"
+            style={{
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              WebkitOverflowScrolling: "touch",
+              scrollSnapType: "x mandatory",
+            }}>
+            {loopItems.map((pro, i) => {
+              const isPro = pro.plan === "professional" || pro.plan === "professional_annual" || pro.plan === "pro";
+              const planLabel = pro.plan === "professional_annual" ? "ANUAL" : "PRO";
+              const avatar = (pro.users as any)?.avatar;
+              const name = (pro.users as any)?.name;
+              const cat = pro.categories as any;
 
-                return (
-                  <div key={i}
-                    className="flex-shrink-0 rounded-2xl overflow-hidden"
-                    style={{
-                      width: 200,
-                      background: isPro ? "linear-gradient(135deg, #0F1729, #1a2f5a)" : "#111113",
-                      border: isPro ? "1.5px solid rgba(59,130,246,0.4)" : "1px solid #1a1a1e",
-                      boxShadow: isPro ? "0 0 20px rgba(59,130,246,0.08)" : "none",
-                    }}>
+              return (
+                <div key={i}
+                  className="flex-shrink-0 rounded-2xl overflow-hidden"
+                  style={{
+                    width: 260,
+                    scrollSnapAlign: "start",
+                    background: isPro
+                      ? "linear-gradient(135deg, #0F1729, #1a2f5a)"
+                      : "#111113",
+                    border: isPro
+                      ? "1.5px solid rgba(59,130,246,0.4)"
+                      : "1px solid #1a1a1e",
+                    boxShadow: isPro ? "0 0 20px rgba(59,130,246,0.08)" : "none",
+                  }}>
 
-                    {/* Clicável — vai pro perfil */}
-                    <Link href={`/profissional/${pro.slug}`} className="block p-4">
+                  <Link href={`/profissional/${pro.slug}`} className="block p-4">
+                    {/* Badges topo */}
+                    <div className="flex items-center justify-between mb-3">
+                      {pro.available_now ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                          style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)" }}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-[10px] font-bold" style={{ color: "#22c55e" }}>Disponível</span>
+                        </div>
+                      ) : <div />}
+                      {isPro && (
+                        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full"
+                          style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)" }}>
+                          <Crown size={10} style={{ color: "#FBBF24" }} />
+                          <span className="text-[10px] font-bold" style={{ color: "#FBBF24" }}>{planLabel}</span>
+                        </div>
+                      )}
+                    </div>
 
-                      {/* Badges topo */}
-                      <div className="flex items-center justify-between mb-3">
-                        {pro.available_now ? (
-                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full"
-                            style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.25)" }}>
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-[9px] font-bold" style={{ color: "#22c55e" }}>Disponível</span>
-                          </div>
-                        ) : <div />}
-                        {isPro && (
-                          <div className="flex items-center gap-1 px-2 py-1 rounded-full"
-                            style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)" }}>
-                            <Crown size={9} style={{ color: "#FBBF24" }} />
-                            <span className="text-[9px] font-bold" style={{ color: "#FBBF24" }}>{planLabel}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Avatar + info */}
-                      <div className="flex items-center gap-3 mb-3">
-                        {avatar ? (
-                          <img src={avatar} alt={name}
-                            className="w-14 h-14 rounded-xl object-cover flex-shrink-0"
-                            style={{ border: isPro ? "2px solid rgba(251,191,36,0.5)" : "1px solid #1F1F23" }} />
-                        ) : (
-                          <div className="w-14 h-14 rounded-xl flex items-center justify-center font-syne font-bold text-lg flex-shrink-0"
-                            style={{ background: "linear-gradient(135deg,#1e3a5f,#1d4ed8)", color: "#93c5fd" }}>
-                            {getInitials(name || "?")}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="font-syne font-bold text-sm truncate"
-                            style={{ color: isPro ? "#ffffff" : "#f1f5f9" }}>
-                            {name?.split(" ")[0]}
-                          </div>
-                          <div className="text-[11px] mt-0.5 truncate" style={{ color: isPro ? "#93c5fd" : "#64748b" }}>
-                            {(pro.categories as any)?.icon} {(pro.categories as any)?.name}
-                          </div>
-                          <div className="flex items-center gap-1 mt-1">
-                            <Star size={10} fill="#FBBF24" style={{ color: "#FBBF24" }} />
-                            <span className="text-[10px] font-semibold" style={{ color: isPro ? "#f8fafc" : "#94a3b8" }}>
-                              {pro.avg_rating > 0 ? Number(pro.avg_rating).toFixed(1) : "Novo"}
-                            </span>
-                          </div>
+                    {/* Avatar + info */}
+                    <div className="flex items-center gap-3 mb-4">
+                      {avatar ? (
+                        <img src={avatar} alt={name}
+                          className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
+                          style={{ border: isPro ? "2px solid rgba(251,191,36,0.5)" : "1px solid #1F1F23" }} />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl flex items-center justify-center font-syne font-bold text-xl flex-shrink-0"
+                          style={{ background: "linear-gradient(135deg,#1e3a5f,#1d4ed8)", color: "#93c5fd" }}>
+                          {getInitials(name || "?")}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-syne font-bold text-base leading-tight mb-0.5 truncate"
+                          style={{ color: isPro ? "#ffffff" : "#f1f5f9" }}>
+                          {name}
+                        </div>
+                        <div className="text-xs truncate mb-1.5"
+                          style={{ color: isPro ? "#93c5fd" : "#64748b" }}>
+                          {cat?.icon} {cat?.name}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Star size={12} fill="#FBBF24" style={{ color: "#FBBF24" }} />
+                          <span className="text-xs font-semibold"
+                            style={{ color: isPro ? "#f8fafc" : "#94a3b8" }}>
+                            {pro.avg_rating > 0 ? Number(pro.avg_rating).toFixed(1) : "Novo"}
+                          </span>
                         </div>
                       </div>
-                    </Link>
-
-                    {/* Botão WhatsApp */}
-                    <div className="px-4 pb-4">
-                      <button
-                        onClick={(e) => handleWhatsApp(pro, e)}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs text-white"
-                        style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
-                        <MessageCircle size={13} /> WhatsApp
-                      </button>
                     </div>
+                  </Link>
+
+                  {/* Botão WhatsApp fora do Link */}
+                  <div className="px-4 pb-4">
+                    <button
+                      onClick={(e) => handleWhatsApp(pro, e)}
+                      className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white"
+                      style={{ background: "linear-gradient(135deg, #16a34a, #15803d)" }}>
+                      <MessageCircle size={15} /> Chamar no WhatsApp
+                    </button>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
