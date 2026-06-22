@@ -137,21 +137,16 @@ export default function ProfissionalPage() {
 
   async function handleWhatsApp() {
     if (!prof) return;
-
-    // Exige login antes de revelar o WhatsApp — fecha a brecha de clique anônimo
-    // na contagem de "cliente único" do plano gratuito.
     if (!userId) {
       setShowLoginPrompt(true);
       return;
     }
-
     try {
       const res = await fetch("/api/whatsapp-click", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ professional_id: prof.id, city: prof.users?.city || "Uberlândia" }),
       });
-
       if (res.status === 403) {
         const data = await res.json().catch(() => null);
         if (data?.error === "FREE_LIMIT_REACHED") {
@@ -162,7 +157,6 @@ export default function ProfissionalPage() {
     } catch {
       // Falha de rede: não bloqueia o cliente, segue para o WhatsApp normalmente.
     }
-
     window.open(buildWhatsAppUrl(prof.whatsapp, `Olá ${prof.users?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
 
@@ -263,8 +257,6 @@ export default function ProfissionalPage() {
   const todayIndex = new Date().getDay();
   const todayKey = DAYS[todayIndex].toLowerCase();
   const todayHours = workHours?.[todayKey];
-
-  // Planos pagos reais: professional, professional_annual (e "pro" legado, por segurança).
   const isPaidPlan = prof.plan === "professional" || prof.plan === "professional_annual" || prof.plan === "pro";
   const planBadgeLabel = prof.plan === "professional_annual" ? "ANUAL" : "PRO";
 
@@ -284,7 +276,9 @@ export default function ProfissionalPage() {
 
         <div className="px-4 py-6" style={{ background: "linear-gradient(180deg,#0F172A 0%,#09090B 100%)" }}>
           <div className="flex items-start gap-4">
-            <div className="relative">
+
+            {/* MUDANÇA 1 — Online badge abaixo da foto, não sobreposto */}
+            <div className="flex flex-col items-center gap-2">
               {avatarUrl ? (
                 <img src={avatarUrl} alt={prof.users?.name}
                   className="w-20 h-20 rounded-2xl object-cover"
@@ -296,12 +290,13 @@ export default function ProfissionalPage() {
                 </div>
               )}
               {prof.available_now && (
-                <div className="absolute -bottom-1.5 -right-1.5 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold"
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold"
                   style={{ background: "rgba(34,197,94,0.2)", border: "1px solid rgba(34,197,94,0.5)", color: "#22c55e" }}>
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />Online
                 </div>
               )}
             </div>
+
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-0.5">
                 <h1 className="font-syne font-extrabold text-xl text-foreground">{prof.users?.name}</h1>
@@ -332,11 +327,12 @@ export default function ProfissionalPage() {
             </div>
           </div>
 
+          {/* MUDANÇA 2 — Data completa de cadastro no lugar do ano */}
           <div className="grid grid-cols-3 gap-3 mt-5">
             {[
               { label: "Avaliação", value: prof.avg_rating > 0 ? Number(prof.avg_rating).toFixed(1) : "—", icon: "⭐" },
               { label: "Visualizações", value: prof.views_count || 0, icon: "👁" },
-              { label: "Desde", value: new Date(prof.created_at).getFullYear(), icon: "📅" },
+              { label: "Cadastrado", value: new Date(prof.created_at).toLocaleDateString("pt-BR"), icon: "📅" },
             ].map(({ label, value, icon }) => (
               <div key={label} className="text-center p-3 rounded-xl"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid #1F1F23" }}>
@@ -521,7 +517,7 @@ export default function ProfissionalPage() {
         </div>
       </div>
 
-      {/* Fixed WhatsApp — subido acima do menu flutuante inferior pra não sobrepor */}
+      {/* Fixed WhatsApp */}
       <div className="fixed bottom-20 left-0 right-0 px-4 pt-3 pb-3 z-50"
         style={{ background: "rgba(9,9,11,0.98)", backdropFilter: "blur(20px)", borderTop: "1px solid #1F1F23" }}>
         <button onClick={handleWhatsApp}
@@ -634,7 +630,7 @@ export default function ProfissionalPage() {
         </div>
       )}
 
-      {/* Modal limite de contatos do profissional atingido */}
+      {/* Modal limite atingido */}
       {limitReachedModal && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.7)" }}
@@ -660,7 +656,7 @@ export default function ProfissionalPage() {
         </div>
       )}
 
-      {/* Modal exigindo login para contatar via WhatsApp */}
+      {/* Modal login para WhatsApp */}
       {showLoginPrompt && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center"
           style={{ background: "rgba(0,0,0,0.7)" }}
