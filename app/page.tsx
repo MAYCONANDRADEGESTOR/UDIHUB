@@ -80,9 +80,7 @@ export default function HomePage() {
     router.refresh();
   }
 
-  // Duplica para loop contínuo
-  const row1 = [...prosWithPhoto, ...prosWithPhoto, ...prosWithPhoto];
-  const row2 = [...prosWithPhoto, ...prosWithPhoto, ...prosWithPhoto];
+  const row = [...prosWithPhoto, ...prosWithPhoto, ...prosWithPhoto];
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden pb-20">
@@ -92,13 +90,13 @@ export default function HomePage() {
           0%   { transform: translateX(0); }
           100% { transform: translateX(-33.333%); }
         }
-        @keyframes marquee-right {
-          0%   { transform: translateX(-33.333%); }
-          100% { transform: translateX(0); }
+        .marquee-left {
+          animation: marquee-left 30s linear infinite;
+          display: flex;
+          gap: 12px;
+          width: max-content;
         }
-        .marquee-left  { animation: marquee-left  30s linear infinite; display: flex; gap: 12px; width: max-content; }
-        .marquee-right { animation: marquee-right 30s linear infinite; display: flex; gap: 12px; width: max-content; }
-        .marquee-left:hover, .marquee-right:hover { animation-play-state: paused; }
+        .marquee-left:hover { animation-play-state: paused; }
       `}</style>
 
       {/* HEADER */}
@@ -248,7 +246,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* PROFISSIONAIS ANIMADOS — só aparecem quando têm foto */}
+      {/* PROFISSIONAIS ANIMADOS */}
       {prosWithPhoto.length > 0 && (
         <section className="py-10 overflow-hidden"
           style={{ background: "linear-gradient(180deg, #09090B 0%, #0a0f1a 50%, #09090B 100%)" }}>
@@ -258,10 +256,9 @@ export default function HomePage() {
             <p className="text-xs text-muted mt-1.5">Profissionais reais de Uberlândia</p>
           </div>
 
-          {/* Fileira 1 — rola para esquerda */}
-          <div className="overflow-hidden mb-3">
+          <div className="overflow-hidden">
             <div className="marquee-left">
-              {row1.map((pro, i) => (
+              {row.map((pro, i) => (
                 <Link key={i} href={`/profissional/${pro.slug}`}
                   className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-2xl w-[88px]"
                   style={{ background: "#111113", border: "1px solid #1F1F23" }}>
@@ -270,32 +267,6 @@ export default function HomePage() {
                     alt={pro.users?.name}
                     className="w-12 h-12 rounded-full object-cover flex-shrink-0"
                     style={{ border: "2px solid rgba(59,130,246,0.3)" }}
-                  />
-                  <div className="text-center w-full">
-                    <div className="text-[10px] font-semibold text-foreground truncate leading-tight">
-                      {pro.users?.name?.split(" ")[0]}
-                    </div>
-                    <div className="text-[9px] text-muted mt-0.5 truncate">
-                      {pro.categories?.icon} {pro.categories?.name?.split("/")[0].trim()}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Fileira 2 — rola para direita */}
-          <div className="overflow-hidden">
-            <div className="marquee-right">
-              {row2.map((pro, i) => (
-                <Link key={i} href={`/profissional/${pro.slug}`}
-                  className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-2xl w-[88px]"
-                  style={{ background: "#111113", border: "1px solid rgba(168,85,247,0.15)" }}>
-                  <img
-                    src={pro.avatar}
-                    alt={pro.users?.name}
-                    className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                    style={{ border: "2px solid rgba(168,85,247,0.3)" }}
                   />
                   <div className="text-center w-full">
                     <div className="text-[10px] font-semibold text-foreground truncate leading-tight">
@@ -342,7 +313,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* FAQ com Como Funciona dentro */}
+      {/* FAQ */}
       <section className="px-4 py-12" style={{ background: "#080809" }}>
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-8">
@@ -350,8 +321,6 @@ export default function HomePage() {
             <h2 className="font-syne font-bold text-xl text-foreground">Perguntas frequentes</h2>
           </div>
           <div className="flex flex-col gap-2">
-
-            {/* Como funciona */}
             <div className="rounded-2xl overflow-hidden"
               style={{ background: "#111113", border: "1px solid rgba(59,130,246,0.2)" }}>
               <button type="button"
@@ -433,7 +402,6 @@ export default function HomePage() {
                 </Link>
               ))}
             </div>
-
             <div className="flex items-center gap-3">
               <a href="https://www.instagram.com/udihub" target="_blank" rel="noopener noreferrer"
                 className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -454,7 +422,6 @@ export default function HomePage() {
                 </svg>
               </a>
             </div>
-
             <div className="w-full h-px" style={{ background: "#1F1F23" }} />
             <p className="text-[10px] text-muted">
               © 2025 UDIHUB · Uberlândia, MG · Todos os direitos reservados
