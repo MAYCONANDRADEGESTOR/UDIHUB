@@ -41,6 +41,7 @@ export default function HomePage() {
   const [loadingUser, setLoadingUser] = useState(true);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [prosWithPhoto, setProsWithPhoto] = useState<any[]>([]);
 
   useEffect(() => {
     async function loadUser() {
@@ -55,7 +56,19 @@ export default function HomePage() {
       }
       setLoadingUser(false);
     }
+    async function loadProsWithPhoto() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("professionals")
+        .select("id, slug, avatar, users(name), categories(name, icon)")
+        .eq("status", "active")
+        .not("avatar", "is", null)
+        .neq("avatar", "")
+        .order("created_at", { ascending: false });
+      if (data && data.length > 0) setProsWithPhoto(data);
+    }
     loadUser();
+    loadProsWithPhoto();
   }, []);
 
   async function handleLogout() {
@@ -67,8 +80,26 @@ export default function HomePage() {
     router.refresh();
   }
 
+  // Duplica para loop contínuo
+  const row1 = [...prosWithPhoto, ...prosWithPhoto, ...prosWithPhoto];
+  const row2 = [...prosWithPhoto, ...prosWithPhoto, ...prosWithPhoto];
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden pb-20">
+
+      <style>{`
+        @keyframes marquee-left {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-33.333%); }
+        }
+        @keyframes marquee-right {
+          0%   { transform: translateX(-33.333%); }
+          100% { transform: translateX(0); }
+        }
+        .marquee-left  { animation: marquee-left  30s linear infinite; display: flex; gap: 12px; width: max-content; }
+        .marquee-right { animation: marquee-right 30s linear infinite; display: flex; gap: 12px; width: max-content; }
+        .marquee-left:hover, .marquee-right:hover { animation-play-state: paused; }
+      `}</style>
 
       {/* HEADER */}
       <header className="fixed top-0 left-0 right-0 z-50"
@@ -217,6 +248,77 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* PROFISSIONAIS ANIMADOS — só aparecem quando têm foto */}
+      {prosWithPhoto.length > 0 && (
+        <section className="py-10 overflow-hidden"
+          style={{ background: "linear-gradient(180deg, #09090B 0%, #0a0f1a 50%, #09090B 100%)" }}>
+          <div className="text-center mb-7 px-4">
+            <p className="text-[10px] font-bold tracking-widest mb-1.5" style={{ color: "#3B82F6" }}>COMUNIDADE</p>
+            <h2 className="font-syne font-bold text-xl text-foreground">Já fazem parte da UDIHUB</h2>
+            <p className="text-xs text-muted mt-1.5">Profissionais reais de Uberlândia</p>
+          </div>
+
+          {/* Fileira 1 — rola para esquerda */}
+          <div className="overflow-hidden mb-3">
+            <div className="marquee-left">
+              {row1.map((pro, i) => (
+                <Link key={i} href={`/profissional/${pro.slug}`}
+                  className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-2xl w-[88px]"
+                  style={{ background: "#111113", border: "1px solid #1F1F23" }}>
+                  <img
+                    src={pro.avatar}
+                    alt={pro.users?.name}
+                    className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                    style={{ border: "2px solid rgba(59,130,246,0.3)" }}
+                  />
+                  <div className="text-center w-full">
+                    <div className="text-[10px] font-semibold text-foreground truncate leading-tight">
+                      {pro.users?.name?.split(" ")[0]}
+                    </div>
+                    <div className="text-[9px] text-muted mt-0.5 truncate">
+                      {pro.categories?.icon} {pro.categories?.name?.split("/")[0].trim()}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Fileira 2 — rola para direita */}
+          <div className="overflow-hidden">
+            <div className="marquee-right">
+              {row2.map((pro, i) => (
+                <Link key={i} href={`/profissional/${pro.slug}`}
+                  className="flex-shrink-0 flex flex-col items-center gap-2 p-3 rounded-2xl w-[88px]"
+                  style={{ background: "#111113", border: "1px solid rgba(168,85,247,0.15)" }}>
+                  <img
+                    src={pro.avatar}
+                    alt={pro.users?.name}
+                    className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                    style={{ border: "2px solid rgba(168,85,247,0.3)" }}
+                  />
+                  <div className="text-center w-full">
+                    <div className="text-[10px] font-semibold text-foreground truncate leading-tight">
+                      {pro.users?.name?.split(" ")[0]}
+                    </div>
+                    <div className="text-[9px] text-muted mt-0.5 truncate">
+                      {pro.categories?.icon} {pro.categories?.name?.split("/")[0].trim()}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-center text-[11px] text-muted mt-6 px-4">
+            Quer aparecer aqui?{" "}
+            <Link href="/seja-profissional" className="font-semibold" style={{ color: "#3B82F6" }}>
+              Crie seu perfil grátis
+            </Link>
+          </p>
+        </section>
+      )}
+
       {/* DIFERENCIAIS */}
       <section className="px-4 py-12">
         <div className="max-w-2xl mx-auto">
@@ -283,7 +385,6 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* FAQs */}
             {FAQ.map(({ q, a }, i) => (
               <div key={q} className="rounded-2xl overflow-hidden"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
