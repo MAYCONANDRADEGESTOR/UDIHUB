@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MapPin, ChevronDown, Search, X, UserPlus, ArrowRight, MessageCircle, CheckCircle, Zap, ChevronRight, Star, Crown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -58,62 +58,12 @@ export default function InicioPage() {
   const [pendingAction, setPendingAction] = useState<"whatsapp" | "profile" | null>(null);
   const [professionals, setProfessionals] = useState<Prof[]>([]);
 
-  // Refs para auto-scroll
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const pausedRef = useRef(false);
-  const scrollPosRef = useRef(0);
-  const animFrameRef = useRef<number>(0);
-
   useEffect(() => {
     const saved = localStorage.getItem("udihub_location");
     if (saved) setNeighborhood(JSON.parse(saved).neighborhood || "");
     loadUser();
     loadProfessionals();
   }, []);
-
-  // Auto-scroll suave com requestAnimationFrame
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || professionals.length === 0) return;
-
-    function animate() {
-      if (!pausedRef.current && el) {
-        scrollPosRef.current += 0.4; // velocidade: 0.4px por frame ≈ 24px/s a 60fps
-        const half = el.scrollWidth / 2;
-        if (scrollPosRef.current >= half) {
-          scrollPosRef.current = 0;
-        }
-        el.scrollLeft = scrollPosRef.current;
-      }
-      animFrameRef.current = requestAnimationFrame(animate);
-    }
-
-    animFrameRef.current = requestAnimationFrame(animate);
-
-    function onTouchStart() {
-      pausedRef.current = true;
-    }
-    function onTouchEnd() {
-      // Sincroniza posição depois do deslize manual
-      if (el) scrollPosRef.current = el.scrollLeft % (el.scrollWidth / 2);
-      setTimeout(() => { pausedRef.current = false; }, 2000);
-    }
-    function onMouseEnter() { pausedRef.current = true; }
-    function onMouseLeave() { pausedRef.current = false; }
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    el.addEventListener("mouseenter", onMouseEnter);
-    el.addEventListener("mouseleave", onMouseLeave);
-
-    return () => {
-      cancelAnimationFrame(animFrameRef.current);
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchend", onTouchEnd);
-      el.removeEventListener("mouseenter", onMouseEnter);
-      el.removeEventListener("mouseleave", onMouseLeave);
-    };
-  }, [professionals.length]);
 
   async function loadUser() {
     const supabase = createClient();
@@ -157,9 +107,6 @@ export default function InicioPage() {
     }
     window.open(buildWhatsAppUrl(pro.whatsapp, `Olá ${(pro.users as any)?.name}! Vi seu perfil no UDIHUB.`), "_blank");
   }
-
-  // Duplica array para loop contínuo
-  const loopItems = [...professionals, ...professionals];
 
   return (
     <div className="min-h-screen bg-background pb-28">
@@ -278,7 +225,7 @@ export default function InicioPage() {
         </div>
       </div>
 
-      {/* EM DESTAQUE — cards deslizáveis com auto-scroll lento */}
+      {/* EM DESTAQUE — cards deslizáveis manualmente com snap */}
       {professionals.length > 0 && (
         <div className="mb-8">
           <div className="flex items-center justify-between px-4 mb-4">
@@ -293,9 +240,7 @@ export default function InicioPage() {
             </Link>
           </div>
 
-          {/* Container com scroll manual + auto-scroll */}
           <div
-            ref={scrollRef}
             className="flex gap-4 px-4 overflow-x-auto pb-3"
             style={{
               scrollbarWidth: "none",
@@ -303,7 +248,7 @@ export default function InicioPage() {
               WebkitOverflowScrolling: "touch",
               scrollSnapType: "x mandatory",
             }}>
-            {loopItems.map((pro, i) => {
+            {professionals.map((pro, i) => {
               const isPro = pro.plan === "professional" || pro.plan === "professional_annual" || pro.plan === "pro";
               const planLabel = pro.plan === "professional_annual" ? "ANUAL" : "PRO";
               const avatar = (pro.users as any)?.avatar;
@@ -311,7 +256,7 @@ export default function InicioPage() {
               const cat = pro.categories as any;
 
               return (
-                <div key={i}
+                <div key={pro.id}
                   className="flex-shrink-0 rounded-2xl overflow-hidden"
                   style={{
                     width: 260,
@@ -376,7 +321,7 @@ export default function InicioPage() {
                     </div>
                   </Link>
 
-                  {/* Botão WhatsApp fora do Link */}
+                  {/* Botão WhatsApp */}
                   <div className="px-4 pb-4">
                     <button
                       onClick={(e) => handleWhatsApp(pro, e)}
