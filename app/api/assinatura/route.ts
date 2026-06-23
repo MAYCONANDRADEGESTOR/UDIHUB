@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Preços reais do modelo Freemium. "pro" e "basic" mantidos como legado
-// apenas como fallback de segurança — não devem ser atribuídos a ninguém.
 const PLAN_PRICE: Record<string, number> = {
   professional: 59.90,
   professional_annual: 499.90,
@@ -52,62 +50,101 @@ export async function POST(request: NextRequest) {
     const apiUrl = process.env.ASAAS_API_URL;
     const apiKey = process.env.ASAAS_API_KEY!;
 
-    // 1. Cria cliente no Asaas
-    const customerRes = await fetch(`${apiUrl}/customers`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "access_token": apiKey },
-      body: JSON.stringify({
+    if (!apiUrl || !apiKey) {
+      console.error("Asaas env vars missing:", { apiUrl: !!apiUrl, apiKey: !!apiKey });
+      return NextResponse.json({ error: "Configuração de pagamento incompleta" }, { status: 500 });
+    }
+
+    // 1. Verifica se cliente já existe no Asaas pelo externalReference
+    let customerId: string | null = null;
+    try {
+      const existingRes = await fetch(
+        `${apiUrl}/customers?externalReference=${user.id}`,
+        { headers: { "access_token": apiKey } }
+      );
+      const existingData = await existingRes.json();
+      if (existingData?.data?.[0]?.id) {
+        customerId = existingData.data[0].id;
+      }
+    } catch {}
+
+    // 2. Se não existe, cria cliente no Asaas
+    if (!customerId) {
+      const customerBody: Record<string, any> = {
         name: userData?.name || "Profissional",
         email: userData?.email,
-        cpfCnpj: userData?.cpf?.replace(/\D/g, "") || undefined,
-        mobilePhone: userData?.phone?.replace(/\D/g, "") || undefined,
         externalReference: user.id,
-      }),
-    });
-    const customer = await customerRes.json();
-    if (!customer.id) {
-      console.error("Asaas customer error:", JSON.stringify(customer));
-      return NextResponse.json({ error: "Erro ao criar cliente", details: customer.errors?.[0]?.description || JSON.stringify(customer) }, { status: 500 });
+      };
+      const cpfClean = userData?.cpf?.replace(/\D/g, "");
+      if (cpfClean && cpfClean.length >= 11) customerBody.cpfCnpj = cpfClean;
+      const phoneClean = userData?.phone?.replace(/\D/g, "");
+      if (phoneClean) customerBody.mobilePhone = phoneClean;
+
+      const customerRes = await fetch(`${apiUrl}/customers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "access_token": apiKey },
+        body: JSON.stringify(customerBody),
+      });
+      const customer = await customerRes.json();
+      if (!customer.id) {
+        console.error("Asaas customer error:", JSON.stringify(customer));
+        return NextResponse.json(
+          { error: "Erro ao criar cliente", details: customer.errors?.[0]?.description || JSON.stringify(customer) },
+          { status: 500 }
+        );
+      }
+      customerId = customer.id;
     }
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dueDate = tomorrow.toISOString().split("T")[0];
 
-    // 2. Cria assinatura (mensal ou anual, conforme o plano) com URL de retorno
+    // 3. Cria assinatura — campo correto é "callback", não "posPayment"
+    const subBody: Record<string, any> = {
+      customer: customerId,
+      billingType: "UNDEFINED",
+      cycle,
+      value: price,
+      nextDueDate: dueDate,
+      description: `${planName} — Assinatura UDIHUB`,
+      externalReference: `${prof.id}|${plan}`,
+      callback: {
+        successUrl: "https://udihub.com.br/painel/retorno",
+        autoRedirect: false,
+      },
+    };
+
     const subRes = await fetch(`${apiUrl}/subscriptions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "access_token": apiKey },
-      body: JSON.stringify({
-        customer: customer.id,
-        billingType: "UNDEFINED",
-        cycle,
-        value: price,
-        nextDueDate: dueDate,
-        description: `${planName} — Assinatura UDIHUB`,
-        externalReference: `${prof.id}|${plan}`,
-        posPayment: {
-          type: "FIXED",
-          url: "https://udihub.com.br/painel/retorno",
-        },
-      }),
+      body: JSON.stringify(subBody),
     });
     const subscription = await subRes.json();
+
     if (!subscription.id) {
       console.error("Asaas subscription error:", JSON.stringify(subscription));
-      return NextResponse.json({ error: "Erro ao criar assinatura", details: subscription.errors?.[0]?.description || JSON.stringify(subscription) }, { status: 500 });
+      return NextResponse.json(
+        { error: "Erro ao criar assinatura", details: subscription.errors?.[0]?.description || JSON.stringify(subscription) },
+        { status: 500 }
+      );
     }
 
-    // 3. Busca a primeira cobrança gerada (tem a URL de pagamento)
+    // 4. Busca a primeira cobrança gerada (tem a URL de pagamento)
     await new Promise(r => setTimeout(r, 1500));
-    const paymentsRes = await fetch(`${apiUrl}/payments?subscription=${subscription.id}&limit=1`, {
-      headers: { "access_token": apiKey },
-    });
+    const paymentsRes = await fetch(
+      `${apiUrl}/payments?subscription=${subscription.id}&limit=1`,
+      { headers: { "access_token": apiKey } }
+    );
     const paymentsData = await paymentsRes.json();
     const firstPayment = paymentsData?.data?.[0];
-    const paymentUrl = firstPayment?.invoiceUrl || firstPayment?.bankSlipUrl || subscription.url || null;
+    const paymentUrl = firstPayment?.invoiceUrl || firstPayment?.bankSlipUrl || null;
 
-    // 4. Salva no banco
+    if (!paymentUrl) {
+      console.error("Asaas payment URL not found:", JSON.stringify(paymentsData));
+    }
+
+    // 5. Salva no banco
     await supabase.from("subscriptions").upsert({
       professional_id: prof.id,
       plan,
@@ -120,6 +157,7 @@ export async function POST(request: NextRequest) {
       subscriptionId: subscription.id,
       paymentId: firstPayment?.id,
     });
+
   } catch (err) {
     console.error("Assinatura error:", err);
     return NextResponse.json({ error: "Internal server error", details: String(err) }, { status: 500 });
