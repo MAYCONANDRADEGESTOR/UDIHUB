@@ -37,6 +37,11 @@ export async function POST(request: NextRequest) {
     const { data: userData } = await supabase
       .from("users").select("name, email, phone, cpf").eq("id", user.id).single();
 
+    const cpfClean = userData?.cpf?.replace(/\D/g, "") || "";
+    if (cpfClean.length !== 11) {
+      return NextResponse.json({ error: "CPF_REQUIRED" }, { status: 400 });
+    }
+
     const { data: prof } = await supabase
       .from("professionals").select("id, status").eq("user_id", user.id).single();
 
@@ -49,44 +54,49 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.ASAAS_API_KEY!;
 
     if (!apiUrl || !apiKey) {
-      console.error("Asaas env vars missing");
       return NextResponse.json({ error: "Configuração de pagamento incompleta" }, { status: 500 });
     }
 
-    // 1. Verifica se cliente já existe no Asaas (evita duplicatas)
+    // 1. Busca cliente existente no Asaas
     let customerId: string | null = null;
     try {
       const existingRes = await fetch(`${apiUrl}/customers?externalReference=${user.id}`, {
         headers: { "access_token": apiKey },
       });
       const existingData = await existingRes.json();
-      if (existingData?.data?.[0]?.id) {
-        customerId = existingData.data[0].id;
-      }
+      customerId = existingData?.data?.[0]?.id || null;
     } catch {}
 
-    // 2. Cria cliente se não existir
-    if (!customerId) {
-      const customerBody: Record<string, any> = {
-        name: userData?.name || "Profissional",
-        email: userData?.email,
-        externalReference: user.id,
-      };
-      const cpfClean = userData?.cpf?.replace(/\D/g, "");
-      if (cpfClean && cpfClean.length >= 11) customerBody.cpfCnpj = cpfClean;
-      const phoneClean = userData?.phone?.replace(/\D/g, "");
-      if (phoneClean) customerBody.mobilePhone = phoneClean;
-
+    if (customerId) {
+      // 2a. Cliente existe — atualiza com CPF (pode ter sido criado sem CPF antes)
+      await fetch(`${apiUrl}/customers/${customerId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "access_token": apiKey },
+        body: JSON.stringify({
+          name: userData?.name || "Profissional",
+          email: userData?.email,
+          cpfCnpj: cpfClean,
+          mobilePhone: userData?.phone?.replace(/\D/g, "") || undefined,
+        }),
+      });
+    } else {
+      // 2b. Cria novo cliente com CPF
       const customerRes = await fetch(`${apiUrl}/customers`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "access_token": apiKey },
-        body: JSON.stringify(customerBody),
+        body: JSON.stringify({
+          name: userData?.name || "Profissional",
+          email: userData?.email,
+          cpfCnpj: cpfClean,
+          mobilePhone: userData?.phone?.replace(/\D/g, "") || undefined,
+          externalReference: user.id,
+        }),
       });
       const customer = await customerRes.json();
       if (!customer.id) {
         const errMsg = customer.errors?.[0]?.description || JSON.stringify(customer);
         console.error("Asaas customer error:", errMsg);
-        return NextResponse.json({ error: "Erro ao criar cliente Asaas", details: errMsg }, { status: 500 });
+        return NextResponse.json({ error: "Erro ao criar cliente", details: errMsg }, { status: 500 });
       }
       customerId = customer.id;
     }
@@ -95,7 +105,7 @@ export async function POST(request: NextRequest) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dueDate = tomorrow.toISOString().split("T")[0];
 
-    // 3. Cria assinatura — apenas campos obrigatórios, sem posPayment nem callback
+    // 3. Cria assinatura — campos mínimos, sem posPayment nem callback
     const subRes = await fetch(`${apiUrl}/subscriptions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "access_token": apiKey },
@@ -116,7 +126,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Erro ao criar assinatura", details: errMsg }, { status: 500 });
     }
 
-    // 4. Busca a primeira cobrança gerada para obter a URL de pagamento
+    // 4. Busca URL de pagamento da primeira cobrança
     await new Promise(r => setTimeout(r, 2000));
     const paymentsRes = await fetch(`${apiUrl}/payments?subscription=${subscription.id}&limit=1`, {
       headers: { "access_token": apiKey },
@@ -124,10 +134,6 @@ export async function POST(request: NextRequest) {
     const paymentsData = await paymentsRes.json();
     const firstPayment = paymentsData?.data?.[0];
     const paymentUrl = firstPayment?.invoiceUrl || firstPayment?.bankSlipUrl || null;
-
-    if (!paymentUrl) {
-      console.error("Payment URL not found:", JSON.stringify(paymentsData));
-    }
 
     // 5. Salva no banco
     await supabase.from("subscriptions").upsert({
