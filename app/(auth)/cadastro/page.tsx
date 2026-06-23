@@ -63,28 +63,19 @@ function CadastroForm() {
     return data.publicUrl;
   }
 
-  // Etapa 1 — Validação básica, avança para etapa 2 (profissional) ou cadastra (cliente)
   async function handleStep1(e: React.FormEvent) {
     e.preventDefault();
     if (!role) { toast.error("Selecione seu perfil"); return; }
     if (!form.name || !form.email || !form.password) { toast.error("Preencha todos os campos"); return; }
     if (role === "professional" && !form.phone) { toast.error("Informe seu WhatsApp"); return; }
-
-    if (role === "client") {
-      await handleFinalSubmit();
-      return;
-    }
-
-    // Profissional vai para etapa 2
+    if (role === "client") { await handleFinalSubmit(); return; }
     setStep(2);
   }
 
-  // Submit final — chama Edge Function que cria tudo instantaneamente.
-  // Modelo Freemium: todo profissional novo nasce no Plano Gratuito, ja ativo,
-  // sem escolha de plano nem cupom nesta etapa.
   async function handleFinalSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     if (role === "professional" && !form.category) { toast.error("Selecione sua especialidade"); return; }
+    if (role === "professional" && !avatarFile) { toast.error("Adicione uma foto de perfil para continuar"); return; }
     setLoading(true);
 
     try {
@@ -114,7 +105,6 @@ function CadastroForm() {
         return;
       }
 
-      // Upload avatar se tiver
       if (avatarFile && data?.userId) {
         const avatarUrl = await uploadAvatar(data.userId, avatarFile);
         if (avatarUrl) {
@@ -123,7 +113,6 @@ function CadastroForm() {
         }
       }
 
-      // Faz login automaticamente
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email: form.email,
         password: form.password,
@@ -138,8 +127,6 @@ function CadastroForm() {
         toast.success("Perfil ativo! Bem-vindo ao UDIHUB!");
         router.push("/bem-vindo");
       } else if (redirectTo) {
-        // Cliente cadastrado a partir de um fluxo com destino especifico
-        // (ex: voltar para o perfil do profissional que ele queria contatar).
         router.push(redirectTo);
       } else {
         toast.success("Conta criada com sucesso!");
@@ -170,7 +157,6 @@ function CadastroForm() {
         </span>
       </div>
 
-      {/* Indicador etapas */}
       {role === "professional" && step === 2 && (
         <div className="flex items-center gap-2 mb-6">
           <div className="flex items-center gap-1.5">
@@ -189,7 +175,7 @@ function CadastroForm() {
         </div>
       )}
 
-      {/* ===== ETAPA 1 ===== */}
+      {/* ETAPA 1 */}
       {step === 1 && (
         <form onSubmit={handleStep1} className="space-y-4 max-w-lg w-full mx-auto">
           <div>
@@ -281,7 +267,7 @@ function CadastroForm() {
         </form>
       )}
 
-      {/* ===== ETAPA 2 — Profissional ===== */}
+      {/* ETAPA 2 — Profissional */}
       {step === 2 && (
         <form onSubmit={handleFinalSubmit} className="space-y-4 max-w-lg w-full mx-auto">
           <div>
@@ -289,9 +275,9 @@ function CadastroForm() {
             <p className="text-sm text-muted mb-5">Complete seu perfil para aparecer nas buscas</p>
           </div>
 
-          {/* Foto */}
+          {/* Foto obrigatória */}
           <div>
-            <label className="block text-xs font-medium text-muted mb-2">Foto do perfil</label>
+            <label className="block text-xs font-medium text-muted mb-2">Foto do perfil *</label>
             <div className="flex items-center gap-4">
               <div className="relative">
                 {avatarPreview ? (
@@ -306,16 +292,23 @@ function CadastroForm() {
                 ) : (
                   <button type="button" onClick={() => fileInputRef.current?.click()}
                     className="w-20 h-20 rounded-2xl flex flex-col items-center justify-center gap-1 border-2 border-dashed"
-                    style={{ borderColor: "#1F1F23", background: "#111113" }}>
-                    <Camera size={20} className="text-muted" />
-                    <span className="text-[9px] text-muted">Adicionar</span>
+                    style={{ borderColor: "#3B82F6", background: "rgba(59,130,246,0.05)" }}>
+                    <Camera size={20} style={{ color: "#3B82F6" }} />
+                    <span className="text-[9px]" style={{ color: "#3B82F6" }}>Obrigatório</span>
                   </button>
                 )}
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
               </div>
-              <p className="text-xs text-muted leading-relaxed flex-1">
-                Perfis com foto recebem <strong className="text-foreground">3x mais</strong> contatos.
-              </p>
+              <div className="flex-1">
+                <p className="text-xs text-muted leading-relaxed">
+                  Perfis com foto recebem <strong className="text-foreground">3x mais</strong> contatos.
+                </p>
+                {!avatarPreview && (
+                  <p className="text-[10px] mt-1" style={{ color: "#f87171" }}>
+                    ⚠️ Foto obrigatória para criar perfil
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 
