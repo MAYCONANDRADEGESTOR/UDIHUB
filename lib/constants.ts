@@ -3,16 +3,19 @@ export const CATEGORIES = [
   { slug: "encanador", name: "Encanador / Hidráulica", icon: "🔧" },
   { slug: "eletricista", name: "Eletricista", icon: "⚡" },
   { slug: "pintor", name: "Pintor", icon: "🎨" },
+  { slug: "paisagista", name: "Paisagista", icon: "🌳" },
   { slug: "pedreiro", name: "Pedreiro / Reformas", icon: "🧱" },
   { slug: "gesseiro", name: "Gesseiro / Drywall", icon: "🏗️" },
   { slug: "marceneiro", name: "Marceneiro", icon: "🪵" },
   { slug: "serralheiro", name: "Serralheiro", icon: "🔩" },
   { slug: "vidraceiro", name: "Vidraceiro", icon: "🪟" },
+  { slug: "yoga", name: "Instrutor de Yoga", icon: "🕉️" },
   { slug: "azulejista", name: "Azulejista / Revestimento", icon: "🚧" },
   { slug: "marmoraria", name: "Marmoraria", icon: "🪨" },
   { slug: "impermeabilizacao", name: "Impermeabilização", icon: "💧" },
   { slug: "soldador", name: "Soldador", icon: "⚙️" },
   { slug: "arquiteto", name: "Arquiteto / Decorador de Interiores", icon: "🏠" },
+  { slug: "artes-marciais", name: "Instrutor de Artes Marciais", icon: "🥋" },
   { slug: "portao-automatico", name: "Portão Automático", icon: "🚪" },
   { slug: "estofador", name: "Estofador", icon: "🛋️" },
   { slug: "instalador-piso", name: "Instalador de Piso / Porcelanato", icon: "🏠" },
@@ -22,6 +25,7 @@ export const CATEGORIES = [
   { slug: "calha-rufos", name: "Calha e Rufos", icon: "🌧️" },
   { slug: "pintura-fachada", name: "Pintura de Fachada", icon: "🖌️" },
   { slug: "grades-telas", name: "Instalador de Grades e Telas", icon: "🔒" },
+  { slug: "instalador-antenas", name: "Instalador de Antenas", icon: "📡" },
   { slug: "limpeza-caixa-dagua", name: "Limpeza de Caixa D'água", icon: "💧" },
   { slug: "dedetizacao-termitas", name: "Dedetização de Térmitas", icon: "🐜" },
 
@@ -36,6 +40,7 @@ export const CATEGORIES = [
   { slug: "desentupidor-esgoto", name: "Desentupidor de Esgoto", icon: "🚰" },
   { slug: "dedetizacao", name: "Dedetização", icon: "🐛" },
   { slug: "chaveiro", name: "Chaveiro", icon: "🔑" },
+  { slug: "churrasqueiro", name: "Churrasqueiro", icon: "🥩" },
   { slug: "chaveiro-24h", name: "Chaveiro 24h", icon: "🔑" },
   { slug: "jardineiro", name: "Jardineiro", icon: "🌿" },
   { slug: "piscineiro", name: "Piscineiro / Manutenção de Piscina", icon: "🏊" },
@@ -47,6 +52,7 @@ export const CATEGORIES = [
   // Tecnologia
   { slug: "tecnico-informatica", name: "Técnico de Informática", icon: "💻" },
   { slug: "tecnico-celular", name: "Técnico de Celular", icon: "📱" },
+  { slug: "tecnico-eletronico", name: "Técnico em Eletrônica", icon: "📻" },
   { slug: "desenvolvedor", name: "Desenvolvedor / Programador", icon: "👨🏻‍💻" },
   { slug: "designer-grafico", name: "Designer Gráfico", icon: "🎭" },
   { slug: "social-media", name: "Social Media / Marketing", icon: "📱" },
@@ -57,6 +63,8 @@ export const CATEGORIES = [
 
   // Veículos
   { slug: "mecanico", name: "Mecânico", icon: "🚗" },
+  { slug: "mecanico-motos", name: "Mecânico de Motos", icon: "🏍️" },
+  { slug: "mestre-obras", name: "Mestre de Obras", icon: "👷" },
   { slug: "funilaria", name: "Funilaria e Pintura", icon: "🔨" },
   { slug: "martelinho-ouro", name: "Martelinho de Ouro", icon: "🔧" },
   { slug: "pintura-automotiva", name: "Pintura Automotiva", icon: "🎨" },
@@ -75,12 +83,15 @@ export const CATEGORIES = [
   // Saúde e Bem-Estar
   { slug: "cuidador-idosos", name: "Cuidador de Idosos", icon: "👴🏻" },
   { slug: "baba", name: "Babá / Cuidador Infantil", icon: "👩🏻‍🍼" },
+  { slug: "personal-stylist", name: "Personal Stylist", icon: "👗" },
   { slug: "personal-trainer", name: "Personal Trainer", icon: "🏋🏻" },
+  { slug: "pilates", name: "Instrutor de Pilates", icon: "🧘" },
   { slug: "nutricionista", name: "Nutricionista", icon: "🥗" },
   { slug: "nutricionista-esportivo", name: "Nutricionista Esportivo", icon: "🥦" },
   { slug: "psicologo", name: "Psicólogo", icon: "🧠" },
   { slug: "massagista", name: "Massagista", icon: "💆🏻" },
   { slug: "fisioterapeuta", name: "Fisioterapeuta", icon: "🏥" },
+  { slug: "fonoaudiologo", name: "Fonoaudiólogo", icon: "🗣️" },
   { slug: "enfermeiro", name: "Enfermeiro(a) Domiciliar", icon: "💉" },
   { slug: "terapeuta", name: "Terapeuta / Reiki", icon: "🧘🏻" },
   { slug: "dentista", name: "Dentista Domiciliar", icon: "🦷" },
@@ -121,6 +132,7 @@ export const CATEGORIES = [
   // Profissionais Liberais
   { slug: "advogado", name: "Advogado", icon: "⚖️" },
   { slug: "contador", name: "Contador", icon: "🧾" },
+  { slug: "consultor-financeiro", name: "Consultor Financeiro", icon: "💰" },
   { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
   { slug: "corretor-de-imoveis", name: "Corretor de Imóveis", icon: "🏠" },
 
@@ -217,9 +229,6 @@ export const PLANS = {
       "Selo Parceiro UdiHub",
     ],
   },
-  // Legados — mantidos apenas para não quebrar profissionais antigos
-  // que ainda não foram migrados ao modelo novo. Não devem ser atribuídos
-  // a ninguém a partir de agora.
   basic: {
     name: "Básico (legado)",
     price: 69,
