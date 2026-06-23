@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, User, Briefcase, Loader2, Check, Camera, X, Instagram, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES } from "@/lib/constants";
-import toast from "react-hot-toast";
+import { completeRegistration } from "@/lib/pixel";
 
 async function sendEmail(type: string, to: string, name: string) {
   try {
@@ -99,6 +99,7 @@ function CadastroForm() {
       }
       const { error: loginError } = await supabase.auth.signInWithPassword({ email: form.email, password: form.password });
       await sendEmail("welcome", form.email, form.name);
+      completeRegistration(role || "client");
       if (loginError) {
         toast.success("Conta criada! Faca login para continuar.");
         router.push(redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : "/login");
@@ -203,7 +204,6 @@ function CadastroForm() {
             <h1 className="font-syne font-bold text-2xl text-foreground mb-1">Seu perfil</h1>
             <p className="text-sm text-muted mb-5">Complete seu perfil para aparecer nas buscas</p>
           </div>
-          {/* Foto */}
           <div>
             <label className="block text-xs font-medium text-muted mb-2">Foto do perfil *</label>
             <div className="flex items-center gap-4">
@@ -232,7 +232,6 @@ function CadastroForm() {
               </div>
             </div>
           </div>
-          {/* Especialidade */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Especialidade *</label>
             <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
@@ -241,7 +240,6 @@ function CadastroForm() {
               {CATEGORIES.map((cat) => (<option key={cat.slug} value={cat.slug}>{cat.icon} {cat.name}</option>))}
             </select>
           </div>
-          {/* CPF */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">CPF (opcional)</label>
             <input type="text" value={form.cpf || ""}
@@ -253,11 +251,9 @@ function CadastroForm() {
                 else if (n.length > 3) v = `${n.slice(0,3)}.${n.slice(3)}`;
                 setForm({ ...form, cpf: v });
               }}
-              placeholder="000.000.000-00" inputMode="numeric" maxLength={14}
-              className={inputClass} style={inputStyle} />
+              placeholder="000.000.000-00" inputMode="numeric" maxLength={14} className={inputClass} style={inputStyle} />
             <p className="text-[10px] text-muted mt-1">Necessário para ativar o plano pago</p>
           </div>
-          {/* Instagram */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5"><Instagram size={11} className="inline mr-1" />Instagram (opcional)</label>
             <div className="relative">
@@ -266,7 +262,6 @@ function CadastroForm() {
                 placeholder="seuinstagram" className={inputClass} style={{ ...inputStyle, paddingLeft: "2rem" }} />
             </div>
           </div>
-          {/* Bio */}
           <div>
             <label className="block text-xs font-medium text-muted mb-1.5">Bio (opcional)</label>
             <textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })}
@@ -274,7 +269,6 @@ function CadastroForm() {
               className={inputClass} style={{ ...inputStyle, resize: "none" }} />
             <p className="text-[10px] text-muted mt-1 text-right">{form.bio.length}/300</p>
           </div>
-          {/* Plano gratuito */}
           <div className="p-4 rounded-2xl" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)" }}>
             <div className="flex items-center gap-2 mb-1">
               <Check size={14} style={{ color: "#22c55e" }} />
