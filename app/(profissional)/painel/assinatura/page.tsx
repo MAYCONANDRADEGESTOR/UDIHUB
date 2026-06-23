@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, CreditCard, Zap, AlertCircle, Loader2, ExternalLink, Calendar, Crown } from "lucide-react";
 import { PLANS } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import { purchase } from "@/lib/pixel";
 import toast from "react-hot-toast";
 
 function formatDate(iso: string | null | undefined) {
@@ -15,14 +16,6 @@ function formatDate(iso: string | null | undefined) {
 
 function formatPrice(price: number) {
   return price.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatCpf(value: string) {
-  const n = value.replace(/\D/g, "").slice(0, 11);
-  if (n.length > 9) return `${n.slice(0,3)}.${n.slice(3,6)}.${n.slice(6,9)}-${n.slice(9)}`;
-  if (n.length > 6) return `${n.slice(0,3)}.${n.slice(3,6)}.${n.slice(6)}`;
-  if (n.length > 3) return `${n.slice(0,3)}.${n.slice(3)}`;
-  return n;
 }
 
 const PAID_PLAN_OPTIONS = ["professional", "professional_annual"] as const;
@@ -39,10 +32,6 @@ export default function AssinaturaPage() {
   const [subscription, setSubscription] = useState<any>(null);
   const [professional, setProfessional] = useState<any>(null);
   const [selectedPlan, setSelectedPlan] = useState<"professional" | "professional_annual">("professional");
-  const [cpf, setCpf] = useState("");
-  const [savingCpf, setSavingCpf] = useState(false);
-  const [hasCpf, setHasCpf] = useState(false);
-  const [pendingPlan, setPendingPlan] = useState<"professional" | "professional_annual" | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -50,52 +39,14 @@ export default function AssinaturaPage() {
       const data = await res.json();
       setSubscription(data.subscription);
       setProfessional(data.professional);
-
-      // Verifica se usuário já tem CPF
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: userData } = await supabase
-          .from("users").select("cpf").eq("id", user.id).single();
-        const cpfClean = userData?.cpf?.replace(/\D/g, "") || "";
-        setHasCpf(cpfClean.length === 11);
-      }
       setLoading(false);
     }
     load();
   }, []);
 
-  async function saveCpfAndSubscribe() {
-    const cpfClean = cpf.replace(/\D/g, "");
-    if (cpfClean.length !== 11) {
-      toast.error("CPF inválido — informe os 11 dígitos");
-      return;
-    }
-    setSavingCpf(true);
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      await supabase.from("users").update({ cpf: cpfClean }).eq("id", user.id);
-    }
-    setHasCpf(true);
-    setSavingCpf(false);
-    if (pendingPlan) {
-      setPendingPlan(null);
-      await doSubscribe(pendingPlan);
-    }
-  }
-
   async function handleSubscribe(planOverride?: "professional" | "professional_annual") {
-    const plan = planOverride || selectedPlan;
-    if (!hasCpf) {
-      setPendingPlan(plan);
-      return; // Mostra campo CPF
-    }
-    await doSubscribe(plan);
-  }
-
-  async function doSubscribe(plan: "professional" | "professional_annual") {
     setPaying(true);
+    const plan = planOverride || selectedPlan;
     try {
       const res = await fetch("/api/assinatura", {
         method: "POST",
@@ -106,6 +57,7 @@ export default function AssinaturaPage() {
       if (data.paymentUrl) {
         window.open(data.paymentUrl, "_blank");
         toast.success("Link de pagamento aberto!");
+        purchase(plan, plan === "professional_annual" ? 499.90 : 59.90);
       } else {
         const msg = data.details || data.error || "Erro ao gerar link de pagamento";
         toast.error(msg, { duration: 6000 });
@@ -142,8 +94,6 @@ export default function AssinaturaPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
-
-        {/* Status atual */}
         {isFreePlan ? (
           <div className="p-5 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-start justify-between mb-3">
@@ -154,9 +104,7 @@ export default function AssinaturaPage() {
                 </div>
               </div>
               <div className="px-2.5 py-1 rounded-full text-xs font-bold text-green-400"
-                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
-                ● Ativo
-              </div>
+                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>● Ativo</div>
             </div>
             <div className="space-y-2">
               {currentPlan.features.map((feat) => (
@@ -182,9 +130,7 @@ export default function AssinaturaPage() {
                 </div>
               </div>
               <div className="px-2.5 py-1 rounded-full text-xs font-bold text-green-400"
-                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>
-                ● Ativo
-              </div>
+                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)" }}>● Ativo</div>
             </div>
             <div className="space-y-2 mb-4">
               {currentPlan.features.map((feat) => (
@@ -195,8 +141,7 @@ export default function AssinaturaPage() {
               ))}
             </div>
             {nextBillingFormatted && (
-              <div className="flex items-center gap-2 pt-3"
-                style={{ borderTop: "1px solid rgba(59,130,246,0.2)" }}>
+              <div className="flex items-center gap-2 pt-3" style={{ borderTop: "1px solid rgba(59,130,246,0.2)" }}>
                 <Calendar size={13} style={{ color: "#60a5fa" }} />
                 <span className="text-xs" style={{ color: "#93c5fd" }}>
                   Próximo vencimento: <span className="font-semibold text-white">{nextBillingFormatted}</span>
@@ -219,12 +164,11 @@ export default function AssinaturaPage() {
             <AlertCircle size={16} style={{ color: "#f87171" }} />
             <div>
               <p className="text-sm font-semibold" style={{ color: "#f87171" }}>Perfil inativo</p>
-              <p className="text-xs text-muted mt-0.5">Assine um plano para aparecer nas buscas.</p>
+              <p className="text-xs text-muted mt-0.5">Assine um plano para aparecer nas buscas e receber clientes.</p>
             </div>
           </div>
         )}
 
-        {/* UPGRADE */}
         {isFreePlan && (
           <>
             <div>
@@ -261,44 +205,12 @@ export default function AssinaturaPage() {
               </div>
             </div>
 
-            {/* Campo CPF — aparece só quando não tem CPF e clicou em assinar */}
-            {!hasCpf && pendingPlan && (
-              <div className="p-4 rounded-2xl"
-                style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.25)" }}>
-                <p className="text-sm font-bold text-foreground mb-1">Informe seu CPF</p>
-                <p className="text-xs text-muted mb-3">Necessário para processar o pagamento pelo Asaas.</p>
-                <input
-                  type="text"
-                  value={cpf}
-                  onChange={(e) => setCpf(formatCpf(e.target.value))}
-                  placeholder="000.000.000-00"
-                  inputMode="numeric"
-                  maxLength={14}
-                  className="w-full px-4 py-3 rounded-xl text-sm text-foreground mb-3"
-                  style={{ background: "#09090B", border: "1px solid #1F1F23", outline: "none" }}
-                />
-                <button
-                  onClick={saveCpfAndSubscribe}
-                  disabled={savingCpf || cpf.replace(/\D/g, "").length !== 11}
-                  className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2"
-                  style={{
-                    background: "linear-gradient(135deg,#3B82F6,#1d4ed8)",
-                    opacity: (savingCpf || cpf.replace(/\D/g, "").length !== 11) ? 0.6 : 1,
-                  }}>
-                  {savingCpf ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
-                  {savingCpf ? "Salvando..." : "Salvar e gerar link de pagamento"}
-                </button>
-              </div>
-            )}
-
-            {(hasCpf || !pendingPlan) && (
-              <button onClick={() => handleSubscribe()} disabled={paying}
-                className="w-full py-4 rounded-2xl font-bold text-base text-white flex items-center justify-center gap-2"
-                style={{ background: "linear-gradient(135deg,#3B82F6,#1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.4)", opacity: paying ? 0.7 : 1 }}>
-                {paying ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
-                {paying ? "Gerando link..." : `Assinar — R$${formatPrice(PLANS[selectedPlan].price)}${PLANS[selectedPlan].annual ? "/ano" : "/mês"}`}
-              </button>
-            )}
+            <button onClick={() => handleSubscribe()} disabled={paying}
+              className="w-full py-4 rounded-2xl font-bold text-base text-white flex items-center justify-center gap-2"
+              style={{ background: "linear-gradient(135deg,#3B82F6,#1d4ed8)", boxShadow: "0 0 24px rgba(59,130,246,0.4)", opacity: paying ? 0.7 : 1 }}>
+              {paying ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+              {paying ? "Gerando link..." : `Assinar — R$${formatPrice(PLANS[selectedPlan].price)}${PLANS[selectedPlan].annual ? "/ano" : "/mês"}`}
+            </button>
 
             <p className="text-center text-xs text-muted">
               Pagamento via PIX ou cartão pelo Asaas · Cancele quando quiser
@@ -306,7 +218,6 @@ export default function AssinaturaPage() {
           </>
         )}
 
-        {/* Upgrade anual */}
         {professional?.plan === "professional" && isActive && (
           <div className="p-4 rounded-2xl"
             style={{ background: "linear-gradient(135deg,#1a1304,#3b2a06)", border: "1px solid rgba(251,191,36,0.3)" }}>
@@ -325,7 +236,6 @@ export default function AssinaturaPage() {
           </div>
         )}
 
-        {/* Gerenciar */}
         {isPaidPlan && isActive && (
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <h3 className="font-syne font-bold text-sm text-foreground mb-3">Gerenciar</h3>
