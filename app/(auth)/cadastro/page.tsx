@@ -86,7 +86,13 @@ function CadastroForm() {
       });
       if (error || data?.error) {
         const msg = data?.error || error?.message || "";
-        toast.error(msg === "EMAIL_TAKEN" ? "Este e-mail ja esta cadastrado" : "Erro ao criar conta. Tente novamente.");
+        if (msg === "EMAIL_TAKEN") {
+          toast.error("Este e-mail ja esta cadastrado");
+        } else if (msg === "INVALID_EMAIL_DOMAIN" || msg === "INVALID_EMAIL") {
+          toast.error("Este e-mail não existe. Use um e-mail válido.");
+        } else {
+          toast.error("Erro ao criar conta. Tente novamente.");
+        }
         setLoading(false);
         return;
       }
