@@ -58,7 +58,7 @@ export default function EditarPerfilPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     name: "", email: "", phone: "", whatsapp: "",
-    bio: "", available_now: false, instagram: "",
+    bio: "", available_now: false, instagram: "", cpf: "",
   });
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export default function EditarPerfilPage() {
         supabase.from("professionals")
           .select("id, whatsapp, bio, available_now, work_hours, instagram, professional_neighborhoods(neighborhood_id)")
           .eq("user_id", user.id).single(),
-        supabase.from("users").select("name, email, phone, avatar").eq("id", user.id).single(),
+        supabase.from("users").select("name, email, phone, avatar, cpf").eq("id", user.id).single(),
         supabase.from("neighborhoods").select("id, name").eq("city_id", cityId).order("name"),
         supabase.from("professional_categories").select("category_id, is_primary").eq("professional_id",
           (await supabase.from("professionals").select("id").eq("user_id", user.id).single()).data?.id || ""
@@ -91,13 +91,11 @@ export default function EditarPerfilPage() {
         (prof.professional_neighborhoods as any[])?.map((pn: any) => pn.neighborhood_id) || []
       );
 
-      // Carregar categorias selecionadas (primária primeiro)
       if (profCats && profCats.length > 0) {
         const sorted = [...profCats].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0));
         const { data: catsData } = await supabase
           .from("categories").select("id, slug")
           .in("id", sorted.map((pc: any) => pc.category_id));
-
         if (catsData) {
           const slugs = sorted.map((pc: any) =>
             catsData.find((c: any) => c.id === pc.category_id)?.slug
@@ -120,6 +118,7 @@ export default function EditarPerfilPage() {
         name: userData?.name || "",
         email: userData?.email || user.email || "",
         phone: userData?.phone || "",
+        cpf: userData?.cpf || "",
         whatsapp: prof.whatsapp || "",
         bio: prof.bio || "",
         available_now: prof.available_now || false,
@@ -187,7 +186,11 @@ export default function EditarPerfilPage() {
     const primaryCat = catsData?.find((c: any) => c.slug === selectedCategories[0]);
 
     await Promise.all([
-      supabase.from("users").update({ name: form.name, phone: form.phone || null }).eq("id", userId),
+      supabase.from("users").update({
+        name: form.name,
+        phone: form.phone || null,
+        cpf: form.cpf?.replace(/\D/g, "") || null,
+      }).eq("id", userId),
       supabase.from("professionals").update({
         whatsapp: form.whatsapp.replace(/\D/g, ""),
         bio: form.bio,
@@ -198,7 +201,6 @@ export default function EditarPerfilPage() {
       }).eq("id", professionalId),
     ]);
 
-    // Atualizar categorias
     await supabase.from("professional_categories").delete().eq("professional_id", professionalId);
     if (catsData && catsData.length > 0) {
       await supabase.from("professional_categories").insert(
@@ -210,7 +212,6 @@ export default function EditarPerfilPage() {
       );
     }
 
-    // Atualizar bairros
     await supabase.from("professional_neighborhoods").delete().eq("professional_id", professionalId);
     if (selectedNeighborhoodIds.length > 0) {
       await supabase.from("professional_neighborhoods").insert(
@@ -303,6 +304,21 @@ export default function EditarPerfilPage() {
               placeholder="(34) 99999-9999" required className={inputClass} style={inputStyle} />
           </div>
           <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">CPF</label>
+            <input type="text" value={form.cpf}
+              onChange={(e) => {
+                const n = e.target.value.replace(/\D/g, "").slice(0, 11);
+                let v = n;
+                if (n.length > 9) v = `${n.slice(0,3)}.${n.slice(3,6)}.${n.slice(6,9)}-${n.slice(9)}`;
+                else if (n.length > 6) v = `${n.slice(0,3)}.${n.slice(3,6)}.${n.slice(6)}`;
+                else if (n.length > 3) v = `${n.slice(0,3)}.${n.slice(3)}`;
+                setForm({ ...form, cpf: v });
+              }}
+              placeholder="000.000.000-00" inputMode="numeric" maxLength={14}
+              className={inputClass} style={inputStyle} />
+            <p className="text-[10px] text-muted mt-1">Necessário para ativar o plano pago</p>
+          </div>
+          <div>
             <label className="block text-xs font-medium text-muted mb-1.5">
               <Instagram size={11} className="inline mr-1" />Instagram (opcional)
             </label>
@@ -310,8 +326,7 @@ export default function EditarPerfilPage() {
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted">@</span>
               <input type="text" value={form.instagram}
                 onChange={(e) => setForm({ ...form, instagram: e.target.value.replace("@", "") })}
-                placeholder="seuinstagram"
-                className={inputClass}
+                placeholder="seuinstagram" className={inputClass}
                 style={{ ...inputStyle, paddingLeft: "2rem" }} />
             </div>
             {form.instagram && (
@@ -330,13 +345,12 @@ export default function EditarPerfilPage() {
           </div>
         </div>
 
-        {/* ── CATEGORIAS ── */}
+        {/* Categorias */}
         <div>
           <label className="block text-xs font-medium text-muted mb-2">
             Especialidades ({selectedCategories.length}/3 selecionadas)
             <span className="ml-1 text-[10px]" style={{ color: "#64748b" }}>— máximo 3</span>
           </label>
-
           {selectedCategories.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
               {selectedCategories.map((slug, idx) => {
@@ -357,7 +371,6 @@ export default function EditarPerfilPage() {
               })}
             </div>
           )}
-
           <div className="max-h-48 overflow-y-auto rounded-xl p-2 space-y-0.5"
             style={{ background: "#09090B", border: "1px solid #1F1F23" }}>
             {CATEGORIES.map((cat) => {
@@ -366,10 +379,7 @@ export default function EditarPerfilPage() {
               return (
                 <button key={cat.slug} type="button" onClick={() => toggleCategory(cat.slug)}
                   className="w-full text-left px-3 py-2 rounded-lg text-xs transition-all duration-150 flex items-center justify-between"
-                  style={{
-                    background: selected ? "rgba(59,130,246,0.1)" : "transparent",
-                    color: selected ? "#93c5fd" : "#A1A1AA"
-                  }}>
+                  style={{ background: selected ? "rgba(59,130,246,0.1)" : "transparent", color: selected ? "#93c5fd" : "#A1A1AA" }}>
                   <span>{cat.icon} {cat.name}</span>
                   {selected && (
                     <span className="flex items-center gap-1">
@@ -384,7 +394,7 @@ export default function EditarPerfilPage() {
           <p className="text-[10px] text-muted mt-1">A primeira categoria selecionada é a principal</p>
         </div>
 
-        {/* ── HORÁRIOS ── */}
+        {/* Horários */}
         <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
@@ -401,7 +411,6 @@ export default function EditarPerfilPage() {
           <p className="text-xs text-muted mb-3">
             {showHours ? "Configure os horários exibidos no seu perfil." : "Ative para mostrar seus horários no perfil."}
           </p>
-
           {showHours && (
             <div className="space-y-3">
               {DAYS.map(({ key, label }) => {
