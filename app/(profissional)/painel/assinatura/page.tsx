@@ -19,8 +19,6 @@ function formatPrice(price: number) {
 
 const PAID_PLAN_OPTIONS = ["professional", "professional_annual"] as const;
 
-// Mapa de planos legados para seus equivalentes atuais, usado apenas para
-// exibição (nome/preço/features) — nunca atribuído a ninguém novo.
 const LEGACY_PLAN_MAP: Record<string, "free" | "professional"> = {
   basic: "free",
   pro: "professional",
@@ -59,7 +57,9 @@ export default function AssinaturaPage() {
         window.open(data.paymentUrl, "_blank");
         toast.success("Link de pagamento aberto!");
       } else {
-        toast.error("Erro ao gerar link de pagamento");
+        const msg = data.details || data.error || "Erro ao gerar link de pagamento";
+        toast.error(msg, { duration: 6000 });
+        console.error("Payment error:", data);
       }
     } catch {
       toast.error("Erro ao processar pagamento");
@@ -67,18 +67,12 @@ export default function AssinaturaPage() {
     setPaying(false);
   }
 
-  // Planos pagos reais: professional, professional_annual (e "pro" legado,
-  // que era equivalente). "basic" NÃO é pago — é tratado como legado de
-  // free, igual já é feito em painel/page.tsx, pra manter consistência.
   const isPaidPlan = professional?.plan === "professional" || professional?.plan === "professional_annual" || professional?.plan === "pro";
   const isFreePlan = professional?.plan === "free" || professional?.plan === "basic";
   const isActive = professional?.status === "active" && (isFreePlan || subscription?.status === "active");
   const isPending = subscription?.status === "pending";
   const nextBillingFormatted = formatDate(subscription?.next_billing);
 
-  // Plano atual com fallback seguro: mapeia planos legados (basic/pro) para
-  // seus equivalentes atuais antes de buscar em PLANS, pra nunca mostrar
-  // nome/preço antigo (ex: R$69) por engano. Se nada bater, cai em "free".
   const effectivePlanKey = professional?.plan
     ? (LEGACY_PLAN_MAP[professional.plan] || professional.plan)
     : "free";
@@ -101,7 +95,6 @@ export default function AssinaturaPage() {
 
       <div className="px-4 py-4 space-y-4">
 
-        {/* Status atual */}
         {isFreePlan ? (
           <div className="p-5 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <div className="flex items-start justify-between mb-3">
@@ -152,7 +145,6 @@ export default function AssinaturaPage() {
                 </div>
               ))}
             </div>
-
             {nextBillingFormatted && (
               <div className="flex items-center gap-2 pt-3"
                 style={{ borderTop: "1px solid rgba(59,130,246,0.2)" }}>
@@ -183,7 +175,6 @@ export default function AssinaturaPage() {
           </div>
         )}
 
-        {/* Upgrade — visível para quem está no Gratuito */}
         {isFreePlan && (
           <>
             <div>
@@ -233,7 +224,6 @@ export default function AssinaturaPage() {
           </>
         )}
 
-        {/* Sugestão de upgrade para anual — visível para quem já é Profissional mensal */}
         {professional?.plan === "professional" && isActive && (
           <div className="p-4 rounded-2xl"
             style={{ background: "linear-gradient(135deg,#1a1304,#3b2a06)", border: "1px solid rgba(251,191,36,0.3)" }}>
@@ -252,7 +242,6 @@ export default function AssinaturaPage() {
           </div>
         )}
 
-        {/* Gerenciar */}
         {isPaidPlan && isActive && (
           <div className="p-4 rounded-2xl" style={{ background: "#111113", border: "1px solid #1F1F23" }}>
             <h3 className="font-syne font-bold text-sm text-foreground mb-3">Gerenciar</h3>
