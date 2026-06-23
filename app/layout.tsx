@@ -6,10 +6,8 @@ import Script from "next/script";
 import BottomNav from "@/app/components/layout/BottomNav";
 
 const GA_ID = "G-QK04EZWBTR";
+const PIXEL_ID = "4151514745140497";
 
-// Fontes carregadas no build pelo Next.js (self-hosted), em vez de via <link>
-// pro Google Fonts em tempo de execução. Isso elimina o "flash" de fonte
-// errada (FOUT) que acontecia enquanto a fonte ainda baixava do Google.
 const syne = Syne({
   subsets: ["latin"],
   weight: ["400", "600", "700", "800"],
@@ -64,7 +62,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "UDIHUB" },
   icons: { icon: "/logo.png", apple: "/logo.png", shortcut: "/logo.png" },
-  verification: { google: "cA4wo2-DPRYakeEmQw3Lj_tAQLV2R0CJyJrQN5Z2TDk" },
+  verification: {
+    google: "cA4wo2-DPRYakeEmQw3Lj_tAQLV2R0CJyJrQN5Z2TDk",
+    other: { "facebook-domain-verification": ["x5ydkkdr196fme54z8d7l0u9e9p64q"] },
+  },
 };
 
 export const viewport: Viewport = {
@@ -113,20 +114,39 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="font-sans bg-background text-foreground antialiased">
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-          strategy="afterInteractive"
-        />
+
+        {/* Google Analytics */}
+        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', '${GA_ID}', {
-              page_path: window.location.pathname,
-            });
+            gtag('config', '${GA_ID}', { page_path: window.location.pathname });
           `}
         </Script>
+
+        {/* Meta Pixel */}
+        <Script id="meta-pixel" strategy="afterInteractive">
+          {`
+            !function(f,b,e,v,n,t,s)
+            {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+            n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+            n.queue=[];t=b.createElement(e);t.async=!0;
+            t.src=v;s=b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t,s)}(window,document,'script',
+            'https://connect.facebook.net/en_US/fbevents.js');
+            fbq('init', '${PIXEL_ID}');
+            fbq('track', 'PageView');
+          `}
+        </Script>
+        <noscript>
+          <img height="1" width="1" style={{ display: "none" }}
+            src={`https://www.facebook.com/tr?id=${PIXEL_ID}&ev=PageView&noscript=1`}
+            alt="" />
+        </noscript>
+
         {children}
         <BottomNav />
         <Toaster
