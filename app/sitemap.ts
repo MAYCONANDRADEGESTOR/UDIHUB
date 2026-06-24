@@ -1,16 +1,17 @@
 import { MetadataRoute } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const supabase = createClient()
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
-  // Busca todos os profissionais ativos
   const { data: professionals } = await supabase
     .from('professionals')
     .select('slug, created_at')
     .eq('status', 'active')
 
-  // URLs das categorias com -uberlandia
   const categoryUrls = [
     'acupuntura', 'adestrador', 'advogado', 'aluguel-equipamentos',
     'arquiteto', 'assistente-virtual', 'azulejista', 'baba',
@@ -55,7 +56,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }))
 
-  // URLs dos perfis de profissionais
   const professionalUrls = (professionals ?? []).map((pro) => ({
     url: `https://udihub.com.br/profissional/${pro.slug}`,
     lastModified: new Date(pro.created_at),
@@ -63,7 +63,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }))
 
-  // Páginas estáticas
   const staticUrls = [
     {
       url: 'https://udihub.com.br',
