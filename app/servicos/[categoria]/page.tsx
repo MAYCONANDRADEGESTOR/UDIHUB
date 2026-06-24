@@ -1,5 +1,4 @@
 import { Metadata } from 'next'
-import { notFound } from 'next/navigation'
 import CategoriaClient from './CategoriaClient'
 
 interface Props {
@@ -154,5 +153,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default function CategoriaPage({ params }: Props) {
-  return <CategoriaClient categoria={params.categoria} />
+  const slugSemCidade = params.categoria.replace('-uberlandia', '')
+  return <CategoriaClient categoria={slugSemCidade} />
 }
