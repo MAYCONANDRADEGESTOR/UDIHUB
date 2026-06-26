@@ -9,7 +9,6 @@ export const CATEGORIES = [
   { slug: "marceneiro", name: "Marceneiro", icon: "🪵" },
   { slug: "serralheiro", name: "Serralheiro", icon: "🔩" },
   { slug: "vidraceiro", name: "Vidraceiro", icon: "🪟" },
-  { slug: "yoga", name: "Instrutor de Yoga", icon: "🕉️" },
   { slug: "azulejista", name: "Azulejista / Revestimento", icon: "🚧" },
   { slug: "marmoraria", name: "Marmoraria", icon: "🪨" },
   { slug: "impermeabilizacao", name: "Impermeabilização", icon: "💧" },
@@ -48,6 +47,9 @@ export const CATEGORIES = [
   { slug: "cameras-cftv", name: "Instalador de Câmeras / CFTV", icon: "📷" },
   { slug: "lavanderia", name: "Lavanderia / Passadoria", icon: "👕" },
   { slug: "aluguel-equipamentos", name: "Aluguel de Equipamentos", icon: "🔧" },
+  { slug: "organizadora-ambientes", name: "Organizadora de Ambientes", icon: "📦" },
+  { slug: "limpeza-pos-obra", name: "Limpeza Pós-Obra", icon: "🧹" },
+  { slug: "automacao-residencial", name: "Automação Residencial", icon: "🏠" },
 
   // Tecnologia
   { slug: "tecnico-informatica", name: "Técnico de Informática", icon: "💻" },
@@ -79,6 +81,8 @@ export const CATEGORIES = [
   { slug: "motorista", name: "Motorista / Mototaxista", icon: "🚙" },
   { slug: "mudanca-transporte", name: "Mudança e Transporte", icon: "🚚" },
   { slug: "guincho", name: "Guincho / Reboque", icon: "🚛" },
+  { slug: "polimento-automotivo", name: "Polimento Automotivo", icon: "✨" },
+  { slug: "despachante", name: "Despachante", icon: "📋" },
 
   // Saúde e Bem-Estar
   { slug: "cuidador-idosos", name: "Cuidador de Idosos", icon: "👴🏻" },
@@ -86,6 +90,7 @@ export const CATEGORIES = [
   { slug: "personal-stylist", name: "Personal Stylist", icon: "👗" },
   { slug: "personal-trainer", name: "Personal Trainer", icon: "🏋🏻" },
   { slug: "pilates", name: "Instrutor de Pilates", icon: "🧘" },
+  { slug: "yoga", name: "Instrutor de Yoga", icon: "🕉️" },
   { slug: "nutricionista", name: "Nutricionista", icon: "🥗" },
   { slug: "nutricionista-esportivo", name: "Nutricionista Esportivo", icon: "🥦" },
   { slug: "psicologo", name: "Psicólogo", icon: "🧠" },
@@ -107,12 +112,23 @@ export const CATEGORIES = [
   { slug: "micropigmentacao", name: "Micropigmentação", icon: "🖌️" },
   { slug: "tatuador", name: "Tatuador / Body Piercing", icon: "🖊️" },
   { slug: "podologo", name: "Podólogo", icon: "🦶🏻" },
+  { slug: "extensao-cilios", name: "Extensão de Cílios", icon: "👁️" },
+  { slug: "bronzeamento", name: "Bronzeamento", icon: "🌞" },
+
+  // Educação
+  { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
+  { slug: "aula-idiomas", name: "Aula de Idiomas", icon: "🌍" },
+  { slug: "aula-musica", name: "Aula de Música", icon: "🎸" },
+  { slug: "aula-danca", name: "Aula de Dança", icon: "💃" },
 
   // Alimentação
   { slug: "confeitaria", name: "Confeitaria / Doces", icon: "🎂" },
   { slug: "cozinheiro", name: "Cozinheiro(a) / Chef", icon: "👨🏻‍🍳" },
   { slug: "marmitaria", name: "Marmitaria / Refeições", icon: "🍱" },
   { slug: "bartender", name: "Bartender / Coqueteleiro", icon: "🍹" },
+  { slug: "salgadeiro", name: "Salgadeiro / Quitandas", icon: "🥟" },
+  { slug: "pao-artesanal", name: "Padeiro / Pão Artesanal", icon: "🍞" },
+  { slug: "chocolateria", name: "Chocolateria Artesanal", icon: "🍫" },
 
   // Eventos
   { slug: "dj", name: "DJ / Sonorização", icon: "🎵" },
@@ -121,6 +137,9 @@ export const CATEGORIES = [
   { slug: "buffet", name: "Buffet / Garçom", icon: "🍽️" },
   { slug: "fotografo", name: "Fotógrafo", icon: "📸" },
   { slug: "locutor", name: "Locutor", icon: "🎙️" },
+  { slug: "animador-festas", name: "Animador de Festas Infantis", icon: "🎪" },
+  { slug: "assessor-casamentos", name: "Assessor de Casamentos", icon: "💒" },
+  { slug: "videomaker", name: "Videomaker", icon: "🎬" },
 
   // Animais
   { slug: "pet-sitter", name: "Pet Sitter / Dog Walker", icon: "🐕‍🦺" },
@@ -133,8 +152,21 @@ export const CATEGORIES = [
   { slug: "advogado", name: "Advogado", icon: "⚖️" },
   { slug: "contador", name: "Contador", icon: "🧾" },
   { slug: "consultor-financeiro", name: "Consultor Financeiro", icon: "💰" },
-  { slug: "professor-particular", name: "Professor Particular", icon: "📚" },
   { slug: "corretor-de-imoveis", name: "Corretor de Imóveis", icon: "🏠" },
+  { slug: "coach", name: "Coach / Mentor", icon: "🎯" },
+  { slug: "personal-shopper", name: "Personal Shopper", icon: "🛍️" },
+
+  // Artesanato
+  { slug: "artesanato-croche", name: "Artesanato em Crochê", icon: "🧶" },
+  { slug: "artesanato-trico", name: "Artesanato em Tricô", icon: "🪡" },
+  { slug: "artesanato-macrame", name: "Artesanato em Macramê", icon: "🪢" },
+  { slug: "artesanato-biscuit", name: "Artesanato em Biscuit", icon: "🎨" },
+  { slug: "artesanato-resina", name: "Artesanato em Resina", icon: "💎" },
+  { slug: "pintura-tela", name: "Pintura em Tela", icon: "🖼️" },
+  { slug: "bijuteria-artesanal", name: "Bijuterias Artesanais", icon: "💍" },
+  { slug: "velas-artesanais", name: "Velas e Aromaterapia", icon: "🕯️" },
+  { slug: "customizacao-roupas", name: "Customização de Roupas", icon: "👕" },
+  { slug: "artesanato-madeira", name: "Artesanato em Madeira", icon: "🪵" },
 
   // Outros
   { slug: "costureira", name: "Costureira / Alfaiate", icon: "🧵" },
