@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { ProfessionalCardSkeleton } from "@/app/components/ui/Skeletons";
 import { getInitials, buildWhatsAppUrl } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { trackWhatsAppClick, trackCategoryView, trackProfileView } from "@/lib/analytics";
 
 const uberlandia = CITIES.find((c) => c.slug === "uberlandia")!;
 
@@ -31,14 +32,13 @@ interface Filters {
   sortBy: "pro_first" | "best_rated" | "newest";
 }
 
-// ← única mudança: recebe categoria via prop em vez de useParams
 interface Props {
   categoria: string;
 }
 
 export default function CategoriaClient({ categoria }: Props) {
   const router = useRouter();
-  const slug = categoria; // ← era: const slug = params.categoria as string
+  const slug = categoria;
   const category = CATEGORIES.find((c) => c.slug === slug);
   const [professionals, setProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +49,11 @@ export default function CategoriaClient({ categoria }: Props) {
   const [filters, setFilters] = useState<Filters>({
     neighborhood: "", minRating: 0, availableOnly: false, sortBy: "pro_first",
   });
+
+  // Trackeia visualização da categoria
+  useEffect(() => {
+    if (category) trackCategoryView(category.name);
+  }, [category]);
 
   useEffect(() => {
     async function load() {
@@ -121,6 +126,11 @@ export default function CategoriaClient({ categoria }: Props) {
       setShowLoginModal(true);
       return;
     }
+    // Trackeia clique no WhatsApp
+    trackWhatsAppClick(
+      (prof.users as any)?.name ?? "",
+      (prof.categories as any)?.name ?? category?.name ?? ""
+    );
     try {
       await fetch("/api/whatsapp-click", {
         method: "POST",
@@ -135,11 +145,19 @@ export default function CategoriaClient({ categoria }: Props) {
     window.open(buildWhatsAppUrl(prof.whatsapp, `Olá! Vi seu perfil no UDIHUB e gostaria de um orçamento.`), "_blank");
   }
 
-  function handleProfileClick(e: React.MouseEvent) {
+  function handleProfileClick(e: React.MouseEvent, prof?: any) {
     if (!userId) {
       e.preventDefault();
       setPendingAction("profile");
       setShowLoginModal(true);
+      return;
+    }
+    // Trackeia visualização de perfil
+    if (prof) {
+      trackProfileView(
+        (prof.users as any)?.name ?? "",
+        (prof.categories as any)?.name ?? category?.name ?? ""
+      );
     }
   }
 
@@ -266,7 +284,7 @@ export default function CategoriaClient({ categoria }: Props) {
               <div key={prof.id} className="rounded-2xl overflow-hidden"
                 style={{ background: "#111113", border: "1px solid #1F1F23" }}>
                 <Link href={`/profissional/${prof.slug}`} className="block p-4"
-                  onClick={handleProfileClick}>
+                  onClick={(e) => handleProfileClick(e, prof)}>
                   <div className="flex items-start gap-3">
                     <div className="relative flex-shrink-0">
                       {(prof.users as any)?.avatar ? (
@@ -317,7 +335,7 @@ export default function CategoriaClient({ categoria }: Props) {
                 </Link>
                 <div className="px-4 pb-4 grid grid-cols-2 gap-2">
                   <Link href={`/profissional/${prof.slug}`}
-                    onClick={handleProfileClick}
+                    onClick={(e) => handleProfileClick(e, prof)}
                     className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold"
                     style={{ background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.2)", color: "#93c5fd" }}>
                     <Eye size={15} /> Ver perfil
