@@ -116,13 +116,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans bg-background text-foreground antialiased">
 
         {/* Google Analytics */}
-        <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} strategy="afterInteractive" />
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+          strategy="afterInteractive"
+        />
         <Script id="google-analytics" strategy="afterInteractive">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', '${GA_ID}', { page_path: window.location.pathname });
+            gtag('config', '${GA_ID}', {
+              page_path: window.location.pathname,
+              send_page_view: true,
+            });
           `}
         </Script>
 
